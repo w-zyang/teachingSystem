@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班级统计API测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #444;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+        .stats-display {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>班级统计API测试</h1>
+        
+        <div class="test-section">
+            <div class="test-title">1. 测试教师班级统计 (Teacher ID: 2)</div>
+            <button onclick="testTeacherClassStats()">获取班级统计</button>
+            <div id="classStatsResult" class="result"></div>
+            <div id="classStatsDisplay" class="stats-display"></div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">2. 测试成绩分布</div>
+            <button onclick="testGradeDistribution()">获取成绩分布</button>
+            <div id="gradeResult" class="result"></div>
+        </div>
+        
+        <div class="test-section">
+            <div class="test-title">3. 测试错误知识点</div>
+            <button onclick="testErrorTopics()">获取错误知识点</button>
+            <div id="errorResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:8080';
+
+        async function testTeacherClassStats() {
+            const resultDiv = document.getElementById('classStatsResult');
+            const displayDiv = document.getElementById('classStatsDisplay');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/stats/teacher/2/class`);
+                const data = await response.json();
+                
+                resultDiv.className = 'result success';
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.success && data.data) {
+                    const stats = data.data;
+                    displayDiv.innerHTML = `
+                        <div class="stat-item">
+                            <div class="stat-value">${stats.averageScore || 0}</div>
+                            <div class="stat-label">平均分</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${stats.passRate || 0}%</div>
+                            <div class="stat-label">及格率</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${stats.excellentRate || 0}%</div>
+                            <div class="stat-label">优秀率</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${stats.participationRate || 0}%</div>
+                            <div class="stat-label">参与率</div>
+                        </div>
+                    `;
+                } else {
+                    displayDiv.innerHTML = '<p>暂无数据</p>';
+                }
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `错误: ${error.message}`;
+                displayDiv.innerHTML = '';
+            }
+        }
+
+        async function testGradeDistribution() {
+            const resultDiv = document.getElementById('gradeResult');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/stats/grade-distribution`);
+                const data = await response.json();
+                
+                resultDiv.className = 'result success';
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `错误: ${error.message}`;
+            }
+        }
+
+        async function testErrorTopics() {
+            const resultDiv = document.getElementById('errorResult');
+            
+            try {
+                const response = await fetch(`${BASE_URL}/api/stats/error-topics`);
+                const data = await response.json();
+                
+                resultDiv.className = 'result success';
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `错误: ${error.message}`;
+            }
+        }
+
+        // 页面加载完成后自动测试
+        window.addEventListener('load', function() {
+            console.log('页面加载完成，可以开始测试API');
+        });
+    </script>
+</body>
+</html> 

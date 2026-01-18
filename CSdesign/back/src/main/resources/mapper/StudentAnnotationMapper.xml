@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.StudentAnnotationMapper">
+
+    <resultMap id="StudentAnnotationMap" type="com.experiment.pojo.StudentAnnotation">
+        <id property="id" column="id"/>
+        <result property="studentId" column="student_id"/>
+        <result property="resourceId" column="resource_id"/>
+        <result property="type" column="type"/>
+        <result property="selectedText" column="selected_text"/>
+        <result property="pageNumber" column="page_number"/>
+        <result property="position" column="position"/>
+        <result property="color" column="color"/>
+        <result property="comment" column="comment"/>
+        <result property="importance" column="importance"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="studentName" column="student_name"/>
+        <result property="resourceTitle" column="resource_title"/>
+    </resultMap>
+
+    <!-- 根据学生ID和资源ID获取标注列表 -->
+    <select id="findByStudentIdAndResourceId" resultMap="StudentAnnotationMap">
+        SELECT sa.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_annotation sa
+        LEFT JOIN user u ON sa.student_id = u.id
+        LEFT JOIN course_resource cr ON sa.resource_id = cr.id
+        WHERE sa.student_id = #{studentId} AND sa.resource_id = #{resourceId}
+        ORDER BY sa.page_number, sa.create_time
+    </select>
+
+    <!-- 根据学生ID获取所有标注 -->
+    <select id="findByStudentId" resultMap="StudentAnnotationMap">
+        SELECT sa.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_annotation sa
+        LEFT JOIN user u ON sa.student_id = u.id
+        LEFT JOIN course_resource cr ON sa.resource_id = cr.id
+        WHERE sa.student_id = #{studentId}
+        ORDER BY sa.create_time DESC
+    </select>
+
+    <!-- 根据资源ID和页码获取标注 -->
+    <select id="findByResourceIdAndPage" resultMap="StudentAnnotationMap">
+        SELECT sa.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_annotation sa
+        LEFT JOIN user u ON sa.student_id = u.id
+        LEFT JOIN course_resource cr ON sa.resource_id = cr.id
+        WHERE sa.resource_id = #{resourceId} AND sa.page_number = #{pageNumber}
+        ORDER BY sa.create_time
+    </select>
+
+    <!-- 根据标注类型获取标注 -->
+    <select id="findByType" resultMap="StudentAnnotationMap">
+        SELECT sa.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_annotation sa
+        LEFT JOIN user u ON sa.student_id = u.id
+        LEFT JOIN course_resource cr ON sa.resource_id = cr.id
+        WHERE sa.student_id = #{studentId} AND sa.type = #{type}
+        ORDER BY sa.create_time DESC
+    </select>
+
+    <!-- 根据ID获取标注详情 -->
+    <select id="findById" resultMap="StudentAnnotationMap">
+        SELECT sa.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_annotation sa
+        LEFT JOIN user u ON sa.student_id = u.id
+        LEFT JOIN course_resource cr ON sa.resource_id = cr.id
+        WHERE sa.id = #{id}
+    </select>
+
+    <!-- 插入新标注 -->
+    <insert id="insert" parameterType="com.experiment.pojo.StudentAnnotation" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO student_annotation (
+            student_id, resource_id, type, selected_text, page_number,
+            position, color, comment, importance
+        ) VALUES (
+            #{studentId}, #{resourceId}, #{type}, #{selectedText}, #{pageNumber},
+            #{position}, #{color}, #{comment}, #{importance}
+        )
+    </insert>
+
+    <!-- 更新标注 -->
+    <update id="update" parameterType="com.experiment.pojo.StudentAnnotation">
+        UPDATE student_annotation SET
+            type = #{type},
+            selected_text = #{selectedText},
+            page_number = #{pageNumber},
+            position = #{position},
+            color = #{color},
+            comment = #{comment},
+            importance = #{importance}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除标注 -->
+    <delete id="deleteById">
+        DELETE FROM student_annotation WHERE id = #{id}
+    </delete>
+
+    <!-- 根据资源ID删除所有标注（级联删除） -->
+    <delete id="deleteByResourceId">
+        DELETE FROM student_annotation WHERE resource_id = #{resourceId}
+    </delete>
+
+    <!-- 根据重要程度获取标注 -->
+    <select id="findByImportance" resultMap="StudentAnnotationMap">
+        SELECT sa.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_annotation sa
+        LEFT JOIN user u ON sa.student_id = u.id
+        LEFT JOIN course_resource cr ON sa.resource_id = cr.id
+        WHERE sa.student_id = #{studentId} AND sa.importance = #{importance}
+        ORDER BY sa.create_time DESC
+    </select>
+
+    <!-- 统计学生标注数量 -->
+    <select id="countByStudentId" resultType="int">
+        SELECT COUNT(*) FROM student_annotation WHERE student_id = #{studentId}
+    </select>
+
+    <!-- 搜索标注 -->
+    <select id="searchAnnotations" resultMap="StudentAnnotationMap">
+        SELECT sa.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_annotation sa
+        LEFT JOIN user u ON sa.student_id = u.id
+        LEFT JOIN course_resource cr ON sa.resource_id = cr.id
+        WHERE sa.student_id = #{studentId}
+        <if test="keyword != null and keyword != ''">
+            AND (sa.selected_text LIKE CONCAT('%', #{keyword}, '%') 
+                 OR sa.comment LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="type != null and type != ''">
+            AND sa.type = #{type}
+        </if>
+        <if test="resourceId != null">
+            AND sa.resource_id = #{resourceId}
+        </if>
+        ORDER BY sa.create_time DESC
+    </select>
+
+</mapper> 

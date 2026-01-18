@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.StudentNoteMapper">
+
+    <resultMap id="StudentNoteMap" type="com.experiment.pojo.StudentNote">
+        <id property="id" column="id"/>
+        <result property="studentId" column="student_id"/>
+        <result property="resourceId" column="resource_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="pageNumber" column="page_number"/>
+        <result property="position" column="position"/>
+        <result property="tags" column="tags"/>
+        <result property="color" column="color"/>
+        <result property="isPublic" column="is_public"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="studentName" column="student_name"/>
+        <result property="resourceTitle" column="resource_title"/>
+    </resultMap>
+
+    <!-- 根据学生ID和资源ID获取笔记列表 -->
+    <select id="findByStudentIdAndResourceId" resultMap="StudentNoteMap">
+        SELECT sn.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_note sn
+        LEFT JOIN user u ON sn.student_id = u.id
+        LEFT JOIN course_resource cr ON sn.resource_id = cr.id
+        WHERE sn.student_id = #{studentId} AND sn.resource_id = #{resourceId}
+        ORDER BY sn.create_time DESC
+    </select>
+
+    <!-- 根据学生ID获取所有笔记 -->
+    <select id="findByStudentId" resultMap="StudentNoteMap">
+        SELECT sn.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_note sn
+        LEFT JOIN user u ON sn.student_id = u.id
+        LEFT JOIN course_resource cr ON sn.resource_id = cr.id
+        WHERE sn.student_id = #{studentId}
+        ORDER BY sn.create_time DESC
+    </select>
+
+    <!-- 根据资源ID获取公开笔记 -->
+    <select id="findPublicNotesByResourceId" resultMap="StudentNoteMap">
+        SELECT sn.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_note sn
+        LEFT JOIN user u ON sn.student_id = u.id
+        LEFT JOIN course_resource cr ON sn.resource_id = cr.id
+        WHERE sn.resource_id = #{resourceId} AND sn.is_public = true
+        ORDER BY sn.create_time DESC
+    </select>
+
+    <!-- 根据ID获取笔记详情 -->
+    <select id="findById" resultMap="StudentNoteMap">
+        SELECT sn.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_note sn
+        LEFT JOIN user u ON sn.student_id = u.id
+        LEFT JOIN course_resource cr ON sn.resource_id = cr.id
+        WHERE sn.id = #{id}
+    </select>
+
+    <!-- 插入新笔记 -->
+    <insert id="insert" parameterType="com.experiment.pojo.StudentNote" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO student_note (
+            student_id, resource_id, title, content, page_number, 
+            position, tags, color, is_public
+        ) VALUES (
+            #{studentId}, #{resourceId}, #{title}, #{content}, #{pageNumber},
+            #{position}, #{tags}, #{color}, #{isPublic}
+        )
+    </insert>
+
+    <!-- 更新笔记 -->
+    <update id="update" parameterType="com.experiment.pojo.StudentNote">
+        UPDATE student_note SET
+            title = #{title},
+            content = #{content},
+            page_number = #{pageNumber},
+            position = #{position},
+            tags = #{tags},
+            color = #{color},
+            is_public = #{isPublic}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除笔记 -->
+    <delete id="deleteById">
+        DELETE FROM student_note WHERE id = #{id}
+    </delete>
+
+    <!-- 根据标签搜索笔记 -->
+    <select id="findByTags" resultMap="StudentNoteMap">
+        SELECT sn.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_note sn
+        LEFT JOIN user u ON sn.student_id = u.id
+        LEFT JOIN course_resource cr ON sn.resource_id = cr.id
+        WHERE sn.student_id = #{studentId} 
+        AND sn.tags LIKE CONCAT('%', #{tags}, '%')
+        ORDER BY sn.create_time DESC
+    </select>
+
+    <!-- 统计学生笔记数量 -->
+    <select id="countByStudentId" resultType="int">
+        SELECT COUNT(*) FROM student_note WHERE student_id = #{studentId}
+    </select>
+
+    <!-- 搜索笔记 -->
+    <select id="searchNotes" resultMap="StudentNoteMap">
+        SELECT sn.*, u.real_name as student_name, cr.title as resource_title
+        FROM student_note sn
+        LEFT JOIN user u ON sn.student_id = u.id
+        LEFT JOIN course_resource cr ON sn.resource_id = cr.id
+        WHERE sn.student_id = #{studentId}
+        <if test="keyword != null and keyword != ''">
+            AND (sn.title LIKE CONCAT('%', #{keyword}, '%') 
+                 OR sn.content LIKE CONCAT('%', #{keyword}, '%')
+                 OR sn.tags LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="resourceId != null">
+            AND sn.resource_id = #{resourceId}
+        </if>
+        ORDER BY sn.create_time DESC
+    </select>
+
+</mapper> 

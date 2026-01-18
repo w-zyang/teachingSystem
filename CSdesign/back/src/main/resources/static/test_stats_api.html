@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统计API测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-btn:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <h1>统计API测试页面</h1>
+    
+    <div class="container">
+        <h2>教师统计信息测试</h2>
+        <button class="test-btn" onclick="testTeacherStats()">测试教师统计 (Teacher ID: 2)</button>
+        <div id="teacherResult" class="result"></div>
+    </div>
+    
+    <div class="container">
+        <h2>系统统计信息测试</h2>
+        <button class="test-btn" onclick="testSystemStats()">测试系统统计</button>
+        <div id="systemResult" class="result"></div>
+    </div>
+    
+    <div class="container">
+        <h2>成绩分布测试</h2>
+        <button class="test-btn" onclick="testGradeDistribution()">测试成绩分布</button>
+        <div id="gradeResult" class="result"></div>
+    </div>
+    
+    <div class="container">
+        <h2>学生统计信息测试</h2>
+        <button class="test-btn" onclick="testStudentStats()">测试学生统计 (Student ID: 2)</button>
+        <div id="studentResult" class="result"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:8080/api';
+
+        async function makeRequest(url) {
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return { success: true, data };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        function displayResult(elementId, result) {
+            const element = document.getElementById(elementId);
+            if (result.success) {
+                element.className = 'result success';
+                element.textContent = '✅ 请求成功!\n\n' + JSON.stringify(result.data, null, 2);
+            } else {
+                element.className = 'result error';
+                element.textContent = '❌ 请求失败!\n\n错误信息: ' + result.error;
+            }
+        }
+
+        async function testTeacherStats() {
+            console.log('测试教师统计信息...');
+            const result = await makeRequest(`${BASE_URL}/stats/teacher/2`);
+            displayResult('teacherResult', result);
+            
+            if (result.success) {
+                console.log('教师统计数据:', result.data);
+            }
+        }
+
+        async function testSystemStats() {
+            console.log('测试系统统计信息...');
+            const result = await makeRequest(`${BASE_URL}/stats/system`);
+            displayResult('systemResult', result);
+            
+            if (result.success) {
+                console.log('系统统计数据:', result.data);
+            }
+        }
+
+        async function testGradeDistribution() {
+            console.log('测试成绩分布...');
+            const result = await makeRequest(`${BASE_URL}/stats/grade-distribution`);
+            displayResult('gradeResult', result);
+            
+            if (result.success) {
+                console.log('成绩分布数据:', result.data);
+            }
+        }
+
+        async function testStudentStats() {
+            console.log('测试学生统计信息...');
+            const result = await makeRequest(`${BASE_URL}/stats/student/2`);
+            displayResult('studentResult', result);
+            
+            if (result.success) {
+                console.log('学生统计数据:', result.data);
+            }
+        }
+
+        // 页面加载时自动测试
+        window.onload = function() {
+            console.log('页面加载完成，准备测试API...');
+        };
+    </script>
+</body>
+</html> 

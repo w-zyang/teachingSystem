@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.StudentExamMapper">
+    
+    <resultMap id="StudentExamResultMap" type="com.experiment.pojo.StudentExam">
+        <id column="id" property="id"/>
+        <result column="student_id" property="studentId"/>
+        <result column="exam_id" property="examId"/>
+        <result column="score" property="score"/>
+        <result column="total_score" property="totalScore"/>
+        <result column="status" property="status"/>
+        <result column="start_time" property="startTime"/>
+        <result column="submit_time" property="submitTime"/>
+        <result column="grade_time" property="gradeTime"/>
+        <result column="teacher_comment" property="teacherComment"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+    
+    <insert id="insert" parameterType="com.experiment.pojo.StudentExam" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO student_exam (student_id, exam_id, score, total_score, status, start_time, submit_time, grade_time, teacher_comment, create_time, update_time)
+        VALUES (#{studentId}, #{examId}, #{score}, #{totalScore}, #{status}, #{startTime}, #{submitTime}, #{gradeTime}, #{teacherComment}, #{createTime}, #{updateTime})
+    </insert>
+    
+    <select id="selectById" resultMap="StudentExamResultMap">
+        SELECT * FROM student_exam WHERE id = #{id}
+    </select>
+    
+    <select id="selectByStudentId" resultMap="StudentExamResultMap">
+        SELECT * FROM student_exam WHERE student_id = #{studentId} ORDER BY create_time DESC
+    </select>
+    
+    <select id="selectByExamId" resultMap="StudentExamResultMap">
+        SELECT * FROM student_exam WHERE exam_id = #{examId} ORDER BY create_time DESC
+    </select>
+    
+    <select id="selectByStudentAndExam" resultMap="StudentExamResultMap">
+        SELECT * FROM student_exam WHERE student_id = #{studentId} AND exam_id = #{examId}
+    </select>
+    
+    <update id="update" parameterType="com.experiment.pojo.StudentExam">
+        UPDATE student_exam 
+        SET student_id = #{studentId}, exam_id = #{examId}, score = #{score}, total_score = #{totalScore},
+            status = #{status}, start_time = #{startTime}, submit_time = #{submitTime},
+            grade_time = #{gradeTime}, teacher_comment = #{teacherComment}, update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteById">
+        DELETE FROM student_exam WHERE id = #{id}
+    </delete>
+    
+    <select id="selectAverageScoreByStudent" resultType="java.lang.Double">
+        SELECT AVG(score) FROM student_exam WHERE student_id = #{studentId} AND score IS NOT NULL
+    </select>
+    
+    <select id="selectAverageScoreByExam" resultType="java.lang.Double">
+        SELECT AVG(score) FROM student_exam WHERE exam_id = #{examId} AND score IS NOT NULL
+    </select>
+    
+    <select id="selectAverageScoreByTeacher" resultType="java.lang.Double">
+        SELECT AVG(se.score) 
+        FROM student_exam se
+        INNER JOIN exam e ON se.exam_id = e.id
+        WHERE e.teacher_id = #{teacherId} AND se.score IS NOT NULL
+    </select>
+    
+    <select id="selectOverallAverageScore" resultType="java.lang.Double">
+        SELECT AVG(score) FROM student_exam WHERE score IS NOT NULL
+    </select>
+    
+    <select id="countExamsByTeacher" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT se.exam_id)
+        FROM student_exam se
+        INNER JOIN exam e ON se.exam_id = e.id
+        WHERE e.teacher_id = #{teacherId}
+    </select>
+    
+    <!-- 获取成绩分布统计 -->
+    <select id="selectGradeDistribution" resultType="java.util.Map">
+        <![CDATA[
+        SELECT 
+            SUM(CASE WHEN score >= 90 THEN 1 ELSE 0 END) as excellent,
+            SUM(CASE WHEN score >= 80 AND score < 90 THEN 1 ELSE 0 END) as good,
+            SUM(CASE WHEN score >= 70 AND score < 80 THEN 1 ELSE 0 END) as average,
+            SUM(CASE WHEN score >= 60 AND score < 70 THEN 1 ELSE 0 END) as below,
+            SUM(CASE WHEN score < 60 THEN 1 ELSE 0 END) as poor,
+            COUNT(*) as total
+        FROM student_exam 
+        WHERE score IS NOT NULL
+        ]]>
+    </select>
+    
+    <!-- 获取班级整体统计 -->
+    <select id="selectClassStats" resultType="java.util.Map">
+        SELECT 
+            AVG(se.score) as averageScore,
+            COUNT(*) as totalStudents,
+            COUNT(DISTINCT se.student_id) as activeStudents
+        FROM student_exam se
+        INNER JOIN exam e ON se.exam_id = e.id
+        WHERE e.teacher_id = #{teacherId} AND se.score IS NOT NULL
+    </select>
+    
+    <!-- 统计及格率 -->
+    <select id="selectPassRate" resultType="java.lang.Double">
+        <![CDATA[
+        SELECT 
+            CASE 
+                WHEN COUNT(*) = 0 THEN 0.0
+                ELSE (COUNT(CASE WHEN se.score >= 60 THEN 1 END) * 100.0 / COUNT(*))
+            END as passRate
+        FROM student_exam se
+        INNER JOIN exam e ON se.exam_id = e.id
+        WHERE e.teacher_id = #{teacherId} AND se.score IS NOT NULL
+        ]]>
+    </select>
+    
+    <!-- 统计优秀率 -->
+    <select id="selectExcellentRate" resultType="java.lang.Double">
+        <![CDATA[
+        SELECT 
+            CASE 
+                WHEN COUNT(*) = 0 THEN 0.0
+                ELSE (COUNT(CASE WHEN se.score >= 90 THEN 1 END) * 100.0 / COUNT(*))
+            END as excellentRate
+        FROM student_exam se
+        INNER JOIN exam e ON se.exam_id = e.id
+        WHERE e.teacher_id = #{teacherId} AND se.score IS NOT NULL
+        ]]>
+    </select>
+    
+    <!-- 统计参与率 -->
+    <select id="selectParticipationRate" resultType="java.lang.Double">
+        SELECT 
+            CASE 
+                WHEN total_students = 0 THEN 0.0
+                ELSE (participated_students * 100.0 / total_students)
+            END as participationRate
+        FROM (
+            SELECT 
+                COUNT(DISTINCT sp.student_id) as total_students,
+                COUNT(DISTINCT CASE WHEN se.student_id IS NOT NULL THEN se.student_id END) as participated_students
+            FROM student_progress sp
+            INNER JOIN course c ON sp.course_id = c.id
+            LEFT JOIN exam e ON e.teacher_id = c.teacher_id
+            LEFT JOIN student_exam se ON se.exam_id = e.id AND se.student_id = sp.student_id
+            WHERE c.teacher_id = #{teacherId}
+        ) as stats
+    </select>
+    
+    <!-- 获取教师课程的总学生数 -->
+    <select id="countTotalStudentsByTeacher" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT sp.student_id)
+        FROM student_progress sp
+        INNER JOIN course c ON sp.course_id = c.id
+        WHERE c.teacher_id = #{teacherId}
+    </select>
+    
+    <!-- 获取教师课程的参与考试学生数 -->
+    <select id="countParticipatedStudentsByTeacher" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT se.student_id)
+        FROM student_exam se
+        INNER JOIN exam e ON se.exam_id = e.id
+        WHERE e.teacher_id = #{teacherId}
+    </select>
+
+</mapper> 

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.UserMapper">
+
+    <!-- 根据用户名和角色查询用户 -->
+    <select id="findByUsernameAndRole" resultType="com.experiment.pojo.User">
+        SELECT * FROM user WHERE username = #{username} AND role = #{role}
+    </select>
+
+    <!-- 根据邮箱查询用户 -->
+    <select id="findByEmail" resultType="com.experiment.pojo.User">
+        SELECT * FROM user WHERE email = #{email}
+    </select>
+
+    <!-- 根据用户ID查询用户 -->
+    <select id="findById" resultType="com.experiment.pojo.User">
+        SELECT * FROM user WHERE id = #{id}
+    </select>
+
+    <!-- 根据学号或工号查询用户 -->
+    <select id="findByUserId" resultType="com.experiment.pojo.User">
+        SELECT * FROM user WHERE user_id = #{userId}
+    </select>
+
+    <!-- 插入新用户 -->
+    <insert id="insert" parameterType="com.experiment.pojo.User" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user (
+            username, password, email, phone, role, status, avatar, real_name, 
+            user_id, college, major, grade, class_name, subject, register_date, 
+            last_login, create_time, update_time
+        ) VALUES (
+            #{username}, #{password}, #{email}, #{phone}, #{role}, #{status}, #{avatar}, #{realName},
+            #{userId}, #{college}, #{major}, #{grade}, #{className}, #{subject}, #{registerDate},
+            #{lastLogin}, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <!-- 更新用户信息 -->
+    <update id="update" parameterType="com.experiment.pojo.User">
+        UPDATE user SET
+            username = #{username},
+            password = #{password},
+            email = #{email},
+            phone = #{phone},
+            role = #{role},
+            status = #{status},
+            avatar = #{avatar},
+            real_name = #{realName},
+            user_id = #{userId},
+            college = #{college},
+            major = #{major},
+            grade = #{grade},
+            class_name = #{className},
+            subject = #{subject},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除用户 -->
+    <delete id="deleteById">
+        DELETE FROM user WHERE id = #{id}
+    </delete>
+
+    <!-- 更新用户状态 -->
+    <update id="updateStatus">
+        UPDATE user SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <!-- 更新最后登录时间 -->
+    <update id="updateLastLogin">
+        UPDATE user SET last_login = NOW() WHERE id = #{id}
+    </update>
+
+    <!-- 分页查询用户列表 -->
+    <select id="findByCondition" parameterType="com.experiment.pojo.UserQueryDTO" resultType="com.experiment.pojo.User">
+        SELECT * FROM user
+        <where>
+            <if test="searchQuery != null and searchQuery != ''">
+                AND (username LIKE CONCAT('%', #{searchQuery}, '%') 
+                OR real_name LIKE CONCAT('%', #{searchQuery}, '%')
+                OR email LIKE CONCAT('%', #{searchQuery}, '%'))
+            </if>
+            <if test="roleFilter != null and roleFilter != ''">
+                AND role = #{roleFilter}
+            </if>
+            <if test="statusFilter != null and statusFilter != ''">
+                AND status = #{statusFilter}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+        LIMIT #{page}, #{size}
+    </select>
+
+    <!-- 统计用户总数 -->
+    <select id="countByCondition" parameterType="com.experiment.pojo.UserQueryDTO" resultType="int">
+        SELECT COUNT(*) FROM user
+        <where>
+            <if test="searchQuery != null and searchQuery != ''">
+                AND (username LIKE CONCAT('%', #{searchQuery}, '%') 
+                OR real_name LIKE CONCAT('%', #{searchQuery}, '%')
+                OR email LIKE CONCAT('%', #{searchQuery}, '%'))
+            </if>
+            <if test="roleFilter != null and roleFilter != ''">
+                AND role = #{roleFilter}
+            </if>
+            <if test="statusFilter != null and statusFilter != ''">
+                AND status = #{statusFilter}
+            </if>
+        </where>
+    </select>
+
+    <!-- 根据角色统计用户数量 -->
+    <select id="countByRole" resultType="int">
+        SELECT COUNT(*) FROM user WHERE role = #{role}
+    </select>
+
+    <!-- 根据状态统计用户数量 -->
+    <select id="countByStatus" resultType="int">
+        SELECT COUNT(*) FROM user WHERE status = #{status}
+    </select>
+
+</mapper> 

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>API测试</title>
+</head>
+<body>
+    <h1>测试资源内容API</h1>
+    <button onclick="testAPI()">测试获取资源29的内容</button>
+    <div id="result"></div>
+    
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '正在加载...';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/course-resources/29/content');
+                const data = await response.json();
+                
+                console.log('响应数据:', data);
+                
+                if (data.success) {
+                    resultDiv.innerHTML = '<h2>成功!</h2><pre>' + data.data.substring(0, 500) + '...</pre>';
+                } else {
+                    resultDiv.innerHTML = '<h2>失败!</h2><p>' + data.message + '</p>';
+                }
+            } catch (error) {
+                console.error('错误:', error);
+                resultDiv.innerHTML = '<h2>错误!</h2><p>' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>

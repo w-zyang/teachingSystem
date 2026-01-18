@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错题分析API测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e74c3c;
+            border-radius: 8px;
+            background: #fff;
+        }
+        
+        .test-section h2 {
+            color: #e74c3c;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 10px 10px 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        }
+        
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+        
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .loading {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        input, select {
+            width: 200px;
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #e74c3c;
+            box-shadow: 0 0 5px rgba(231, 76, 60, 0.3);
+        }
+        
+        .api-info {
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .api-info h3 {
+            color: #0c5460;
+            margin: 0 0 10px 0;
+        }
+        
+        .api-url {
+            font-family: 'Courier New', monospace;
+            background: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 智能错题分析API测试</h1>
+        
+        <div class="api-info">
+            <h3>📋 测试说明</h3>
+            <p>这是一个用于测试基于学生历史错题的智能题目生成功能的测试页面。</p>
+            <p><strong>后端地址：</strong> <span class="api-url">http://localhost:8080</span></p>
+        </div>
+        
+        <!-- 1. 获取错题分析 -->
+        <div class="test-section">
+            <h2>1️⃣ 获取学生错题分析</h2>
+            <div class="input-group">
+                <label for="studentId1">学生ID:</label>
+                <input type="number" id="studentId1" value="17" placeholder="输入学生ID">
+            </div>
+            <button onclick="getErrorAnalysis()">获取错题分析</button>
+            <div id="result1" class="result" style="display: none;"></div>
+        </div>
+        
+        <!-- 2. 获取错题统计 -->
+        <div class="test-section">
+            <h2>2️⃣ 获取错题统计</h2>
+            <div class="input-group">
+                <label for="studentId2">学生ID:</label>
+                <input type="number" id="studentId2" value="17" placeholder="输入学生ID">
+            </div>
+            <button onclick="getErrorStatistics()">获取错题统计</button>
+            <div id="result2" class="result" style="display: none;"></div>
+        </div>
+        
+        <!-- 3. 生成相似题目训练 -->
+        <div class="test-section">
+            <h2>3️⃣ 生成相似题目训练</h2>
+            <div class="input-group">
+                <label for="studentId3">学生ID:</label>
+                <input type="number" id="studentId3" value="17" placeholder="输入学生ID">
+            </div>
+            <div class="input-group">
+                <label for="questionId">原始错题ID:</label>
+                <input type="number" id="questionId" value="1" placeholder="输入题目ID">
+            </div>
+            <div class="input-group">
+                <label for="questionCount">生成题目数量:</label>
+                <select id="questionCount">
+                    <option value="3">3题</option>
+                    <option value="5" selected>5题</option>
+                    <option value="8">8题</option>
+                    <option value="10">10题</option>
+                </select>
+            </div>
+            <button onclick="generateSimilarQuestions()">生成相似题目</button>
+            <div id="result3" class="result" style="display: none;"></div>
+        </div>
+        
+        <!-- 4. 生成知识点训练 -->
+        <div class="test-section">
+            <h2>4️⃣ 生成知识点训练</h2>
+            <div class="input-group">
+                <label for="studentId4">学生ID:</label>
+                <input type="number" id="studentId4" value="17" placeholder="输入学生ID">
+            </div>
+            <div class="input-group">
+                <label for="knowledgePoint">知识点:</label>
+                <select id="knowledgePoint">
+                    <option value="Linux基础命令" selected>Linux基础命令</option>
+                    <option value="数据结构基础">数据结构基础</option>
+                    <option value="网络协议">网络协议</option>
+                    <option value="算法设计">算法设计</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="questionCount2">生成题目数量:</label>
+                <select id="questionCount2">
+                    <option value="3">3题</option>
+                    <option value="5" selected>5题</option>
+                    <option value="8">8题</option>
+                </select>
+            </div>
+            <button onclick="generateKnowledgePointQuestions()">生成知识点训练</button>
+            <div id="result4" class="result" style="display: none;"></div>
+        </div>
+        
+        <!-- 5. 生成综合训练 -->
+        <div class="test-section">
+            <h2>5️⃣ 生成综合错题训练</h2>
+            <div class="input-group">
+                <label for="studentId5">学生ID:</label>
+                <input type="number" id="studentId5" value="17" placeholder="输入学生ID">
+            </div>
+            <div class="input-group">
+                <label for="questionCount3">生成题目数量:</label>
+                <select id="questionCount3">
+                    <option value="5">5题</option>
+                    <option value="8">8题</option>
+                    <option value="10" selected>10题</option>
+                    <option value="15">15题</option>
+                </select>
+            </div>
+            <button onclick="generateComprehensiveTraining()">生成综合训练</button>
+            <div id="result5" class="result" style="display: none;"></div>
+        </div>
+        
+        <!-- 6. 评估训练效果 -->
+        <div class="test-section">
+            <h2>6️⃣ 评估训练效果</h2>
+            <div class="input-group">
+                <label for="studentId6">学生ID:</label>
+                <input type="number" id="studentId6" value="17" placeholder="输入学生ID">
+            </div>
+            <div class="input-group">
+                <label for="trainingId">训练ID:</label>
+                <input type="number" id="trainingId" value="12345" placeholder="输入训练ID">
+            </div>
+            <button onclick="evaluateTraining()">评估训练效果</button>
+            <div id="result6" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/error-questions';
+        
+        async function makeRequest(url, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            };
+            
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+            
+            try {
+                const response = await fetch(url, options);
+                const result = await response.json();
+                return { success: response.ok, data: result, status: response.status };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+        
+        function showResult(elementId, data, isLoading = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            
+            if (isLoading) {
+                element.className = 'result loading';
+                element.textContent = '⏳ 正在请求中...';
+                return;
+            }
+            
+            if (data.success) {
+                element.className = 'result success';
+                element.textContent = '✅ 请求成功:\n\n' + JSON.stringify(data.data, null, 2);
+            } else {
+                element.className = 'result error';
+                element.textContent = '❌ 请求失败:\n\n' + (data.error || JSON.stringify(data, null, 2));
+            }
+        }
+        
+        async function getErrorAnalysis() {
+            const studentId = document.getElementById('studentId1').value;
+            showResult('result1', null, true);
+            
+            const result = await makeRequest(`${API_BASE}/analysis/${studentId}`);
+            showResult('result1', result);
+        }
+        
+        async function getErrorStatistics() {
+            const studentId = document.getElementById('studentId2').value;
+            showResult('result2', null, true);
+            
+            const result = await makeRequest(`${API_BASE}/statistics/${studentId}`);
+            showResult('result2', result);
+        }
+        
+        async function generateSimilarQuestions() {
+            const studentId = document.getElementById('studentId3').value;
+            const originalQuestionId = document.getElementById('questionId').value;
+            const questionCount = document.getElementById('questionCount').value;
+            
+            showResult('result3', null, true);
+            
+            const data = {
+                studentId: parseInt(studentId),
+                originalQuestionId: parseInt(originalQuestionId),
+                questionCount: parseInt(questionCount)
+            };
+            
+            const result = await makeRequest(`${API_BASE}/training/similar`, 'POST', data);
+            showResult('result3', result);
+        }
+        
+        async function generateKnowledgePointQuestions() {
+            const studentId = document.getElementById('studentId4').value;
+            const knowledgePoint = document.getElementById('knowledgePoint').value;
+            const questionCount = document.getElementById('questionCount2').value;
+            
+            showResult('result4', null, true);
+            
+            const data = {
+                studentId: parseInt(studentId),
+                knowledgePoint: knowledgePoint,
+                questionCount: parseInt(questionCount)
+            };
+            
+            const result = await makeRequest(`${API_BASE}/training/knowledge-point`, 'POST', data);
+            showResult('result4', result);
+        }
+        
+        async function generateComprehensiveTraining() {
+            const studentId = document.getElementById('studentId5').value;
+            const questionCount = document.getElementById('questionCount3').value;
+            
+            showResult('result5', null, true);
+            
+            const data = {
+                studentId: parseInt(studentId),
+                questionCount: parseInt(questionCount)
+            };
+            
+            const result = await makeRequest(`${API_BASE}/training/comprehensive`, 'POST', data);
+            showResult('result5', result);
+        }
+        
+        async function evaluateTraining() {
+            const studentId = document.getElementById('studentId6').value;
+            const trainingId = document.getElementById('trainingId').value;
+            
+            showResult('result6', null, true);
+            
+            // 模拟一些答案
+            const mockAnswers = ['A', 'B', 'A', 'C', 'B'];
+            
+            const data = {
+                studentId: parseInt(studentId),
+                trainingId: parseInt(trainingId),
+                answers: mockAnswers
+            };
+            
+            const result = await makeRequest(`${API_BASE}/training/evaluate`, 'POST', data);
+            showResult('result6', result);
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 错题分析API测试页面已加载');
+            console.log('📍 API地址:', API_BASE);
+        });
+    </script>
+</body>
+</html> 

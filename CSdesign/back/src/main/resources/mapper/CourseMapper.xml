@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.CourseMapper">
+
+    <!-- 根据ID查询课程 -->
+    <select id="findById" resultType="com.experiment.pojo.Course">
+        SELECT 
+            id,
+            title as name,
+            description,
+            subject,
+            teacher_id as teacherId,
+            cover_image as image,
+            status,
+            create_time as createTime,
+            update_time as updateTime
+        FROM course WHERE id = #{id}
+    </select>
+
+    <!-- 插入新课程 -->
+    <insert id="insert" parameterType="com.experiment.pojo.Course" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO course (
+            title, description, subject, teacher_id, cover_image, status, create_time, update_time
+        ) VALUES (
+            #{name}, #{description}, #{subject}, #{teacherId}, #{image}, #{status}, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <!-- 更新课程信息 -->
+    <update id="update" parameterType="com.experiment.pojo.Course">
+        UPDATE course SET
+            title = #{name},
+            description = #{description},
+            subject = #{subject},
+            teacher_id = #{teacherId},
+            cover_image = #{image},
+            status = #{status},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除课程 -->
+    <delete id="deleteById">
+        DELETE FROM course WHERE id = #{id}
+    </delete>
+
+    <!-- 更新课程状态 -->
+    <update id="updateStatus">
+        UPDATE course SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <!-- 更新学习人数 -->
+    <update id="updateStudents">
+        UPDATE course SET students = #{students} WHERE id = #{id}
+    </update>
+
+    <!-- 更新评分 -->
+    <update id="updateRating">
+        UPDATE course SET rating = #{rating} WHERE id = #{id}
+    </update>
+
+    <!-- 根据教师ID查询课程列表 -->
+    <select id="findByTeacherId" resultType="com.experiment.pojo.Course">
+        SELECT 
+            id,
+            title as name,
+            description,
+            subject,
+            teacher_id as teacherId,
+            cover_image as image,
+            status,
+            create_time as createTime,
+            update_time as updateTime
+        FROM course WHERE teacher_id = #{teacherId} ORDER BY create_time DESC
+    </select>
+
+    <!-- 根据学生ID查询课程列表 -->
+    <select id="findByStudentId" resultType="com.experiment.pojo.Course">
+        SELECT 
+            c.id,
+            c.title as name,
+            c.description,
+            c.subject,
+            c.teacher_id as teacherId,
+            c.cover_image as image,
+            c.status,
+            c.create_time as createTime,
+            c.update_time as updateTime
+        FROM course c
+        INNER JOIN student_course sc ON c.id = sc.course_id
+        WHERE sc.student_id = #{studentId} AND sc.status = 'enrolled'
+        ORDER BY sc.enroll_time DESC
+    </select>
+
+    <!-- 分页查询课程列表 -->
+    <select id="findByCondition" parameterType="com.experiment.pojo.CourseQueryDTO" resultType="com.experiment.pojo.Course">
+        SELECT 
+            id,
+            title as name,
+            description,
+            subject,
+            teacher_id as teacherId,
+            cover_image as image,
+            status,
+            create_time as createTime,
+            update_time as updateTime
+        FROM course
+        <where>
+            <if test="searchQuery != null and searchQuery != ''">
+                AND (title LIKE CONCAT('%', #{searchQuery}, '%') 
+                OR description LIKE CONCAT('%', #{searchQuery}, '%'))
+            </if>
+            <if test="subject != null and subject != ''">
+                AND subject = #{subject}
+            </if>
+            <if test="level != null and level != ''">
+                AND level = #{level}
+            </if>
+            AND status = 'published'
+        </where>
+        <choose>
+            <when test="sortBy == 'popular'">
+                ORDER BY students DESC
+            </when>
+            <when test="sortBy == 'newest'">
+                ORDER BY create_time DESC
+            </when>
+            <when test="sortBy == 'rating'">
+                ORDER BY rating DESC
+            </when>
+            <otherwise>
+                ORDER BY create_time DESC
+            </otherwise>
+        </choose>
+        LIMIT #{page}, #{size}
+    </select>
+
+    <!-- 统计课程总数 -->
+    <select id="countByCondition" parameterType="com.experiment.pojo.CourseQueryDTO" resultType="int">
+        SELECT COUNT(*) FROM course
+        <where>
+            <if test="searchQuery != null and searchQuery != ''">
+                AND (title LIKE CONCAT('%', #{searchQuery}, '%') 
+                OR description LIKE CONCAT('%', #{searchQuery}, '%'))
+            </if>
+            <if test="subject != null and subject != ''">
+                AND subject = #{subject}
+            </if>
+            <if test="level != null and level != ''">
+                AND level = #{level}
+            </if>
+            AND status = 'published'
+        </where>
+    </select>
+
+    <!-- 统计教师的课程数量 -->
+    <select id="countByTeacherId" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM course WHERE teacher_id = #{teacherId}
+    </select>
+
+    <!-- 统计选择教师课程的学生总数 -->
+    <select id="countStudentsByTeacherId" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT sc.student_id) 
+        FROM student_course sc
+        INNER JOIN course c ON sc.course_id = c.id
+        WHERE c.teacher_id = #{teacherId} AND sc.status = 'enrolled'
+    </select>
+
+</mapper> 

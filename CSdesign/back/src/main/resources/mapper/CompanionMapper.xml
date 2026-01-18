@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.CompanionMapper">
+
+    <!-- 注意：删除了与CompanionMapper.java接口注解重复的方法定义 -->
+    <!-- 以下方法已在Java接口中用注解定义，不需要在XML中重复： -->
+    <!-- findCompanionMatches, createCompanionMatch, findPotentialCompanions, -->
+    <!-- updateCompanionStatus, getStudyGroups, createStudyGroup, joinStudyGroup, -->
+    <!-- getGroupMembers, createCollaborativeSession, getUpcomingSessions, -->
+    <!-- recordInteraction, updateCollaborationRating -->
+
+    <!-- 以下是XML独有的方法，没有在Java接口中用注解定义 -->
+    
+    <!-- 获取伙伴协作历史 -->
+    <select id="getCollaborationHistory" resultType="java.util.Map">
+        SELECT 
+            lcm.*,
+            COUNT(cir.id) as interaction_count,
+            MAX(cir.interaction_time) as last_interaction
+        FROM learning_companion_matching lcm
+        LEFT JOIN collaborative_interaction_record cir ON (
+            (cir.student_id = lcm.student1_id AND cir.target_student_id = lcm.student2_id) OR
+            (cir.student_id = lcm.student2_id AND cir.target_student_id = lcm.student1_id)
+        )
+        WHERE (lcm.student1_id = #{studentId} OR lcm.student2_id = #{studentId})
+        AND lcm.status = 'active'
+        GROUP BY lcm.id
+        ORDER BY last_interaction DESC
+    </select>
+
+    <!-- 加入协作会话 -->
+    <insert id="joinCollaborativeSession">
+        INSERT INTO collaborative_session_participant (
+            session_id, student_id, join_time, status
+        ) VALUES (
+            #{sessionId}, #{studentId}, NOW(), 'active'
+        )
+    </insert>
+
+    <!-- 获取会话参与者 -->
+    <select id="getSessionParticipants" resultType="java.util.Map">
+        SELECT 
+            csp.*,
+            u.real_name,
+            u.major
+        FROM collaborative_session_participant csp
+        JOIN user u ON csp.student_id = u.id
+        WHERE csp.session_id = #{sessionId} AND csp.status = 'active'
+        ORDER BY csp.join_time
+    </select>
+
+    <!-- 更新小组活跃度 -->
+    <update id="updateGroupActivity">
+        UPDATE study_group 
+        SET activity_level = activity_level + 1,
+            last_activity_time = NOW()
+        WHERE id = #{groupId}
+    </update>
+
+    <!-- 获取小组活动统计 -->
+    <select id="getGroupActivityStats" resultType="java.util.Map">
+        SELECT 
+            sg.id as group_id,
+            sg.group_name,
+            COUNT(DISTINCT sgm.student_id) as member_count,
+            COUNT(DISTINCT cir.id) as interaction_count,
+            MAX(cir.interaction_time) as last_interaction_time,
+            sg.activity_level
+        FROM study_group sg
+        LEFT JOIN study_group_member sgm ON sg.id = sgm.group_id AND sgm.status = 'active'
+        LEFT JOIN collaborative_interaction_record cir ON cir.session_id IN (
+            SELECT cls.id FROM collaborative_learning_session cls 
+            WHERE cls.creator_id = sg.leader_id OR cls.id IN (
+                SELECT DISTINCT session_id FROM collaborative_session_participant 
+                WHERE student_id IN (SELECT student_id FROM study_group_member WHERE group_id = sg.id)
+            )
+        )
+        WHERE sg.id = #{groupId}
+        GROUP BY sg.id
+    </select>
+
+</mapper> 
