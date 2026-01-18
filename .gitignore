@@ -1,0 +1,39 @@
+# 排除特殊目录
+-/
+
+# 排除敏感配置文件
+CSdesign/back/src/main/resources/application.yml
+
+# Maven
+CSdesign/back/target/
+CSdesign/back/.mvn/
+CSdesign/back/mvnw
+CSdesign/back/mvnw.cmd
+
+# Node modules
+CSdesign/front(2)/front(1)/node_modules/
+CSdesign/front(2)/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# 上传文件
+CSdesign/back/uploads/
+
+# 输出文件
+output/
+
+# 日志文件
+*.log
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# Judge0 压缩包
+CSdesign/judge0/judge0-v1.13.0.zip
+
