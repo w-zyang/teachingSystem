@@ -143,6 +143,15 @@
 import { ref, reactive, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { aiAPI } from '@/api/ai'
+import { marked } from 'marked'
+
+// 配置marked选项
+marked.setOptions({
+  breaks: true, // 支持GitHub风格的换行
+  gfm: true, // 启用GitHub风格的Markdown
+  headerIds: false, // 禁用标题ID
+  mangle: false // 禁用邮箱混淆
+})
 
 export default {
   name: 'LearningAssistant',
@@ -328,13 +337,16 @@ export default {
       ElMessage.success('对话已清空')
     }
     
-    // 格式化消息内容
+    // 格式化消息内容 - 使用marked渲染Markdown
     const formatMessage = (content) => {
-      // 简单的代码高亮处理
-      return content
-        .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/\n/g, '<br>')
+      try {
+        // 使用marked将Markdown转换为HTML
+        return marked.parse(content)
+      } catch (error) {
+        console.error('Markdown渲染失败:', error)
+        // 如果渲染失败，返回原始内容并转义HTML
+        return content.replace(/\n/g, '<br>')
+      }
     }
     
     // 格式化时间
@@ -454,28 +466,167 @@ export default {
 }
 
 .message-text {
-  line-height: 1.5;
+  line-height: 1.6;
   margin-bottom: 5px;
+  word-wrap: break-word;
 }
 
-.message-text pre {
-  background: #f4f4f4;
-  padding: 10px;
-  border-radius: 4px;
+/* Markdown样式 */
+.message-text :deep(h1),
+.message-text :deep(h2),
+.message-text :deep(h3),
+.message-text :deep(h4),
+.message-text :deep(h5),
+.message-text :deep(h6) {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #303133;
+}
+
+.message-text :deep(h1) { font-size: 1.8em; border-bottom: 2px solid #e1e4e8; padding-bottom: 8px; }
+.message-text :deep(h2) { font-size: 1.5em; border-bottom: 1px solid #e1e4e8; padding-bottom: 6px; }
+.message-text :deep(h3) { font-size: 1.3em; }
+.message-text :deep(h4) { font-size: 1.1em; }
+
+.message-text :deep(p) {
+  margin: 8px 0;
+}
+
+.message-text :deep(ul),
+.message-text :deep(ol) {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.message-text :deep(li) {
+  margin: 4px 0;
+}
+
+.message-text :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+.message-text :deep(table th),
+.message-text :deep(table td) {
+  border: 1px solid #dfe2e5;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.message-text :deep(table th) {
+  background-color: #f6f8fa;
+  font-weight: 600;
+}
+
+.message-text :deep(table tr:nth-child(even)) {
+  background-color: #f9fafb;
+}
+
+.message-text :deep(blockquote) {
+  margin: 12px 0;
+  padding: 8px 16px;
+  border-left: 4px solid #dfe2e5;
+  background-color: #f6f8fa;
+  color: #6a737d;
+}
+
+.message-text :deep(pre) {
+  background: #f6f8fa;
+  padding: 12px;
+  border-radius: 6px;
   overflow-x: auto;
-  margin: 10px 0;
+  margin: 12px 0;
+  border: 1px solid #e1e4e8;
 }
 
-.message-text code {
-  background: #f4f4f4;
-  padding: 2px 4px;
+.message-text :deep(pre code) {
+  background: transparent;
+  padding: 0;
+  color: #24292e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.message-text :deep(code) {
+  background: #f6f8fa;
+  padding: 2px 6px;
   border-radius: 3px;
-  font-family: 'Courier New', monospace;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  color: #e83e8c;
+  border: 1px solid #e1e4e8;
 }
 
-.message.user .message-text pre,
-.message.user .message-text code {
-  background: rgba(255,255,255,0.2);
+.message-text :deep(strong) {
+  font-weight: 600;
+  color: #303133;
+}
+
+.message-text :deep(em) {
+  font-style: italic;
+}
+
+.message-text :deep(hr) {
+  border: none;
+  border-top: 2px solid #e1e4e8;
+  margin: 16px 0;
+}
+
+.message-text :deep(a) {
+  color: #409eff;
+  text-decoration: none;
+}
+
+.message-text :deep(a:hover) {
+  text-decoration: underline;
+}
+
+/* 用户消息的Markdown样式 */
+.message.user .message-text :deep(h1),
+.message.user .message-text :deep(h2),
+.message.user .message-text :deep(h3),
+.message.user .message-text :deep(h4),
+.message.user .message-text :deep(h5),
+.message.user .message-text :deep(h6) {
+  color: white;
+  border-color: rgba(255,255,255,0.3);
+}
+
+.message.user .message-text :deep(pre) {
+  background: rgba(0,0,0,0.2);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.message.user .message-text :deep(pre code) {
+  color: white;
+}
+
+.message.user .message-text :deep(code) {
+  background: rgba(0,0,0,0.2);
+  color: #fff;
+  border-color: rgba(255,255,255,0.2);
+}
+
+.message.user .message-text :deep(table th),
+.message.user .message-text :deep(table td) {
+  border-color: rgba(255,255,255,0.3);
+}
+
+.message.user .message-text :deep(table th) {
+  background-color: rgba(0,0,0,0.2);
+}
+
+.message.user .message-text :deep(blockquote) {
+  background-color: rgba(0,0,0,0.2);
+  border-color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.9);
+}
+
+.message.user .message-text :deep(strong) {
   color: white;
 }
 

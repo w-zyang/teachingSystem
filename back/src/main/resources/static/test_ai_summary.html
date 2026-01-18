@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI重点整理测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #409eff;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #409eff;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        textarea {
+            min-height: 100px;
+            font-family: monospace;
+        }
+        button {
+            background-color: #409eff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #66b1ff;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f9ff;
+            border-left: 4px solid #409eff;
+            border-radius: 4px;
+        }
+        .error {
+            background: #fef0f0;
+            border-left-color: #f56c6c;
+            color: #f56c6c;
+        }
+        .success {
+            background: #f0f9ff;
+            border-left-color: #67c23a;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #409eff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .info {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AI重点整理功能测试</h1>
+        
+        <div class="info">
+            <strong>📌 测试说明：</strong>
+            <ul>
+                <li>此页面用于测试 AI 重点整理功能的前后端连接</li>
+                <li>课件内容可以为空（测试可选参数）</li>
+                <li>查看浏览器控制台和后端日志以获取详细信息</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3>📝 输入参数</h3>
+            
+            <label>总结ID:</label>
+            <input type="number" id="summaryId" value="1" placeholder="输入课堂总结ID">
+            
+            <label style="margin-top: 15px;">转录文本（必填）:</label>
+            <textarea id="transcriptText" placeholder="输入转录的文本内容...">今天我们讲解牛顿第二定律。F = ma，其中F是合外力，m是质量，a是加速度。这个公式只在惯性参考系中成立。举个例子：一个5kg的物体受到10N的水平力，忽略摩擦，它的加速度是多少？答案是2 m/s²。</textarea>
+            
+            <label style="margin-top: 15px;">课件内容（可选，可留空）:</label>
+            <textarea id="coursewareContent" placeholder="输入课件内容，或留空测试...">牛顿第二定律：F = ma
+单位：F(N), m(kg), a(m/s²)
+应用条件：惯性系、宏观低速
+典型错误：混淆重力与质量</textarea>
+        </div>
+
+        <div class="section">
+            <h3>🚀 测试操作</h3>
+            <button onclick="testWithCourseware()">测试：有课件内容</button>
+            <button onclick="testWithoutCourseware()">测试：无课件内容（留空）</button>
+            <button onclick="clearResult()">清空结果</button>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080/api/class-summary';
+
+        function showLoading() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <div class="result">
+                    <div class="loading"></div>
+                    <strong>正在调用 AI 服务...</strong>
+                    <p>请查看浏览器控制台和后端日志</p>
+                </div>
+            `;
+        }
+
+        function showResult(success, message, data) {
+            const resultDiv = document.getElementById('result');
+            const className = success ? 'result success' : 'result error';
+            resultDiv.innerHTML = `
+                <div class="${className}">
+                    <h3>${success ? '✅ 成功' : '❌ 失败'}</h3>
+                    <p><strong>消息：</strong>${message}</p>
+                    ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+                </div>
+            `;
+        }
+
+        async function testAI(includeCourseware) {
+            console.log('========== 开始测试 AI 重点整理 ==========');
+            
+            const summaryId = parseInt(document.getElementById('summaryId').value);
+            const transcriptText = document.getElementById('transcriptText').value;
+            const coursewareContent = includeCourseware ? document.getElementById('coursewareContent').value : '';
+
+            console.log('测试参数:', {
+                summaryId,
+                transcriptTextLength: transcriptText.length,
+                coursewareContentLength: coursewareContent.length,
+                includeCourseware
+            });
+
+            if (!transcriptText) {
+                showResult(false, '转录文本不能为空', null);
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/generate-summary`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        summaryId,
+                        transcriptText,
+                        coursewareContent
+                    })
+                });
+
+                console.log('HTTP 响应状态:', response.status);
+                const result = await response.json();
+                console.log('响应数据:', result);
+
+                if (result.success) {
+                    showResult(true, result.msg || 'AI重点整理生成成功', {
+                        contentLength: result.data ? result.data.length : 0,
+                        preview: result.data ? result.data.substring(0, 200) + '...' : ''
+                    });
+                } else {
+                    showResult(false, result.msg || 'AI重点整理生成失败', result);
+                }
+            } catch (error) {
+                console.error('请求失败:', error);
+                showResult(false, '请求失败: ' + error.message, null);
+            }
+
+            console.log('========== 测试结束 ==========');
+        }
+
+        function testWithCourseware() {
+            console.log('📝 测试场景：包含课件内容');
+            testAI(true);
+        }
+
+        function testWithoutCourseware() {
+            console.log('📝 测试场景：不包含课件内容（留空）');
+            testAI(false);
+        }
+
+        function clearResult() {
+            document.getElementById('result').innerHTML = '';
+        }
+
+        // 页面加载时的提示
+        window.onload = function() {
+            console.log('========================================');
+            console.log('AI 重点整理测试页面已加载');
+            console.log('API 地址:', API_BASE_URL);
+            console.log('========================================');
+        };
+    </script>
+</body>
+</html>

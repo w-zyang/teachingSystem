@@ -97,6 +97,11 @@
         DELETE FROM student_annotation WHERE id = #{id}
     </delete>
 
+    <!-- 根据资源ID删除所有标注（级联删除） -->
+    <delete id="deleteByResourceId">
+        DELETE FROM student_annotation WHERE resource_id = #{resourceId}
+    </delete>
+
     <!-- 根据重要程度获取标注 -->
     <select id="findByImportance" resultMap="StudentAnnotationMap">
         SELECT sa.*, u.real_name as student_name, cr.title as resource_title

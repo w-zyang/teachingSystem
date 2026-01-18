@@ -119,15 +119,36 @@ export default {
     const loadAllSummaries = async () => {
       loading.value = true
       try {
+        console.log('========== 开始加载课堂总结 ==========')
         const response = await classSummaryApi.getAllPublishedSummaries()
-        if (response.code === 1) {
-          summaryList.value = response.data
+        console.log('API 响应:', response)
+        console.log('响应 success:', response.success)
+        console.log('响应 code:', response.code)
+        console.log('响应数据:', response.data)
+        
+        // 兼容两种响应格式：{ success: true } 或 { code: 1 }
+        if (response.success === true || response.code === 1) {
+          summaryList.value = response.data || []
+          console.log('成功加载课堂总结，数量:', summaryList.value.length)
+          if (summaryList.value.length === 0) {
+            console.warn('⚠️ API 返回成功但数据为空')
+            ElMessage.warning('暂无已发布的课堂总结')
+          } else {
+            ElMessage.success(`成功加载 ${summaryList.value.length} 个课堂总结`)
+          }
+        } else {
+          console.error('API 返回错误，响应:', response)
+          ElMessage.error(response.msg || '加载失败')
         }
       } catch (error) {
-        console.error('加载失败:', error)
-        ElMessage.error('加载课堂总结失败')
+        console.error('========== 加载失败 ==========')
+        console.error('错误对象:', error)
+        console.error('错误信息:', error.message)
+        console.error('错误响应:', error.response)
+        ElMessage.error('加载课堂总结失败: ' + (error.message || '未知错误'))
       } finally {
         loading.value = false
+        console.log('========== 加载完成 ==========')
       }
     }
     
@@ -140,8 +161,14 @@ export default {
       loading.value = true
       try {
         const response = await classSummaryApi.searchPublishedSummaries(searchKeyword.value)
-        if (response.code === 1) {
-          summaryList.value = response.data
+        console.log('搜索响应:', response)
+        
+        // 兼容两种响应格式：{ success: true } 或 { code: 1 }
+        if (response.success === true || response.code === 1) {
+          summaryList.value = response.data || []
+          ElMessage.success(`找到 ${summaryList.value.length} 个相关结果`)
+        } else {
+          ElMessage.error(response.msg || '搜索失败')
         }
       } catch (error) {
         console.error('搜索失败:', error)

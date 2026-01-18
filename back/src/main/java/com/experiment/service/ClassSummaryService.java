@@ -21,12 +21,15 @@ public interface ClassSummaryService {
     /**
      * 上传录音文件
      */
-    String uploadAudioFile(MultipartFile audioFile, Long courseId);
+    String uploadAudioFile(MultipartFile audioFile, Long courseId, Long summaryId, Integer audioDuration);
     
     /**
      * 处理录音（语音转文字）
+     * @param summaryId 总结ID
+     * @param audioUrl 音频文件 OSS URL
+     * @return 转录后的文字
      */
-    String processAudioToText(Long summaryId, String audioFilePath);
+    String processAudioToText(Long summaryId, String audioUrl);
     
     /**
      * 生成AI重点整理
@@ -82,4 +85,14 @@ public interface ClassSummaryService {
      * 获取课堂总结统计信息
      */
     Map<String, Object> getSummaryStatistics(Long teacherId);
+    
+    /**
+     * 删除录音文件
+     */
+    void deleteAudioFile(Long summaryId, Long teacherId);
+    
+    /**
+     * 更新转录文本
+     */
+    void updateTranscriptText(Long summaryId, String transcriptText);
 } 

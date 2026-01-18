@@ -2,8 +2,10 @@ package com.experiment.service.Impl;
 
 import com.experiment.mapper.StudentExamMapper;
 import com.experiment.mapper.QuestionMapper;
+import com.experiment.mapper.ErrorQuestionRecordMapper;
 import com.experiment.pojo.ErrorQuestionAnalysisDTO;
 import com.experiment.pojo.ErrorQuestionTrainingDTO;
+import com.experiment.pojo.ErrorQuestionRecord;
 import com.experiment.pojo.StudentExam;
 import com.experiment.pojo.Question;
 import com.experiment.service.ErrorQuestionAnalysisService;
@@ -30,6 +32,9 @@ public class ErrorQuestionAnalysisServiceImpl implements ErrorQuestionAnalysisSe
     private QuestionMapper questionMapper;
     
     @Autowired
+    private ErrorQuestionRecordMapper errorQuestionRecordMapper;
+    
+    @Autowired
     private AIService aiService;
     
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -41,11 +46,51 @@ public class ErrorQuestionAnalysisServiceImpl implements ErrorQuestionAnalysisSe
         List<ErrorQuestionAnalysisDTO> errorAnalysisList = new ArrayList<>();
         
         try {
-            // 获取学生的考试记录
-            List<StudentExam> studentExams = studentExamMapper.selectByStudentId(studentId);
+            // 从错题记录表中查询
+            List<ErrorQuestionRecord> errorRecords = errorQuestionRecordMapper.selectByStudentId(studentId);
             
-            // 模拟错题数据（在实际实现中，这里应该从student_answer表中查询错误答案）
-            errorAnalysisList = generateMockErrorQuestions(studentId);
+            // 转换为DTO
+            for (ErrorQuestionRecord record : errorRecords) {
+                ErrorQuestionAnalysisDTO dto = new ErrorQuestionAnalysisDTO();
+                
+                // 处理questionId
+                try {
+                    dto.setQuestionId(Long.parseLong(record.getQuestionId().replaceAll("[^0-9]", "")));
+                } catch (Exception e) {
+                    dto.setQuestionId(record.getId()); // 使用记录ID作为备选
+                }
+                
+                dto.setQuestionContent(record.getQuestionContent());
+                dto.setQuestionType(record.getQuestionType());
+                dto.setKnowledgePoint(record.getKnowledgePoint());
+                dto.setTopic(record.getKnowledgePoint()); // 使用知识点作为主题
+                dto.setDifficulty("medium"); // 默认中等难度
+                dto.setStudentAnswer(record.getUserAnswer());
+                dto.setCorrectAnswer(record.getCorrectAnswer());
+                dto.setErrorType(record.getErrorType());
+                dto.setErrorReason(record.getErrorReason());
+                dto.setErrorCount(record.getErrorCount());
+                dto.setErrorRate(record.getErrorRate());
+                dto.setLastErrorTime(record.getCreateTime());
+                dto.setRelatedConcepts(Arrays.asList(record.getKnowledgePoint()));
+                dto.setImprovementSuggestion("建议加强 " + record.getKnowledgePoint() + " 的练习");
+                
+                // 解析选项（如果有）
+                if (record.getQuestionOptions() != null && !record.getQuestionOptions().isEmpty()) {
+                    try {
+                        List<Map<String, String>> options = objectMapper.readValue(
+                            record.getQuestionOptions(), 
+                            new TypeReference<List<Map<String, String>>>() {}
+                        );
+                        dto.setOptions(options);
+                    } catch (JsonProcessingException e) {
+                        log.warn("解析题目选项失败: {}", e.getMessage());
+                        dto.setOptions(null);
+                    }
+                }
+                
+                errorAnalysisList.add(dto);
+            }
             
             log.info("学生 {} 的错题分析完成，共发现 {} 道错题", studentId, errorAnalysisList.size());
         } catch (Exception e) {
@@ -655,5 +700,98 @@ public class ErrorQuestionAnalysisServiceImpl implements ErrorQuestionAnalysisSe
         }
         
         return nextSteps;
+    }
+    
+    @Override
+    public boolean recordErrorQuestion(Long studentId, Map<String, Object> errorQuestion) {
+        try {
+            log.info("记录单个错题，学生ID: {}, 题目: {}", studentId, errorQuestion.get("questionContent"));
+            
+            ErrorQuestionRecord record = new ErrorQuestionRecord();
+            record.setStudentId(studentId);
+            record.setQuestionId(errorQuestion.get("questionId").toString());
+            record.setQuestionType((String) errorQuestion.get("questionType"));
+            record.setQuestionContent((String) errorQuestion.get("questionContent"));
+            
+            // 处理选项（如果有）
+            if (errorQuestion.containsKey("options") && errorQuestion.get("options") != null) {
+                try {
+                    record.setQuestionOptions(objectMapper.writeValueAsString(errorQuestion.get("options")));
+                } catch (JsonProcessingException e) {
+                    log.warn("选项序列化失败", e);
+                    record.setQuestionOptions(null);
+                }
+            }
+            
+            record.setUserAnswer((String) errorQuestion.get("userAnswer"));
+            record.setCorrectAnswer((String) errorQuestion.get("correctAnswer"));
+            record.setKnowledgePoint((String) errorQuestion.getOrDefault("knowledgePoint", "未分类"));
+            record.setErrorType((String) errorQuestion.getOrDefault("errorType", "答案错误"));
+            record.setErrorReason((String) errorQuestion.getOrDefault("errorReason", ""));
+            record.setSource((String) errorQuestion.getOrDefault("source", "practice"));
+            record.setErrorCount(1);
+            record.setErrorRate(100.0);
+            record.setCreateTime(LocalDateTime.now());
+            record.setUpdateTime(LocalDateTime.now());
+            
+            int result = errorQuestionRecordMapper.insert(record);
+            return result > 0;
+            
+        } catch (Exception e) {
+            log.error("记录错题失败", e);
+            return false;
+        }
+    }
+    
+    @Override
+    public int batchRecordErrorQuestions(Long studentId, List<Map<String, Object>> errorQuestions, String source) {
+        try {
+            log.info("批量记录错题，学生ID: {}, 数量: {}, 来源: {}", studentId, errorQuestions.size(), source);
+            
+            List<ErrorQuestionRecord> records = new ArrayList<>();
+            
+            for (Map<String, Object> errorQuestion : errorQuestions) {
+                ErrorQuestionRecord record = new ErrorQuestionRecord();
+                record.setStudentId(studentId);
+                record.setQuestionId(errorQuestion.get("questionId").toString());
+                record.setQuestionType((String) errorQuestion.get("questionType"));
+                record.setQuestionContent((String) errorQuestion.get("questionContent"));
+                
+                // 处理选项（如果有）
+                if (errorQuestion.containsKey("options") && errorQuestion.get("options") != null) {
+                    try {
+                        record.setQuestionOptions(objectMapper.writeValueAsString(errorQuestion.get("options")));
+                    } catch (JsonProcessingException e) {
+                        log.warn("选项序列化失败", e);
+                        record.setQuestionOptions(null);
+                    }
+                }
+                
+                record.setUserAnswer((String) errorQuestion.get("userAnswer"));
+                record.setCorrectAnswer((String) errorQuestion.get("correctAnswer"));
+                record.setKnowledgePoint((String) errorQuestion.getOrDefault("knowledgePoint", "未分类"));
+                record.setErrorType((String) errorQuestion.getOrDefault("errorType", "答案错误"));
+                record.setErrorReason((String) errorQuestion.getOrDefault("errorReason", ""));
+                record.setSource(source);
+                record.setErrorCount(1);
+                record.setErrorRate(((Number) errorQuestion.getOrDefault("errorRate", 100)).doubleValue());
+                record.setCreateTime(LocalDateTime.now());
+                record.setUpdateTime(LocalDateTime.now());
+                
+                records.add(record);
+            }
+            
+            if (!records.isEmpty()) {
+                int result = errorQuestionRecordMapper.batchInsert(records);
+                log.info("成功批量记录 {} 道错题", result);
+                return result;
+            }
+            
+            return 0;
+            
+        } catch (Exception e) {
+            log.error("批量记录错题失败", e);
+            return 0;
+        }
     }
 } 

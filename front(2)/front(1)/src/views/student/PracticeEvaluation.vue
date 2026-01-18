@@ -1,201 +1,204 @@
 <template>
   <div class="practice-evaluation">
-    <!-- 课程信息展示 -->
-    <el-card v-if="courseInfo.courseId" class="course-info-card">
-      <template #header>
-        <div class="course-header">
-          <h2>{{ courseInfo.courseName }} - 练习测试</h2>
-          <el-tag type="primary">{{ courseInfo.teacherName }}</el-tag>
+    <!-- 配置页面 -->
+    <div v-if="currentPage === 'config'" class="config-page">
+      <!-- 课程信息展示 -->
+      <el-card v-if="courseInfo.courseId" class="course-info-card">
+        <template #header>
+          <div class="course-header">
+            <h2>{{ courseInfo.courseName }} - 练习测试</h2>
+            <el-tag type="primary">{{ courseInfo.teacherName }}</el-tag>
+          </div>
+        </template>
+        <div class="course-description">
+          <p>欢迎来到 {{ courseInfo.courseName }} 的练习测试模块！</p>
+          <p>这里有老师为您精心准备的练习题目，请选择您要进行的测试。</p>
         </div>
-      </template>
-      <div class="course-description">
-        <p>欢迎来到 {{ courseInfo.courseName }} 的练习测试模块！</p>
-        <p>这里有老师为您精心准备的练习题目，请选择您要进行的测试。</p>
-      </div>
-    </el-card>
+      </el-card>
 
-    <!-- 教师发布的考试列表 -->
-    <el-card v-if="teacherExams.length > 0" class="exams-card">
-      <template #header>
-        <div class="card-header">
-          <h3>教师发布的练习测试</h3>
-          <el-tag type="success">{{ teacherExams.length }} 个可用测试</el-tag>
+      <!-- 教师发布的考试列表 -->
+      <el-card v-if="teacherExams.length > 0" class="exams-card">
+        <template #header>
+          <div class="card-header">
+            <h3>教师发布的练习测试</h3>
+            <el-tag type="success">{{ teacherExams.length }} 个可用测试</el-tag>
+          </div>
+        </template>
+        
+        <div class="exams-grid">
+          <div 
+            v-for="exam in teacherExams" 
+            :key="exam.id"
+            class="exam-card"
+            @click="selectExam(exam)"
+          >
+            <div class="exam-header">
+              <h4>{{ exam.name }}</h4>
+              <div class="exam-tags">
+                <el-tag :type="getExamTypeTag(exam.type)">{{ getExamTypeName(exam.type) }}</el-tag>
+                <el-tag type="info" size="small">教师出题</el-tag>
+              </div>
+            </div>
+            <div class="exam-info">
+              <div class="info-item">
+                <i class="el-icon-time"></i>
+                <span>{{ exam.duration }}分钟</span>
+              </div>
+              <div class="info-item">
+                <i class="el-icon-trophy"></i>
+                <span>{{ exam.totalScore }}分</span>
+              </div>
+              <div class="info-item">
+                <i class="el-icon-document"></i>
+                <span>{{ exam.questions ? exam.questions.length : '未知' }}题</span>
+              </div>
+            </div>
+            <div class="exam-description">
+              <p>{{ exam.description || '暂无描述' }}</p>
+            </div>
+            <div class="exam-actions">
+              <el-button type="primary" @click.stop="startExam(exam)">
+                开始测试
+              </el-button>
+              <el-button @click.stop="previewExam(exam)">
+                预览题目
+              </el-button>
+            </div>
+          </div>
         </div>
-      </template>
-      
-      <div class="exams-grid">
-        <div 
-          v-for="exam in teacherExams" 
-          :key="exam.id"
-          class="exam-card"
-          @click="selectExam(exam)"
-        >
-          <div class="exam-header">
-            <h4>{{ exam.name }}</h4>
-            <div class="exam-tags">
-              <el-tag :type="getExamTypeTag(exam.type)">{{ getExamTypeName(exam.type) }}</el-tag>
-              <el-tag type="info" size="small">教师出题</el-tag>
-            </div>
-          </div>
-          <div class="exam-info">
-            <div class="info-item">
-              <i class="el-icon-time"></i>
-              <span>{{ exam.duration }}分钟</span>
-            </div>
-            <div class="info-item">
-              <i class="el-icon-trophy"></i>
-              <span>{{ exam.totalScore }}分</span>
-            </div>
-            <div class="info-item">
-              <i class="el-icon-document"></i>
-              <span>{{ exam.questions ? exam.questions.length : '未知' }}题</span>
-            </div>
-          </div>
-          <div class="exam-description">
-            <p>{{ exam.description || '暂无描述' }}</p>
-          </div>
-          <div class="exam-actions">
-            <el-button type="primary" @click.stop="startExam(exam)">
-              开始测试
-            </el-button>
-            <el-button @click.stop="previewExam(exam)">
-              预览题目
-            </el-button>
-          </div>
-        </div>
-      </div>
-    </el-card>
+      </el-card>
 
-    <!-- AI智能练习（备选方案） -->
-    <el-card class="practice-card">
-      <template #header>
-        <div class="card-header">
-          <h3>AI练习评测助手</h3>
-          <el-tag type="warning">智能练习</el-tag>
-        </div>
-      </template>
-      
-      <!-- 练习设置 -->
-      <div class="practice-settings">
-        <h3>练习设置</h3>
-        <el-form :model="practiceForm" label-width="120px" class="practice-form">
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="学科类型">
-                <el-select v-model="practiceForm.subject" placeholder="请选择学科">
-                  <el-option label="JavaScript编程" value="javascript" />
-                  <el-option label="算法与数据结构" value="algorithms" />
-                  <el-option label="Vue.js开发" value="vue" />
-                  <el-option label="数据库设计" value="database" />
-                  <el-option label="数学计算" value="mathematics" />
-                  <el-option label="TensorFlow.js开发" value="tensorflow-js" />
-                  <el-option label="机器学习基础" value="machine-learning" />
-                  <el-option label="深度学习应用" value="deep-learning" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="难度等级">
-                <el-select v-model="practiceForm.difficulty" placeholder="请选择难度">
-                  <el-option label="初级" value="beginner" />
-                  <el-option label="中级" value="intermediate" />
-                  <el-option label="高级" value="advanced" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          
-          <!-- 新增：题目类型选择 -->
-          <el-row :gutter="20">
-            <el-col :span="24">
-              <el-form-item label="题目类型">
-                <el-checkbox-group v-model="practiceForm.questionTypes">
-                  <el-checkbox label="choice">选择题</el-checkbox>
-                  <el-checkbox label="fill">填空题</el-checkbox>
-                  <el-checkbox label="short">简答题</el-checkbox>
-                  <el-checkbox label="coding">编程题</el-checkbox>
-                  <el-checkbox label="essay">论述题</el-checkbox>
-                </el-checkbox-group>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          
-          <!-- 新增：各类型题目数量设置 -->
-          <el-row :gutter="20" v-if="practiceForm.questionTypes.length > 0">
-            <el-col :span="24">
-              <el-form-item label="题目数量分配">
-                <div class="question-type-config">
-                  <div v-for="type in practiceForm.questionTypes" :key="type" class="type-config-item">
-                    <span class="type-name">{{ getQuestionTypeName(type) }}</span>
-                    <el-input-number 
-                      v-model="practiceForm.typeConfig[type]" 
-                      :min="1" 
-                      :max="10"
-                      size="small"
-                    />
+      <!-- AI智能练习（备选方案） -->
+      <el-card class="practice-card">
+        <template #header>
+          <div class="card-header">
+            <h3>AI练习评测助手</h3>
+            <el-tag type="warning">智能练习</el-tag>
+          </div>
+        </template>
+        
+        <!-- 练习设置 -->
+        <div class="practice-settings">
+          <h3>练习设置</h3>
+          <el-form :model="practiceForm" label-width="120px" class="practice-form">
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="学科类型">
+                  <el-select v-model="practiceForm.subject" placeholder="请选择学科">
+                    <el-option label="JavaScript编程" value="javascript" />
+                    <el-option label="算法与数据结构" value="algorithms" />
+                    <el-option label="Vue.js开发" value="vue" />
+                    <el-option label="数据库设计" value="database" />
+                    <el-option label="数学计算" value="mathematics" />
+                    <el-option label="TensorFlow.js开发" value="tensorflow-js" />
+                    <el-option label="机器学习基础" value="machine-learning" />
+                    <el-option label="深度学习应用" value="deep-learning" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="难度等级">
+                  <el-select v-model="practiceForm.difficulty" placeholder="请选择难度">
+                    <el-option label="初级" value="beginner" />
+                    <el-option label="中级" value="intermediate" />
+                    <el-option label="高级" value="advanced" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            
+            <!-- 新增：题目类型选择 -->
+            <el-row :gutter="20">
+              <el-col :span="24">
+                <el-form-item label="题目类型">
+                  <el-checkbox-group v-model="practiceForm.questionTypes">
+                    <el-checkbox label="choice">选择题</el-checkbox>
+                    <el-checkbox label="fill">填空题</el-checkbox>
+                    <el-checkbox label="short">简答题</el-checkbox>
+                    <el-checkbox label="coding">编程题</el-checkbox>
+                    <el-checkbox label="essay">论述题</el-checkbox>
+                  </el-checkbox-group>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            
+            <!-- 新增：各类型题目数量设置 -->
+            <el-row :gutter="20" v-if="practiceForm.questionTypes.length > 0">
+              <el-col :span="24">
+                <el-form-item label="题目数量分配">
+                  <div class="question-type-config">
+                    <div v-for="type in practiceForm.questionTypes" :key="type" class="type-config-item">
+                      <span class="type-name">{{ getQuestionTypeName(type) }}</span>
+                      <el-input-number 
+                        v-model="practiceForm.typeConfig[type]" 
+                        :min="1" 
+                        :max="10"
+                        size="small"
+                      />
+                    </div>
                   </div>
-                </div>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <el-form-item label="总题目数量">
-                <el-input-number v-model="practiceForm.questionCount" :min="1" :max="50" />
-                <div class="question-count-tips">
-                  <el-tag size="small" type="info">建议：5-20题适合单次练习</el-tag>
-                  <el-tag size="small" type="warning">注意：题目过多可能影响生成质量</el-tag>
-                </div>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="练习时长">
-                <el-input-number v-model="practiceForm.timeLimit" :min="5" :max="120" />
-                <span class="unit">分钟</span>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          
-          <el-form-item label="知识点">
-            <el-input
-              v-model="practiceForm.topics"
-              placeholder="请输入想要练习的知识点，用逗号分隔..."
-            />
-          </el-form-item>
-          
-          <el-form-item label="特殊要求">
-            <el-input
-              v-model="practiceForm.requirements"
-              type="textarea"
-              :rows="3"
-              placeholder="请输入特殊练习要求..."
-            />
-          </el-form-item>
-        </el-form>
-      </div>
-      
-      <!-- 生成练习按钮 -->
-      <div class="generate-actions">
-        <el-button 
-          type="primary" 
-          size="large"
-          @click="generatePractice"
-          :loading="generating"
-          :disabled="!canGenerate"
-        >
-          <el-icon v-if="!generating"><Edit /></el-icon>
-          <el-icon v-else><Loading /></el-icon>
-          {{ generating ? 'AI正在生成题目，请耐心等待...' : '生成练习题目' }}
-        </el-button>
-        <el-button @click="resetForm">重置设置</el-button>
-        <el-button type="info" @click="testBackend">测试后端连接</el-button>
-        <el-button type="warning" @click="healthCheck">健康检查</el-button>
-      </div>
-    </el-card>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="总题目数量">
+                  <el-input-number v-model="totalQuestionCount" :min="1" :max="50" disabled />
+                  <div class="question-count-tips">
+                    <el-tag size="small" type="success">自动计算：各题型数量之和</el-tag>
+                    <el-tag size="small" type="info">建议：5-20题适合单次练习</el-tag>
+                  </div>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="练习时长">
+                  <el-input-number v-model="practiceForm.timeLimit" :min="5" :max="120" />
+                  <span class="unit">分钟</span>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            
+            <el-form-item label="知识点">
+              <el-input
+                v-model="practiceForm.topics"
+                placeholder="请输入想要练习的知识点，用逗号分隔..."
+              />
+            </el-form-item>
+            
+            <el-form-item label="特殊要求">
+              <el-input
+                v-model="practiceForm.requirements"
+                type="textarea"
+                :rows="3"
+                placeholder="请输入特殊练习要求..."
+              />
+            </el-form-item>
+          </el-form>
+        </div>
+        
+        <!-- 生成练习按钮 -->
+        <div class="generate-actions">
+          <el-button 
+            type="primary" 
+            size="large"
+            @click="generatePractice"
+            :loading="generating"
+            :disabled="!canGenerate"
+          >
+            <el-icon v-if="!generating"><Edit /></el-icon>
+            <el-icon v-else><Loading /></el-icon>
+            {{ generating ? 'AI正在生成题目，请耐心等待...' : '生成练习题目' }}
+          </el-button>
+          <el-button @click="resetForm">重置设置</el-button>
+          <el-button type="info" @click="testBackend">测试后端连接</el-button>
+          <el-button type="warning" @click="healthCheck">健康检查</el-button>
+        </div>
+      </el-card>
+    </div>
     
-    <!-- 练习题目展示 -->
-    <div v-if="practiceQuestions.length > 0" class="questions-section" id="questions-section">
+    <!-- 练习页面 -->
+    <div v-if="currentPage === 'practice'" class="practice-page">
       <el-card class="questions-card">
         <template #header>
           <div class="questions-header">
@@ -210,6 +213,9 @@
               <span>预计用时: {{ practiceForm.timeLimit }} 分钟</span>
               <el-button type="success" @click="startPractice" v-if="!practiceStarted">
                 开始练习
+              </el-button>
+              <el-button type="danger" @click="exitPractice" v-if="!practiceStarted">
+                退出练习
               </el-button>
             </div>
           </div>
@@ -226,7 +232,7 @@
               <h4>{{ question.title }}</h4>
               <div v-if="question.options" class="question-options">
                 <div v-for="(option, optIndex) in question.options" :key="optIndex" class="option">
-                  {{ String.fromCharCode(65 + optIndex) }}. {{ option }}
+                  {{ option }}
                 </div>
               </div>
             </div>
@@ -276,7 +282,7 @@
                       :label="String.fromCharCode(65 + optIndex)"
                       class="option-radio"
                     >
-                      {{ String.fromCharCode(65 + optIndex) }}. {{ option }}
+                      {{ option }}
                     </el-radio>
                   </el-radio-group>
                 </div>
@@ -328,38 +334,53 @@
                 
                 <!-- 编程题 -->
                 <div v-else-if="currentQuestion.type === 'coding'" class="question-coding">
-                  <div class="coding-instruction">
-                    <div class="instruction-content">
-                      <h5>编程要求：</h5>
-                      <div v-if="currentQuestion.requirements" v-html="currentQuestion.requirements"></div>
-                      <div v-if="currentQuestion.examples" class="examples">
-                        <h6>示例：</h6>
-                        <div v-for="(example, exIndex) in currentQuestion.examples" :key="exIndex" class="example-item">
-                          <div class="example-input">输入：{{ example.input }}</div>
-                          <div class="example-output">输出：{{ example.output }}</div>
+                  <div class="coding-layout">
+                    <!-- 左侧：题目描述 -->
+                    <div class="coding-left">
+                      <div class="coding-tags">
+                        <el-tag type="success" size="small">编程题</el-tag>
+                        <el-tag type="warning" size="small">{{ currentQuestion.difficulty || 'intermediate' }}</el-tag>
+                      </div>
+                      
+                      <h3 class="coding-title">{{ currentQuestion.title }}</h3>
+                      
+                      <div class="coding-section">
+                        <h4 class="section-title">编程要求：</h4>
+                        <div class="section-content" v-html="formatQuestionContent(currentQuestion.requirements || currentQuestion.content)"></div>
+                      </div>
+                      
+                      <div v-if="currentQuestion.examples && currentQuestion.examples.length > 0" class="coding-section">
+                        <h4 class="section-title">示例：</h4>
+                        <div v-for="(example, exIndex) in currentQuestion.examples" :key="exIndex" class="example-box">
+                          <div class="example-label">示例 {{ exIndex + 1 }}：</div>
+                          <div class="example-io">
+                            <div class="io-item">
+                              <span class="io-label">输入：</span>
+                              <code class="io-value">{{ example.input }}</code>
+                            </div>
+                            <div class="io-item">
+                              <span class="io-label">输出：</span>
+                              <code class="io-value output">{{ example.output }}</code>
+                            </div>
+                          </div>
                         </div>
                       </div>
+                      
+                      <div v-if="currentQuestion.hints" class="coding-section">
+                        <h4 class="section-title">提示：</h4>
+                        <div class="section-content">{{ currentQuestion.hints }}</div>
+                      </div>
                     </div>
-                  </div>
-                  <div class="coding-editor">
-                    <el-input
-                      v-model="userAnswers[currentQuestionIndex]"
-                      type="textarea"
-                      :rows="15"
-                      placeholder="请在此处编写代码..."
-                      class="code-textarea"
-                    />
-                  </div>
-                  <div class="coding-actions">
-                    <el-button type="primary" @click="runCode(currentQuestionIndex)">
-                      <el-icon><CaretRight /></el-icon>
-                      运行代码
-                    </el-button>
-                    <el-button @click="resetCode(currentQuestionIndex)">重置代码</el-button>
-                  </div>
-                  <div v-if="codeResults[currentQuestionIndex]" class="code-result">
-                    <h6>运行结果：</h6>
-                    <pre>{{ codeResults[currentQuestionIndex] }}</pre>
+                    
+                    <!-- 右侧：代码编辑器组件 -->
+                    <div class="coding-right">
+                      <CodeEditor
+                        title="代码编辑"
+                        :question-id="currentQuestion.id"
+                        :default-code="userAnswers[currentQuestionIndex]"
+                        @code-change="(code) => userAnswers[currentQuestionIndex] = code"
+                      />
+                    </div>
                   </div>
                 </div>
                 
@@ -403,14 +424,15 @@
                 提交练习
               </el-button>
               <el-button @click="pausePractice">暂停</el-button>
+              <el-button type="danger" @click="exitPractice">退出练习</el-button>
             </div>
           </div>
         </div>
       </el-card>
     </div>
     
-    <!-- 练习结果 -->
-    <div v-if="practiceResult" class="result-section">
+    <!-- 结果页面 -->
+    <div v-if="currentPage === 'result'" class="result-page">
       <el-card class="result-card">
         <template #header>
           <h3>练习结果</h3>
@@ -504,6 +526,7 @@
           <el-button type="primary" @click="retryPractice">重新练习</el-button>
           <el-button @click="viewAnswers">查看答案</el-button>
           <el-button @click="exportResult">导出结果</el-button>
+          <el-button type="info" @click="currentPage = 'config'">返回首页</el-button>
         </div>
       </el-card>
     </div>
@@ -517,18 +540,24 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Loading, CaretRight } from '@element-plus/icons-vue'
 import { aiAPI } from '@/api/ai'
 import { getPublishedExamsByCourseId, getExamById } from '@/api/exam'
+import { batchRecordErrorQuestions } from '@/api/errorQuestions'
 import axios from 'axios'
+import CodeEditor from '@/components/CodeEditor.vue'
 
 export default {
   name: 'PracticeEvaluation',
   components: {
     Edit,
     Loading,
-    CaretRight
+    CaretRight,
+    CodeEditor
   },
   setup() {
     // 获取路由信息
     const route = useRoute()
+    
+    // 页面状态：'config' | 'practice' | 'result'
+    const currentPage = ref('config')
     
     // 课程信息
     const courseInfo = reactive({
@@ -547,7 +576,6 @@ export default {
       difficulty: 'intermediate',
       questionTypes: ['choice'], // 默认选择题
       typeConfig: { choice: 2, fill: 1, short: 1, coding: 1, essay: 1 }, // 默认配置
-      questionCount: 5,
       timeLimit: 30,
       topics: '',
       requirements: ''
@@ -565,9 +593,19 @@ export default {
     const reportDialogVisible = ref(false)
     const currentReport = ref(null)
     
+    // 计算总题目数量（各题型数量之和）
+    const totalQuestionCount = computed(() => {
+      if (practiceForm.questionTypes.length === 0) {
+        return 0
+      }
+      return practiceForm.questionTypes.reduce((sum, type) => {
+        return sum + (practiceForm.typeConfig[type] || 0)
+      }, 0)
+    })
+    
     // 计算是否可以生成
     const canGenerate = computed(() => {
-      return practiceForm.subject && practiceForm.questionCount > 0
+      return practiceForm.subject && totalQuestionCount.value > 0
     })
     
     // 当前题目
@@ -602,7 +640,7 @@ export default {
         const requestData = {
           topic: practiceForm.subject,
           difficulty: practiceForm.difficulty,
-          count: practiceForm.questionCount,
+          count: totalQuestionCount.value,
           topics: practiceForm.topics,
           requirements: practiceForm.requirements,
           questionTypes: practiceForm.questionTypes,
@@ -623,9 +661,15 @@ export default {
             return ''
           })
           
+          // 保存到 LocalStorage
+          savePracticeData()
+          
           // 关闭加载提示并显示成功消息
           ElMessage.closeAll()
           ElMessage.success(`练习题目生成成功！共${practiceQuestions.value.length}道题目`)
+          
+          // 切换到练习页面
+          currentPage.value = 'practice'
         } else {
           console.error('响应格式错误:', response)
           throw new Error(response.msg || '生成失败：响应格式错误')
@@ -675,7 +719,6 @@ export default {
         difficulty: 'intermediate',
         questionTypes: ['choice'],
         typeConfig: { choice: 2, fill: 1, short: 1, coding: 1, essay: 1 },
-        questionCount: 5,
         timeLimit: 30,
         topics: '',
         requirements: ''
@@ -684,6 +727,8 @@ export default {
       practiceStarted.value = false
       practiceResult.value = null
       codeResults.value = {}
+      currentPage.value = 'config' // 返回配置页面
+      clearPracticeData() // 清除保存的数据
       ElMessage.success('设置已重置')
     }
     
@@ -693,10 +738,21 @@ export default {
       currentQuestionIndex.value = 0
       remainingTime.value = practiceForm.timeLimit * 60
       startTimer()
+      savePracticeData() // 保存状态
     }
     
     // 开始计时器
     const startTimer = () => {
+      // 只在第一次开始时保存时间戳
+      const existingStartTime = localStorage.getItem('practiceStartTime')
+      if (!existingStartTime) {
+        const startTimestamp = Date.now()
+        localStorage.setItem('practiceStartTime', startTimestamp.toString())
+        console.log('首次开始练习,记录开始时间:', new Date(startTimestamp).toLocaleString())
+      } else {
+        console.log('恢复练习,使用已有开始时间:', new Date(parseInt(existingStartTime)).toLocaleString())
+      }
+      
       timerInterval.value = setInterval(() => {
         if (remainingTime.value > 0) {
           remainingTime.value--
@@ -731,6 +787,7 @@ export default {
     const previousQuestion = () => {
       if (currentQuestionIndex.value > 0) {
         currentQuestionIndex.value--
+        savePracticeData() // 保存当前进度
       }
     }
     
@@ -738,6 +795,7 @@ export default {
     const nextQuestion = () => {
       if (currentQuestionIndex.value < practiceQuestions.value.length - 1) {
         currentQuestionIndex.value++
+        savePracticeData() // 保存当前进度
       }
     }
     
@@ -796,6 +854,9 @@ export default {
     const submitPractice = async () => {
       stopTimer()
       
+      // 清除开始时间戳,因为练习已结束
+      localStorage.removeItem('practiceStartTime')
+      
       try {
         // 处理多题型答案
         const answers = practiceQuestions.value.map((q, idx) => {
@@ -815,7 +876,15 @@ export default {
         console.log('收到练习评测响应:', response)
         if (response.success === true && response.data) {
           practiceResult.value = response.data
+          
+          // 记录错题
+          await recordErrorQuestions(response.data.analysis)
+          
+          savePracticeData() // 保存结果
           ElMessage.success('练习评测完成！')
+          
+          // 切换到结果页面
+          currentPage.value = 'result'
           
           // 启动AI分析状态检查
           startStatusCheck()
@@ -902,7 +971,90 @@ export default {
           analysis
         }
         
+        // 记录错题
+        await recordErrorQuestions(analysis)
+        
+        savePracticeData() // 保存结果
         ElMessage.success('练习提交成功！')
+        
+        // 切换到结果页面
+        currentPage.value = 'result'
+      }
+    }
+    
+    // 记录错题到系统
+    const recordErrorQuestions = async (analysisData) => {
+      try {
+        const studentId = localStorage.getItem('userId') || 17
+        
+        // 筛选出错误的题目
+        const errorQuestions = []
+        
+        analysisData.forEach((analysis, index) => {
+          if (!analysis.isCorrect) {
+            const question = practiceQuestions.value[index]
+            
+            errorQuestions.push({
+              questionId: question.id || `temp_${Date.now()}_${index}`,
+              questionType: question.type,
+              questionContent: question.title || question.content,
+              options: question.options ? question.options.map((opt, idx) => ({
+                key: String.fromCharCode(65 + idx),
+                content: opt
+              })) : null,
+              userAnswer: analysis.userAnswer,
+              correctAnswer: analysis.correctAnswer,
+              knowledgePoint: practiceForm.topics || practiceForm.subject || '未分类',
+              errorType: getErrorType(question.type, analysis.userAnswer, analysis.correctAnswer),
+              errorReason: analysis.explanation || '答案错误',
+              errorRate: 100 // 初始错误率
+            })
+          }
+        })
+        
+        if (errorQuestions.length > 0) {
+          console.log('准备记录错题:', errorQuestions)
+          
+          const response = await batchRecordErrorQuestions({
+            studentId: parseInt(studentId),
+            errorQuestions: errorQuestions,
+            source: selectedExam.value ? 'exam' : 'practice'
+          })
+          
+          if (response.success) {
+            console.log(`成功记录 ${errorQuestions.length} 道错题`)
+            ElMessage.success(`已记录 ${errorQuestions.length} 道错题到错题本`)
+          } else {
+            console.warn('记录错题失败:', response.msg)
+          }
+        } else {
+          console.log('没有错题需要记录')
+        }
+      } catch (error) {
+        console.error('记录错题失败:', error)
+        // 不影响主流程，静默失败
+      }
+    }
+    
+    // 根据题目类型和答案判断错误类型
+    const getErrorType = (questionType, userAnswer, correctAnswer) => {
+      if (!userAnswer || userAnswer.trim() === '') {
+        return '未作答'
+      }
+      
+      switch (questionType) {
+        case 'choice':
+          return '选项错误'
+        case 'fill':
+          return '填空错误'
+        case 'short':
+          return '理解不完整'
+        case 'coding':
+          return '代码实现错误'
+        case 'essay':
+          return '论述不充分'
+        default:
+          return '答案错误'
       }
     }
     
@@ -926,6 +1078,54 @@ export default {
       } else {
         return `❌ 回答有误，建议重新学习${topic}的基础概念，多做类似练习。`
       }
+    }
+    
+    // 格式化题目内容 - 将一大段文字解析成结构化的HTML
+    const formatQuestionContent = (content) => {
+      if (!content) return ''
+      
+      // 如果已经包含HTML标签，直接返回
+      if (content.includes('<div>') || content.includes('<p>')) {
+        return content
+      }
+      
+      let formatted = content
+      
+      // 识别并格式化各个部分
+      const sections = [
+        { key: '题目描述', pattern: /题目描述[：:]([\s\S]*?)(?=输入格式|输出格式|示例|提示|$)/i },
+        { key: '输入格式', pattern: /输入格式[：:]([\s\S]*?)(?=输出格式|示例|提示|$)/i },
+        { key: '输出格式', pattern: /输出格式[：:]([\s\S]*?)(?=示例|提示|$)/i },
+        { key: '示例', pattern: /示例[：:]?([\s\S]*?)(?=提示|$)/i },
+        { key: '提示', pattern: /提示[：:]([\s\S]*?)$/i }
+      ]
+      
+      let hasStructure = false
+      let result = '<div class="formatted-question">'
+      
+      sections.forEach(section => {
+        const match = content.match(section.pattern)
+        if (match && match[1]) {
+          hasStructure = true
+          const sectionContent = match[1].trim()
+          result += `
+            <div class="question-section">
+              <h4 class="section-title">${section.key}：</h4>
+              <div class="section-content">${sectionContent.replace(/\n/g, '<br>')}</div>
+            </div>
+          `
+        }
+      })
+      
+      result += '</div>'
+      
+      // 如果识别到了结构，返回格式化后的内容
+      if (hasStructure) {
+        return result
+      }
+      
+      // 否则，简单地将换行符转换为<br>
+      return formatted.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>')
     }
     
     // 格式化分析文本
@@ -1019,12 +1219,46 @@ export default {
       ElMessage.info('练习已暂停')
     }
     
+    // 退出练习
+    const exitPractice = () => {
+      ElMessageBox.confirm(
+        '确定要退出当前练习吗？退出后将清除所有练习数据。',
+        '确认退出',
+        {
+          confirmButtonText: '确定退出',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      ).then(() => {
+        // 停止计时器
+        stopTimer()
+        // 清除所有练习相关数据
+        practiceQuestions.value = []
+        practiceStarted.value = false
+        currentQuestionIndex.value = 0
+        userAnswers.value = []
+        practiceResult.value = null
+        remainingTime.value = 0
+        codeResults.value = {}
+        selectedExam.value = null
+        // 返回配置页面
+        currentPage.value = 'config'
+        // 清除 LocalStorage 中的数据
+        clearPracticeData()
+        ElMessage.success('已退出练习')
+      }).catch(() => {
+        // 用户取消退出
+      })
+    }
+    
     // 重新练习
     const retryPractice = () => {
       practiceResult.value = null
       practiceStarted.value = false
       currentQuestionIndex.value = 0
       userAnswers.value = new Array(practiceQuestions.value.length).fill('')
+      // 返回练习页面
+      currentPage.value = 'practice'
       ElMessage.success('可以重新开始练习')
     }
     
@@ -1446,25 +1680,9 @@ export default {
         
         ElMessage.success(`开始考试：${exam.name}，共${practiceQuestions.value.length}道题`)
         
-        // 自动跳转到练习模块
+        // 切换到练习页面并自动开始
+        currentPage.value = 'practice'
         startPractice()
-        
-        // 滚动到练习题目区域
-        setTimeout(() => {
-          const questionsSection = document.getElementById('questions-section')
-          if (questionsSection) {
-            questionsSection.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'start' 
-            })
-            
-            // 添加高亮效果
-            questionsSection.classList.add('highlight')
-            setTimeout(() => {
-              questionsSection.classList.remove('highlight')
-            }, 2000)
-          }
-        }, 500)
       } else {
         ElMessage.error('无法获取考试题目，请联系教师')
       }
@@ -1494,30 +1712,98 @@ export default {
         
         ElMessage.success(`预览考试：${exam.name}，共${practiceQuestions.value.length}道题`)
         
-        // 自动滚动到练习题目区域
-        setTimeout(() => {
-          const questionsSection = document.getElementById('questions-section')
-          if (questionsSection) {
-            questionsSection.scrollIntoView({ 
-              behavior: 'smooth', 
-              block: 'start' 
-            })
-            
-            // 添加高亮效果
-            questionsSection.classList.add('highlight')
-            setTimeout(() => {
-              questionsSection.classList.remove('highlight')
-            }, 2000)
-          }
-        }, 300)
+        // 切换到练习页面（预览模式）
+        currentPage.value = 'practice'
       } else {
         ElMessage.error('无法获取考试题目')
       }
     }
     
+    // 保存练习数据到 LocalStorage
+    const savePracticeData = () => {
+      const practiceData = {
+        currentPage: currentPage.value,
+        questions: practiceQuestions.value,
+        form: practiceForm,
+        answers: userAnswers.value,
+        result: practiceResult.value,
+        started: practiceStarted.value,
+        currentIndex: currentQuestionIndex.value,
+        remainingTime: remainingTime.value,
+        selectedExam: selectedExam.value,
+        timestamp: Date.now()
+      }
+      localStorage.setItem('practiceData', JSON.stringify(practiceData))
+      console.log('练习数据已保存到 LocalStorage')
+    }
+    
+    // 从 LocalStorage 恢复练习数据
+    const restorePracticeData = () => {
+      try {
+        const savedData = localStorage.getItem('practiceData')
+        if (savedData) {
+          const practiceData = JSON.parse(savedData)
+          
+          // 恢复数据
+          if (practiceData.questions && practiceData.questions.length > 0) {
+            currentPage.value = practiceData.currentPage || 'config'
+            practiceQuestions.value = practiceData.questions
+            Object.assign(practiceForm, practiceData.form)
+            userAnswers.value = practiceData.answers || []
+            practiceResult.value = practiceData.result
+            practiceStarted.value = practiceData.started || false
+            currentQuestionIndex.value = practiceData.currentIndex || 0
+            selectedExam.value = practiceData.selectedExam || null
+            
+            // 计算实际剩余时间（基于开始时间戳）
+            const startTime = localStorage.getItem('practiceStartTime')
+            if (startTime && practiceStarted.value) {
+              const elapsedSeconds = Math.floor((Date.now() - parseInt(startTime)) / 1000)
+              const totalSeconds = practiceForm.timeLimit * 60
+              remainingTime.value = Math.max(0, totalSeconds - elapsedSeconds)
+              
+              console.log(`练习已进行 ${elapsedSeconds} 秒，剩余 ${remainingTime.value} 秒`)
+              
+              // 如果时间已到，自动提交并清除数据
+              if (remainingTime.value <= 0) {
+                ElMessage.warning('练习时间已到，自动提交')
+                submitPractice()
+                return
+              }
+            } else {
+              remainingTime.value = practiceData.remainingTime || 0
+            }
+            
+            console.log('练习数据已从 LocalStorage 恢复')
+            ElMessage.success('已恢复上次的练习数据')
+            
+            // 如果练习正在进行中，恢复计时器
+            if (practiceStarted.value && remainingTime.value > 0) {
+              startTimer()
+            }
+          }
+        }
+      } catch (error) {
+        console.error('恢复练习数据失败:', error)
+        localStorage.removeItem('practiceData')
+        localStorage.removeItem('practiceStartTime')
+      }
+    }
+    
+    // 清除练习数据
+    const clearPracticeData = () => {
+      localStorage.removeItem('practiceData')
+      localStorage.removeItem('practiceStartTime')
+      console.log('练习数据已清除')
+    }
+    
     // 页面挂载时获取数据
     onMounted(() => {
       console.log('页面挂载，课程信息:', courseInfo)
+      
+      // 恢复之前的练习数据
+      restorePracticeData()
+      
       if (courseInfo.courseId) {
         fetchTeacherExams()
       }
@@ -1530,6 +1816,8 @@ export default {
     })
     
     return {
+      // 页面状态
+      currentPage,
       // 课程和考试相关
       courseInfo,
       teacherExams,
@@ -1551,6 +1839,7 @@ export default {
       userAnswers,
       practiceResult,
       remainingTime,
+      totalQuestionCount,
       canGenerate,
       currentQuestion,
       timerProgress,
@@ -1563,6 +1852,7 @@ export default {
       nextQuestion,
       submitPractice,
       pausePractice,
+      exitPractice,
       retryPractice,
       viewAnswers,
       exportResult,
@@ -1576,7 +1866,12 @@ export default {
       currentReport,
       generateReport,
       closeReportDialog,
-      formatAnalysis
+      formatAnalysis,
+      formatQuestionContent,
+      // 新增：数据持久化相关
+      savePracticeData,
+      restorePracticeData,
+      clearPracticeData
     }
   }
 }
@@ -1587,6 +1882,25 @@ export default {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  min-height: calc(100vh - 100px);
+}
+
+/* 页面切换动画 */
+.config-page,
+.practice-page,
+.result-page {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 课程信息卡片样式 */
@@ -1872,11 +2186,11 @@ export default {
 }
 
 .practice-session {
-  padding: 20px 0;
+  padding: 10px 0;
 }
 
 .practice-timer {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
 
 .timer-text {
@@ -1889,15 +2203,20 @@ export default {
 
 .current-question {
   background: #f8f9fa;
-  padding: 30px;
+  padding: 20px;
   border-radius: 12px;
+  margin-top: 20px;
 }
 
 .question-navigation {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .question-counter {
@@ -2085,92 +2404,164 @@ export default {
   color: #606266;
 }
 
-/* 编程题样式 */
+/* 编程题样式 - 左右布局 */
 .question-coding {
   margin-top: 20px;
 }
 
-.coding-instruction {
-  margin-bottom: 20px;
-  padding: 15px;
-  background: #f5f7fa;
-  border-radius: 6px;
-  border-left: 4px solid #409eff;
+.coding-layout {
+  display: flex;
+  gap: 20px;
+  height: auto;
+  min-height: 600px;
 }
 
-.instruction-content h5 {
-  margin: 0 0 10px 0;
+/* 左侧题目描述 */
+.coding-left {
+  flex: 0 0 45%;
+  overflow-y: auto;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+}
+
+.coding-tags {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.coding-title {
+  margin: 0 0 24px 0;
+  color: #303133;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.coding-section {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.coding-section:last-child {
+  border-bottom: none;
+}
+
+.section-title {
+  margin: 0 0 12px 0;
   color: #409eff;
   font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
 }
 
-.examples {
-  margin-top: 15px;
+.section-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 16px;
+  background: #409eff;
+  margin-right: 8px;
+  border-radius: 2px;
 }
 
-.examples h6 {
-  margin: 0 0 10px 0;
+.section-content {
   color: #606266;
+  line-height: 1.8;
+  font-size: 14px;
 }
 
-.example-item {
-  margin-bottom: 10px;
-  padding: 10px;
-  background: #fff;
-  border-radius: 4px;
-  border: 1px solid #e4e7ed;
+.example-box {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #409eff;
 }
 
-.example-input {
+.example-box:last-child {
+  margin-bottom: 0;
+}
+
+.example-label {
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.example-io {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.io-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.io-label {
   color: #909399;
-  margin-bottom: 5px;
+  font-size: 13px;
+  min-width: 40px;
+  font-weight: 500;
 }
 
-.example-output {
+.io-value {
+  flex: 1;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+  font-size: 13px;
+  color: #606266;
+  display: block;
+}
+
+.io-value.output {
   color: #67c23a;
   font-weight: 500;
 }
 
-.coding-editor {
-  margin-bottom: 15px;
-}
-
-.code-textarea {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  line-height: 1.4;
-}
-
-.code-textarea textarea {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.coding-actions {
-  margin-bottom: 15px;
+/* 右侧代码编辑器 */
+.coding-right {
+  flex: 1;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.code-result {
-  padding: 15px;
+.coding-right :deep(.code-editor) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 滚动条样式 */
+.coding-left::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.coding-left::-webkit-scrollbar-track {
   background: #f5f7fa;
-  border-radius: 6px;
-  border: 1px solid #e4e7ed;
+  border-radius: 4px;
 }
 
-.code-result h6 {
-  margin: 0 0 10px 0;
-  color: #409eff;
+.coding-left::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 4px;
 }
 
-.code-result pre {
-  margin: 0;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 14px;
-  color: #606266;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+.coding-left::-webkit-scrollbar-thumb:hover {
+  background: #909399;
 }
 
 /* 论述题样式 */
@@ -2399,4 +2790,36 @@ export default {
 .ai-analysis-status .el-button {
   margin-left: 10px;
 }
+
+/* 格式化题目内容样式 */
+.formatted-question {
+  line-height: 1.8;
+}
+
+.formatted-question .question-section {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #409eff;
+}
+
+.formatted-question .question-section:last-child {
+  margin-bottom: 0;
+}
+
+.formatted-question .section-title {
+  margin: 0 0 10px 0;
+  color: #409eff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.formatted-question .section-content {
+  color: #606266;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
 </style> 

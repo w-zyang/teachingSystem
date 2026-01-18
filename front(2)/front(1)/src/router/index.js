@@ -12,6 +12,7 @@ import TestPage from '@/views/common/TestPage.vue'
 // 教师侧页面
 import TeacherLayout from '@/views/teacher/TeacherLayout.vue'
 import TeacherDashboard from '@/views/teacher/Dashboard.vue'
+import CreateCourse from '@/views/teacher/CreateCourse.vue'
 import AICourseDesign from '@/views/teacher/AICourseDesign.vue'
 import ExamGeneration from '@/views/teacher/ExamGeneration.vue'
 import StudentAnalysis from '@/views/teacher/StudentAnalysis.vue'
@@ -61,6 +62,7 @@ const routes = [
         children: [
             { path: '', redirect: '/teacher/dashboard' },
             { path: 'dashboard', name: 'teacher-dashboard', component: TeacherDashboard },
+            { path: 'create-course', name: 'create-course', component: CreateCourse },
             { path: 'ai-course-design', name: 'ai-course-design', component: AICourseDesign },
             { path: 'exam-generation', name: 'exam-generation', component: ExamGeneration },
             { path: 'student-analysis', name: 'student-analysis', component: StudentAnalysis },

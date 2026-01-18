@@ -148,27 +148,80 @@
               <div class="step-panel" v-show="currentStep === 0">
                 <h3>🎤 录音上传</h3>
                 
-                <!-- 实时录音 -->
+                <!-- 录音区域（合并实时录音和已上传录音） -->
                 <div class="recording-section">
-                  <h4>实时录音</h4>
-                  <div class="recorder-controls">
-                    <el-button 
-                      :type="isRecording ? 'danger' : 'primary'"
-                      size="large"
-                      @click="toggleRecording"
-                    >
-                      {{ isRecording ? '🛑 停止录音' : '🎤 开始录音' }}
-                    </el-button>
-                    <div v-if="isRecording" class="recording-indicator">
-                      🔴 录音中... {{ recordingDuration }}s
+                  <!-- 已上传的录音（优先显示） -->
+                  <div v-if="selectedSummary?.audioFilePath" class="uploaded-audio-content">
+                    <h4>已上传的录音</h4>
+                    <div class="audio-player-wrapper">
+                      <div class="audio-player">
+                        <audio 
+                          ref="audioPlayerRef"
+                          :src="getAudioUrl(selectedSummary.audioFilePath)" 
+                          controls
+                          style="width: 100%;"
+                          @loadedmetadata="onAudioLoaded"
+                        ></audio>
+                        <div class="audio-buttons">
+                          <el-button 
+                            type="danger" 
+                            size="small" 
+                            @click="confirmDeleteAudio"
+                            class="delete-audio-btn"
+                          >
+                            <el-icon><Delete /></el-icon>
+                            删除
+                          </el-button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   
-                  <div v-if="recordedBlob" class="recorded-audio">
-                    <audio :src="recordedAudioUrl" controls style="width: 100%; margin: 10px 0;"></audio>
-                    <el-button type="success" @click="uploadRecordedAudio">
-                      上传此录音
-                    </el-button>
+                  <!-- 实时录音（未上传时显示） -->
+                  <div v-else class="realtime-recording-content">
+                    <h4>实时录音</h4>
+                    <div class="recorder-controls">
+                      <el-button 
+                        :type="isRecording ? 'danger' : 'primary'"
+                        size="large"
+                        @click="toggleRecording"
+                      >
+                        {{ isRecording ? '🛑 停止录音' : '🎤 开始录音' }}
+                      </el-button>
+                      <div v-if="isRecording" class="recording-indicator">
+                        🔴 录音中... {{ recordingDuration }}s
+                      </div>
+                    </div>
+                    
+                    <div v-if="recordedBlob" class="recorded-audio">
+                      <audio 
+                        ref="localAudioPlayerRef"
+                        :src="recordedAudioUrl" 
+                        controls
+                        style="width: 100%; margin: 10px 0;"
+                        @loadedmetadata="onLocalAudioLoaded"
+                      ></audio>
+                      <div class="audio-buttons">
+                        <el-button 
+                          type="success" 
+                          size="small" 
+                          @click="uploadRecordedAudio"
+                          class="upload-audio-btn"
+                        >
+                          <el-icon><Upload /></el-icon>
+                          上传此录音
+                        </el-button>
+                        <el-button 
+                          type="danger" 
+                          size="small" 
+                          @click="deleteLocalAudio"
+                          class="delete-audio-btn"
+                        >
+                          <el-icon><Delete /></el-icon>
+                          删除
+                        </el-button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -207,8 +260,9 @@
                 <div class="step-actions">
                   <el-button 
                     type="primary" 
-                    @click="nextStep"
+                    @click="handleNextToTranscript"
                     :disabled="!hasAudioFile"
+                    :loading="transcriptLoading"
                   >
                     下一步：语音转文字
                   </el-button>
@@ -245,8 +299,9 @@
                   <el-button @click="prevStep">上一步</el-button>
                   <el-button 
                     type="primary" 
-                    @click="nextStep"
+                    @click="handleNextToAIAnalysis"
                     :disabled="!transcriptText"
+                    :loading="aiLoading"
                   >
                     下一步：AI分析
                   </el-button>
@@ -376,20 +431,31 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, MoreFilled, Download, VideoPlay, Delete, Upload } from '@element-plus/icons-vue'
 import classSummaryApi from '@/api/classSummary'
 import { getCoursesByTeacherId } from '@/api/course'
 
 export default {
   name: 'ClassroomSummary',
   components: {
-    Loading
+    Loading,
+    MoreFilled,
+    Download,
+    VideoPlay,
+    Delete,
+    Upload
   },
   setup() {
     // 基础数据
-    const teacherId = ref(2) // 当前教师ID
+    // 从localStorage获取教师ID
+    const getTeacherId = () => {
+      const userId = localStorage.getItem('userId')
+      return userId ? parseInt(userId) : 2 // 默认使用ID 2（如果未登录）
+    }
+    
+    const teacherId = ref(getTeacherId()) // 当前教师ID
     const statistics = ref({})
     const summaryList = ref([])
     const selectedSummary = ref(null)
@@ -420,6 +486,21 @@ export default {
     // UI状态
     const showCreateDialog = ref(false)
     const activeTab = ref('edit')
+    
+    // 音频播放器相关（已上传的录音）
+    const audioPlayerRef = ref(null)
+    const currentTime = ref(0)
+    const audioDuration = ref(0)
+    const playbackSpeed = ref('1')
+    const showSpeedSelector = ref(false)
+    const timeUpdateTimer = ref(null)
+    
+    // 本地录音播放器相关（实时录音）
+    const localAudioPlayerRef = ref(null)
+    const localCurrentTime = ref(0)
+    const localAudioDuration = ref(0)
+    const localPlaybackSpeed = ref('1')
+    const showLocalSpeedSelector = ref(false)
 
     // 表单数据
     const createForm = reactive({
@@ -616,24 +697,67 @@ export default {
     }
 
     const uploadRecordedAudio = async () => {
-      if (!recordedBlob.value) return
+      if (!recordedBlob.value) {
+        ElMessage.error('没有可上传的录音文件')
+        return
+      }
       
       try {
+        // 验证blob是否有效
+        if (recordedBlob.value.size === 0) {
+          ElMessage.error('录音文件为空，请重新录制')
+          return
+        }
+        
         const file = new File([recordedBlob.value], 'recording.webm', { 
           type: 'audio/webm' 
         })
         
-        const response = await classSummaryApi.uploadAudioFile(file, selectedSummary.value.courseId)
+        console.log('准备上传录音文件:', {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          courseId: selectedSummary.value.courseId,
+          summaryId: selectedSummary.value.id
+        })
+        
+        // 使用实际录音时长
+        const audioDuration = Math.floor(recordingDuration.value || 0)
+        
+        const response = await classSummaryApi.uploadAudioFile(
+          file, 
+          selectedSummary.value.courseId,
+          selectedSummary.value.id,
+          audioDuration
+        )
         if (response.success) {
           selectedSummary.value.audioFilePath = response.data
-          selectedSummary.value.audioDuration = recordingDuration.value
+          selectedSummary.value.audioDuration = audioDuration
           ElMessage.success('录音上传成功')
+          
+          // 清空本地录音，实现页面替换效果
+          // 先移除事件监听器
+          if (localAudioPlayerRef.value) {
+            localAudioPlayerRef.value.removeEventListener('timeupdate', () => {})
+            localAudioPlayerRef.value.pause()
+            localAudioPlayerRef.value.src = ''
+          }
+          recordedBlob.value = null
+          recordedAudioUrl.value = ''
+          // 释放URL对象
+          if (recordedAudioUrl.value) {
+            URL.revokeObjectURL(recordedAudioUrl.value)
+          }
+          recordingDuration.value = 0
+          localCurrentTime.value = 0
+          localAudioDuration.value = 0
+          showLocalSpeedSelector.value = false
         } else {
-          ElMessage.error('录音上传失败')
+          ElMessage.error('录音上传失败: ' + (response.msg || '未知错误'))
         }
       } catch (error) {
         console.error('录音上传失败:', error)
-        ElMessage.error('录音上传失败')
+        ElMessage.error('录音上传失败: ' + (error.message || '未知错误'))
       }
     }
 
@@ -655,9 +779,29 @@ export default {
 
     const customAudioUpload = async (options) => {
       try {
-        const response = await classSummaryApi.uploadAudioFile(options.file, selectedSummary.value.courseId)
+        // 获取音频时长
+        const audioDuration = await getAudioDuration(options.file)
+        
+        const response = await classSummaryApi.uploadAudioFile(
+          options.file, 
+          selectedSummary.value.courseId,
+          selectedSummary.value.id,
+          audioDuration
+        )
         if (response.success) {
-          selectedSummary.value.audioFilePath = response.data
+          const audioPathOrUrl = response.data
+          selectedSummary.value.audioFilePath = audioPathOrUrl
+          selectedSummary.value.audioDuration = audioDuration
+          
+          // 如果返回的是本地路径，转换为可访问的URL
+          let audioUrl = audioPathOrUrl
+          if (!audioPathOrUrl.startsWith('http://') && !audioPathOrUrl.startsWith('https://')) {
+            // 构建完整的访问URL
+            const baseUrl = window.location.origin.replace(/:\d+$/, ':8080')
+            audioUrl = baseUrl + (audioPathOrUrl.startsWith('/') ? audioPathOrUrl : '/' + audioPathOrUrl)
+          }
+          selectedSummary.value.audioUrl = audioUrl
+          
           ElMessage.success('音频文件上传成功')
         } else {
           ElMessage.error('音频文件上传失败')
@@ -668,30 +812,100 @@ export default {
       }
     }
 
-    // 语音转文字
-    const startTranscript = async () => {
+    // 获取音频文件时长
+    const getAudioDuration = (file) => {
+      return new Promise((resolve, reject) => {
+        const audio = new Audio()
+        const url = URL.createObjectURL(file)
+        audio.src = url
+        
+        audio.addEventListener('loadedmetadata', () => {
+          const duration = Math.floor(audio.duration)
+          URL.revokeObjectURL(url)
+          resolve(duration)
+        })
+        
+        audio.addEventListener('error', (e) => {
+          URL.revokeObjectURL(url)
+          console.warn('无法获取音频时长，使用默认值0:', e)
+          resolve(0) // 如果无法获取时长，返回0
+        })
+      })
+    }
+
+    // 处理下一步到语音转文字（自动调用语音转文字）
+    const handleNextToTranscript = async () => {
       if (!selectedSummary.value.audioFilePath) {
         ElMessage.error('请先上传录音文件')
         return
       }
       
+      // 自动调用语音转文字
+      await startTranscript()
+      
+      // 如果成功，跳转到下一步
+      if (transcriptText.value) {
+        nextStep()
+      }
+    }
+
+    // 处理下一步到AI分析（自动调用AI分析）
+    const handleNextToAIAnalysis = async () => {
+      if (!transcriptText.value) {
+        ElMessage.error('请先完成语音转文字')
+        return
+      }
+      
+      // 自动调用AI分析
+      await startAIAnalysis()
+      
+      // 如果成功，跳转到下一步
+      if (aiSummary.value) {
+        nextStep()
+      }
+    }
+
+    // 语音转文字（使用本地 Whisper 模型）
+    const startTranscript = async () => {
+      // 使用本地文件路径（后端返回的是物理路径）
+      const audioFilePath = selectedSummary.value.audioFilePath
+      
+      console.log('准备调用语音转文字:', {
+        summaryId: selectedSummary.value.id,
+        audioFilePath: audioFilePath
+      })
+      
+      if (!audioFilePath) {
+        ElMessage.error('请先上传录音文件')
+        return
+      }
+      
       transcriptLoading.value = true
+      transcriptText.value = '' // 清空之前的文本
+      
       try {
+        // 使用本地 Whisper 模型进行语音转文字
+        console.log('调用 processAudioToText API:', {
+          summaryId: selectedSummary.value.id,
+          audioFilePath: audioFilePath
+        })
         const response = await classSummaryApi.processAudioToText(
           selectedSummary.value.id,
-          selectedSummary.value.audioFilePath
+          audioFilePath
         )
+        
+        console.log('语音转文字响应:', response)
         
         if (response.success) {
           transcriptText.value = response.data
           selectedSummary.value.transcriptText = response.data
           ElMessage.success('语音转文字完成')
         } else {
-          ElMessage.error('语音转文字失败')
+          ElMessage.error(response.msg || '语音转文字失败')
         }
       } catch (error) {
         console.error('语音转文字失败:', error)
-        ElMessage.error('语音转文字失败')
+        ElMessage.error(error.message || '语音转文字失败')
       } finally {
         transcriptLoading.value = false
       }
@@ -699,6 +913,11 @@ export default {
 
     // AI分析
     const startAIAnalysis = async () => {
+      console.log('========== 开始 AI 分析 ==========')
+      console.log('转录文本:', transcriptText.value ? `${transcriptText.value.substring(0, 100)}...` : '空')
+      console.log('课件内容:', coursewareContent.value ? `${coursewareContent.value.substring(0, 100)}...` : '空')
+      console.log('总结ID:', selectedSummary.value?.id)
+      
       if (!transcriptText.value) {
         ElMessage.error('请先完成语音转文字')
         return
@@ -706,25 +925,31 @@ export default {
       
       aiLoading.value = true
       try {
+        console.log('准备调用 generateSummaryWithAI API')
         const response = await classSummaryApi.generateSummaryWithAI(
           selectedSummary.value.id,
           transcriptText.value,
           coursewareContent.value
         )
         
+        console.log('AI 分析响应:', response)
+        
         if (response.success) {
           aiSummary.value = response.data
           finalContent.value = response.data
           selectedSummary.value.summaryContent = response.data
           ElMessage.success('AI重点整理生成完成')
+          console.log('AI 生成成功，内容长度:', response.data.length)
         } else {
-          ElMessage.error('AI分析失败')
+          console.error('AI 分析失败:', response.msg)
+          ElMessage.error(response.msg || 'AI分析失败')
         }
       } catch (error) {
-        console.error('AI分析失败:', error)
-        ElMessage.error('AI分析失败')
+        console.error('AI分析失败（异常）:', error)
+        ElMessage.error(error.message || 'AI分析失败')
       } finally {
         aiLoading.value = false
+        console.log('========== AI 分析结束 ==========')
       }
     }
 
@@ -752,25 +977,43 @@ export default {
     }
 
     const publishSummary = async () => {
+      // 先保存最终内容
+      if (!finalContent.value || finalContent.value.trim() === '') {
+        ElMessage.error('请先编辑内容后再发布')
+        return
+      }
+      
       publishing.value = true
       try {
-        const response = await classSummaryApi.publishClassSummary(
+        // 1. 先保存最终内容
+        const saveResponse = await classSummaryApi.updateFinalContent(
           selectedSummary.value.id,
           finalContent.value
+        )
+        
+        if (!saveResponse.success) {
+          ElMessage.error('保存内容失败')
+          return
+        }
+        
+        // 2. 再发布
+        const response = await classSummaryApi.publishClassSummary(
+          selectedSummary.value.id
         )
         
         if (response.success) {
           selectedSummary.value.status = 'PUBLISHED'
           selectedSummary.value.publishTime = new Date().toISOString()
-          ElMessage.success('发布成功')
+          selectedSummary.value.finalContent = finalContent.value
+          ElMessage.success('发布成功！学生端现在可以看到这个课堂总结了')
           await loadSummaryList()
           await loadStatistics()
         } else {
-          ElMessage.error('发布失败')
+          ElMessage.error(response.msg || '发布失败')
         }
       } catch (error) {
         console.error('发布失败:', error)
-        ElMessage.error('发布失败')
+        ElMessage.error('发布失败: ' + (error.message || '未知错误'))
       } finally {
         publishing.value = false
       }
@@ -796,8 +1039,211 @@ export default {
     }
 
     const viewPublished = (summary) => {
-      // 这里可以打开新窗口查看发布的内容
-      window.open(`/student/class-summary/${summary.id}`, '_blank')
+      // 直接在当前页面预览
+      selectedSummary.value = summary
+      // 确保有最终内容可以预览
+      if (!finalContent.value && summary.finalContent) {
+        finalContent.value = summary.finalContent
+      }
+      if (!finalContent.value && summary.summaryContent) {
+        finalContent.value = summary.summaryContent
+      }
+      // 切换到预览标签页
+      activeTab.value = 'preview'
+      // 跳转到编辑发布步骤
+      currentStep.value = 3
+    }
+
+    // 音频播放器相关方法
+    const getAudioUrl = (filePath) => {
+      if (!filePath) return ''
+      // 如果是完整URL，直接返回
+      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        return filePath
+      }
+      // 如果路径以/开头，直接拼接
+      if (filePath.startsWith('/')) {
+        return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}${filePath}`
+      }
+      // 否则添加/前缀
+      return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/${filePath}`
+    }
+
+    const onAudioLoaded = () => {
+      if (audioPlayerRef.value) {
+        audioDuration.value = audioPlayerRef.value.duration || 0
+        // 监听时间更新
+        audioPlayerRef.value.addEventListener('timeupdate', () => {
+          if (audioPlayerRef.value) {
+            currentTime.value = audioPlayerRef.value.currentTime || 0
+          }
+        })
+      }
+    }
+
+    const formatAudioTime = (seconds) => {
+      if (!seconds || isNaN(seconds)) return '0:00'
+      const mins = Math.floor(seconds / 60)
+      const secs = Math.floor(seconds % 60)
+      return `${mins}:${secs.toString().padStart(2, '0')}`
+    }
+
+    const handleAudioCommand = (command) => {
+      switch (command) {
+        case 'download':
+          downloadAudio()
+          break
+        case 'speed':
+          showSpeedSelector.value = !showSpeedSelector.value
+          break
+        case 'delete':
+          confirmDeleteAudio()
+          break
+      }
+    }
+
+    const downloadAudio = () => {
+      if (!selectedSummary.value?.audioFilePath) {
+        ElMessage.warning('没有可下载的录音文件')
+        return
+      }
+      const audioUrl = getAudioUrl(selectedSummary.value.audioFilePath)
+      const link = document.createElement('a')
+      link.href = audioUrl
+      link.download = `录音_${selectedSummary.value.title || 'audio'}.${audioUrl.split('.').pop()}`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      ElMessage.success('开始下载录音文件')
+    }
+
+    const changePlaybackSpeed = (speed) => {
+      if (audioPlayerRef.value) {
+        audioPlayerRef.value.playbackRate = parseFloat(speed)
+      }
+    }
+
+    const confirmDeleteAudio = async () => {
+      try {
+        await ElMessageBox.confirm(
+          '确定要删除这个录音文件吗？删除后需要重新上传才能进行语音转文字。',
+          '确认删除录音',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+        
+        if (!selectedSummary.value) {
+          ElMessage.error('未选择课堂总结')
+          return
+        }
+
+        // 确保teacherId已设置
+        if (!teacherId.value) {
+          const userId = localStorage.getItem('userId')
+          teacherId.value = userId ? parseInt(userId) : 2
+        }
+        
+        const response = await classSummaryApi.deleteAudioFile(selectedSummary.value.id, teacherId.value)
+        if (response && (response.success === true || response.code === 200)) {
+          ElMessage.success('删除录音成功')
+          // 清空录音文件路径
+          selectedSummary.value.audioFilePath = null
+          selectedSummary.value.audioDuration = null
+          // 重置音频播放器状态
+          if (audioPlayerRef.value) {
+            audioPlayerRef.value.pause()
+            audioPlayerRef.value.src = ''
+          }
+          currentTime.value = 0
+          audioDuration.value = 0
+          showSpeedSelector.value = false
+        } else {
+          ElMessage.error(response?.msg || '删除录音失败')
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('删除录音失败:', error)
+          ElMessage.error(error.response?.data?.msg || error.message || '删除录音失败')
+        }
+      }
+    }
+
+    // 本地录音播放器相关方法
+    const onLocalAudioLoaded = () => {
+      if (localAudioPlayerRef.value) {
+        localAudioDuration.value = localAudioPlayerRef.value.duration || 0
+        // 监听时间更新
+        localAudioPlayerRef.value.addEventListener('timeupdate', () => {
+          if (localAudioPlayerRef.value) {
+            localCurrentTime.value = localAudioPlayerRef.value.currentTime || 0
+          }
+        })
+      }
+    }
+
+    const handleLocalAudioCommand = (command) => {
+      switch (command) {
+        case 'download':
+          downloadLocalAudio()
+          break
+        case 'speed':
+          showLocalSpeedSelector.value = !showLocalSpeedSelector.value
+          break
+        case 'delete':
+          deleteLocalAudio()
+          break
+      }
+    }
+
+    const downloadLocalAudio = () => {
+      if (!recordedBlob.value) {
+        ElMessage.warning('没有可下载的录音文件')
+        return
+      }
+      const url = URL.createObjectURL(recordedBlob.value)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `录音_${selectedSummary.value?.title || 'recording'}.webm`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      ElMessage.success('开始下载录音文件')
+    }
+
+    const changeLocalPlaybackSpeed = (speed) => {
+      if (localAudioPlayerRef.value) {
+        localAudioPlayerRef.value.playbackRate = parseFloat(speed)
+      }
+    }
+
+    const deleteLocalAudio = () => {
+      ElMessageBox.confirm(
+        '确定要删除这个本地录音吗？删除后需要重新录制。',
+        '确认删除',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      ).then(() => {
+        recordedBlob.value = null
+        recordedAudioUrl.value = ''
+        recordingDuration.value = 0
+        localCurrentTime.value = 0
+        localAudioDuration.value = 0
+        showLocalSpeedSelector.value = false
+        if (localAudioPlayerRef.value) {
+          localAudioPlayerRef.value.pause()
+          localAudioPlayerRef.value.src = ''
+        }
+        ElMessage.success('删除本地录音成功')
+      }).catch(() => {
+        // 用户取消
+      })
     }
 
     const confirmDelete = async (summary) => {
@@ -812,8 +1258,14 @@ export default {
           }
         )
         
-        const response = await classSummaryApi.deleteClassSummary(summary.id)
-        if (response.success) {
+        // 确保teacherId已设置
+        if (!teacherId.value) {
+          const userId = localStorage.getItem('userId')
+          teacherId.value = userId ? parseInt(userId) : 2
+        }
+        
+        const response = await classSummaryApi.deleteClassSummary(summary.id, teacherId.value)
+        if (response && (response.success === true || response.code === 200)) {
           ElMessage.success('删除成功')
           await loadSummaryList()
           await loadStatistics()
@@ -821,12 +1273,12 @@ export default {
             selectedSummary.value = null
           }
         } else {
-          ElMessage.error('删除失败')
+          ElMessage.error(response?.msg || '删除失败')
         }
       } catch (error) {
         if (error !== 'cancel') {
           console.error('删除失败:', error)
-          ElMessage.error('删除失败')
+          ElMessage.error(error.response?.data?.msg || error.message || '删除失败')
         }
       }
     }
@@ -886,15 +1338,44 @@ export default {
       uploadRecordedAudio,
       beforeAudioUpload,
       customAudioUpload,
+      handleNextToTranscript,
+      handleNextToAIAnalysis,
       startTranscript,
       startAIAnalysis,
+      getAudioDuration,
       saveDraft,
       publishSummary,
       nextStep,
       prevStep,
       editSummary,
       viewPublished,
-      confirmDelete
+      confirmDelete,
+      
+      // 音频播放器（已上传的录音）
+      audioPlayerRef,
+      currentTime,
+      audioDuration,
+      playbackSpeed,
+      showSpeedSelector,
+      getAudioUrl,
+      onAudioLoaded,
+      formatAudioTime,
+      handleAudioCommand,
+      downloadAudio,
+      changePlaybackSpeed,
+      confirmDeleteAudio,
+      
+      // 本地录音播放器
+      localAudioPlayerRef,
+      localCurrentTime,
+      localAudioDuration,
+      localPlaybackSpeed,
+      showLocalSpeedSelector,
+      onLocalAudioLoaded,
+      handleLocalAudioCommand,
+      downloadLocalAudio,
+      changeLocalPlaybackSpeed,
+      deleteLocalAudio
     }
   }
 }
@@ -1088,6 +1569,35 @@ export default {
 
 .recorded-audio {
   margin-top: 16px;
+}
+
+/* 录音区域内容 */
+.uploaded-audio-content,
+.realtime-recording-content {
+  width: 100%;
+}
+
+.audio-player-wrapper {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.audio-player {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.audio-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.upload-audio-btn,
+.delete-audio-btn {
+  flex: 1;
 }
 
 /* 加载状态 */

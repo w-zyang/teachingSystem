@@ -152,6 +152,13 @@
 
             <div class="resource-actions" @click.stop>
               <button 
+                @click="previewResourceHandler(resource)" 
+                class="action-btn preview"
+                title="预览标注"
+              >
+                <i class="fas fa-eye"></i>
+              </button>
+              <button 
                 @click="downloadResource(resource)" 
                 class="action-btn download"
                 title="下载"
@@ -166,14 +173,7 @@
                 <i class="fas fa-edit"></i>
               </button>
               <button 
-                @click="shareResource(resource)" 
-                class="action-btn share"
-                title="分享"
-              >
-                <i class="fas fa-share-alt"></i>
-              </button>
-              <button 
-                @click="deleteResource(resource)" 
+                @click="deleteResourceHandler(resource)" 
                 class="action-btn delete"
                 title="删除"
               >
@@ -766,29 +766,54 @@ const shareResource = (resource) => {
   ElMessage.info('分享功能开发中...')
 }
 
-const deleteResource = async (resource) => {
+const deleteResourceHandler = async (resource) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除资源"${resource.title}"吗？此操作不可恢复。`,
+      `确定要删除资源"${resource.title}"吗？此操作不可恢复！`,
       '删除确认',
       {
         confirmButtonText: '确定删除',
         cancelButtonText: '取消',
-        type: 'warning'
+        type: 'warning',
+        dangerouslyUseHTMLString: true,
+        center: true
       }
     )
     
+    console.log('准备删除资源:', resource.id)
     const response = await deleteResourceAPI(resource.id)
+    console.log('删除API响应:', response)
+    
     if (response && response.success) {
-      ElMessage.success('删除成功')
-      fetchResources()
+      ElMessage.success({
+        message: '资源删除成功！',
+        type: 'success',
+        duration: 2000
+      })
+      
+      // 从列表中移除该资源
+      const index = resources.value.findIndex(r => r.id === resource.id)
+      if (index > -1) {
+        resources.value.splice(index, 1)
+      }
+      
+      // 刷新资源列表
+      await fetchResources()
     } else {
-      ElMessage.error('删除失败')
+      ElMessage.error({
+        message: response?.msg || response?.message || '删除失败',
+        type: 'error',
+        duration: 3000
+      })
     }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('删除失败:', error)
-      ElMessage.error('删除失败')
+      console.error('删除资源失败:', error)
+      ElMessage.error({
+        message: '删除失败: ' + (error.message || '未知错误'),
+        type: 'error',
+        duration: 3000
+      })
     }
   }
 }
@@ -1410,44 +1435,62 @@ const updateFileInfo = (fileId, field, value) => {
       opacity: 0;
       transform: translateY(-4px);
       transition: all 0.3s ease;
+      z-index: 10;
       
       .action-btn {
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         
         i {
-          font-size: 14px;
+          font-size: 15px;
+        }
+        
+        &.preview {
+          background: #dbeafe;
+          color: #1e40af;
+          &:hover { 
+            background: #bfdbfe;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
+          }
         }
         
         &.download {
           background: #e0f2fe;
           color: #0277bd;
-          &:hover { background: #b3e5fc; }
+          &:hover { 
+            background: #b3e5fc;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(2, 119, 189, 0.3);
+          }
         }
         
         &.edit {
           background: #f3e8ff;
           color: #7c3aed;
-          &:hover { background: #e9d5ff; }
-        }
-        
-        &.share {
-          background: #ecfdf5;
-          color: #059669;
-          &:hover { background: #d1fae5; }
+          &:hover { 
+            background: #e9d5ff;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+          }
         }
         
         &.delete {
           background: #fef2f2;
           color: #dc2626;
-          &:hover { background: #fee2e2; }
+          &:hover { 
+            background: #fee2e2;
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+          }
         }
       }
     }

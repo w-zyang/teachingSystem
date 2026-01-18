@@ -289,10 +289,11 @@
         </div>
         <div class="document-viewer-body">
           <DocumentViewer
-            v-if="selectedResource"
+            v-if="selectedResource && selectedCourse"
             :resourceId="selectedResource.id"
             :resourceTitle="selectedResource.title"
             :fileName="selectedResource.fileName"
+            :courseId="selectedCourse.id"
           />
         </div>
       </div>
@@ -305,6 +306,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getCourseResources } from '@/api/courseResource'
+import { getCoursesByStudentId } from '@/api/course'
+import { getCourseProgress } from '@/api/progress'
 import StudyNotes from './StudyNotes.vue'
 import DocumentViewer from './DocumentViewer.vue'
 import axios from 'axios'
@@ -325,52 +328,12 @@ const sortBy = ref('popular')
 const selectedCourse = ref(null)
 
 // 数据
-const enrolledCourses = ref([
-  {
-    id: 1,
-    title: '数据结构与算法',
-    description: '计算机科学的基础课程，涵盖线性表、树、图、排序、查找等内容',
-    subject: '计算机科学',
-    teacherName: '张教授',
-    progress: 80,
-    difficulty: '初级',
-    studentsCount: 128,
-    rating: 4.8,
-    duration: '16周',
-    status: 'active'
-  },
-  {
-    id: 6,
-    title: '计算机网络',
-    description: '计算机网络原理与应用，包括网络协议、网络安全、网络编程等专业知识',
-    subject: '网络技术',
-    teacherName: '张教授',
-    progress: 60,
-    difficulty: '中级',
-    studentsCount: 256,
-    rating: 4.9,
-    duration: '12周',
-    status: 'active'
-  },
-  {
-    id: 16,
-    title: 'Linux系统管理',
-    description: 'Linux操作系统的使用和管理，包括系统安装、配置、服务管理、脚本编程等',
-    subject: 'Linux系统',
-    teacherName: '张教授',
-    progress: 50,
-    difficulty: '中级',
-    studentsCount: 64,
-    rating: 4.7,
-    duration: '14周',
-    status: 'active'
-  }
-])
+const enrolledCourses = ref([])
 const courseResources = ref([])
 const resourceCountMap = ref({})
 
 // 获取当前登录学生ID
-const studentId = ref(localStorage.getItem('userId') || 17) // 修复后的李同学用户ID
+const studentId = ref(localStorage.getItem('userId') || 17)
 
 // 计算属性
 const filteredCourses = computed(() => {
@@ -473,29 +436,49 @@ const downloadCourseResource = async (resource) => {
     }
     
     // 构建下载链接
-    const downloadUrl = `http://localhost:8080${resource.fileUrl}`
+    let downloadUrl = resource.fileUrl
+    
+    // 如果是相对路径，添加服务器地址
+    if (downloadUrl && !downloadUrl.startsWith('http')) {
+      downloadUrl = `http://localhost:8080${downloadUrl}`
+    }
+    
     console.log('下载链接:', downloadUrl)
 
+    // 使用fetch下载文件
+    const response = await fetch(downloadUrl)
+    if (!response.ok) {
+      throw new Error('下载失败')
+    }
+    
+    // 获取文件blob
+    const blob = await response.blob()
+    
     // 创建下载链接
+    const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.href = downloadUrl
-    link.download = resource.fileName
-    link.target = '_blank'
+    link.href = url
+    link.download = resource.fileName || '下载文件'
     link.style.display = 'none'
     
     // 添加到页面并触发下载
     document.body.appendChild(link)
     link.click()
-    document.body.removeChild(link)
+    
+    // 清理
+    setTimeout(() => {
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    }, 100)
 
-    // 更新本地显示
+    // 更新本地显示的下载次数
     resource.downloadCount = (resource.downloadCount || 0) + 1
     
     // 显示成功消息
     ElMessage.success(`开始下载: ${resource.fileName}`)
   } catch (error) {
     console.error('下载失败:', error)
-    ElMessage.error('下载失败：' + (error.response?.data?.message || error.message))
+    ElMessage.error('下载失败，请稍后重试')
   }
 }
 
@@ -604,9 +587,75 @@ const contactTeacher = () => {
   alert('联系教师功能正在开发中...')
 }
 
+// 加载学生的课程列表
+const loadEnrolledCourses = async () => {
+  loading.value = true
+  try {
+    const response = await getCoursesByStudentId(studentId.value)
+    console.log('获取学生课程响应:', response)
+    
+    if (response && response.success && response.data) {
+      enrolledCourses.value = response.data.map(course => ({
+        ...course,
+        progress: course.progress || 0,
+        difficulty: course.difficulty || '中级',
+        studentsCount: course.studentsCount || 0,
+        rating: course.rating || 4.5,
+        duration: course.duration || '12周',
+        status: course.status || 'active'
+      }))
+      
+      // 加载每个课程的资源数量和学习进度
+      await loadResourceCounts()
+      await loadCourseProgress()
+    } else {
+      enrolledCourses.value = []
+    }
+  } catch (error) {
+    console.error('加载课程列表失败:', error)
+    ElMessage.error('加载课程列表失败')
+    enrolledCourses.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+// 加载课程资源数量
+const loadResourceCounts = async () => {
+  for (const course of enrolledCourses.value) {
+    try {
+      const response = await getCourseResources(course.id)
+      if (response && response.success && response.data) {
+        resourceCountMap.value[course.id] = response.data.length
+      }
+    } catch (error) {
+      console.error(`加载课程${course.id}资源数量失败:`, error)
+      resourceCountMap.value[course.id] = 0
+    }
+  }
+}
+
+// 加载课程学习进度
+const loadCourseProgress = async () => {
+  for (const course of enrolledCourses.value) {
+    try {
+      const response = await getCourseProgress(studentId.value, course.id)
+      console.log(`课程${course.id}进度响应:`, response)
+      if (response && response.success && response.data) {
+        // 更新课程的进度
+        course.progress = response.data.progress || 0
+        console.log(`课程${course.id}进度已更新为: ${course.progress}%`)
+      }
+    } catch (error) {
+      console.error(`加载课程${course.id}进度失败:`, error)
+      course.progress = 0
+    }
+  }
+}
+
 // 页面挂载时初始化数据
 onMounted(() => {
-  // 移除所有API相关的加载、请求、赋值、生命周期钩子等
+  loadEnrolledCourses()
 })
 </script>
 

@@ -326,12 +326,13 @@ const clearError = (field) => {
 .register-container {
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 20px;
+  padding: 40px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* 背景装饰 */
@@ -397,7 +398,8 @@ const clearError = (field) => {
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 600px;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .register-card {
@@ -405,9 +407,10 @@ const clearError = (field) => {
   backdrop-filter: blur(20px);
   border-radius: 24px;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
-  padding: 40px;
+  padding: 50px 60px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  width: 100%;
   
   &:hover {
     transform: translateY(-5px);
@@ -417,7 +420,7 @@ const clearError = (field) => {
 
 .register-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 50px;
   
   .logo-link {
     display: inline-block;
@@ -514,12 +517,19 @@ const clearError = (field) => {
   .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 24px;
+    margin-bottom: 24px;
+    
+    // 角色选择单独一行
+    &:first-child {
+      grid-template-columns: 1fr;
+      max-width: 100%;
+    }
     
     @media (max-width: 768px) {
       grid-template-columns: 1fr;
-      gap: 16px;
+      gap: 20px;
+      margin-bottom: 20px;
     }
   }
   
@@ -529,14 +539,14 @@ const clearError = (field) => {
     .form-label {
       display: flex;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       font-weight: 600;
       color: #2d3748;
-      font-size: 14px;
+      font-size: 15px;
       
       .label-icon {
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
         margin-right: 8px;
         opacity: 0.7;
       }
@@ -547,13 +557,15 @@ const clearError = (field) => {
       
       .form-input, .form-select {
         width: 100%;
-        padding: 16px 20px;
+        padding: 18px 22px;
         border: 2px solid #e2e8f0;
         border-radius: 12px;
         font-size: 16px;
         transition: all 0.3s ease;
         background: #f7fafc;
         color: #2d3748;
+        min-height: 56px;
+        box-sizing: border-box;
         
         &:focus {
           outline: none;
@@ -607,7 +619,7 @@ const clearError = (field) => {
 }
 
 .form-options {
-  margin: 24px 0;
+  margin: 28px 0;
   
   .checkbox-wrapper {
     display: flex;
@@ -679,10 +691,11 @@ const clearError = (field) => {
 
 .register-btn {
   width: 100%;
-  padding: 16px;
-  font-size: 16px;
+  padding: 18px;
+  font-size: 17px;
   font-weight: 600;
-  margin-top: 24px;
+  margin-top: 28px;
+  min-height: 56px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   border-radius: 12px;
@@ -778,16 +791,74 @@ const clearError = (field) => {
 }
 
 @media (max-width: 768px) {
+  .register-container {
+    padding: 20px 15px;
+    align-items: flex-start;
+  }
+  
+  .register-content {
+    max-width: 100%;
+  }
+  
   .register-card {
     padding: 30px 20px;
   }
   
-  .register-header .title {
-    font-size: 24px;
+  .register-header {
+    margin-bottom: 30px;
+    
+    .title {
+      font-size: 24px;
+    }
+    
+    .subtitle {
+      font-size: 14px;
+    }
   }
   
   .form-row {
     grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .form-group {
+    .form-label {
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    
+    .input-wrapper .form-input,
+    .select-wrapper .form-select {
+      padding: 14px 16px;
+      font-size: 15px;
+    }
+  }
+  
+  .form-options {
+    margin: 20px 0;
+    
+    .checkbox-wrapper .checkbox-label {
+      font-size: 13px;
+    }
+  }
+  
+  .register-btn {
+    padding: 14px;
+    font-size: 15px;
+    margin-top: 20px;
+  }
+  
+  .register-footer {
+    margin-top: 24px;
+    
+    .login-link {
+      font-size: 13px;
+    }
+    
+    .system-info {
+      font-size: 11px;
+    }
   }
 }
 </style> 

@@ -87,9 +87,9 @@ public class CourseServiceImpl implements CourseService {
             return Result.error("课程名称和教师ID不能为空");
         }
 
+        // 设置默认值（只设置数据库表中存在的字段）
         course.setStatus("draft");
-        course.setStudents(0);
-        course.setRating(0.0);
+        // 注意：students和rating字段在数据库表中不存在，已移除设置
         course.setCreateTime(LocalDateTime.now());
         course.setUpdateTime(LocalDateTime.now());
 

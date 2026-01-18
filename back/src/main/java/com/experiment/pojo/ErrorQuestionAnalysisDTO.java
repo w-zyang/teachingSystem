@@ -2,6 +2,7 @@ package com.experiment.pojo;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import lombok.Data;
 
@@ -25,4 +26,5 @@ public class ErrorQuestionAnalysisDTO {
     private LocalDateTime lastErrorTime; // 最后错误时间
     private List<String> relatedConcepts; // 相关概念
     private String improvementSuggestion; // 改进建议
+    private List<Map<String, String>> options; // 题目选项（用于选择题）
 } 

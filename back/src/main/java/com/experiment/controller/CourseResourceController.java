@@ -3,6 +3,7 @@ package com.experiment.controller;
 import com.experiment.pojo.CourseResource;
 import com.experiment.result.Result;
 import com.experiment.mapper.CourseResourceMapper;
+import com.experiment.mapper.StudentAnnotationMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,9 @@ public class CourseResourceController {
 
     @Autowired
     private CourseResourceMapper courseResourceMapper;
+    
+    @Autowired
+    private StudentAnnotationMapper studentAnnotationMapper;
 
     /**
      * 获取课程资源列表
@@ -171,19 +175,60 @@ public class CourseResourceController {
     }
 
     /**
-     * 删除资源
+     * 删除资源（级联删除关联数据）
      */
     @DeleteMapping("/{id}")
     public Result<String> deleteResource(@PathVariable Long id) {
         try {
+            log.info("开始删除资源，资源ID: {}", id);
+            
+            // 1. 先获取资源信息
+            CourseResource resource = courseResourceMapper.findById(id);
+            if (resource == null) {
+                log.warn("资源不存在，ID: {}", id);
+                return Result.error("资源不存在");
+            }
+            
+            log.info("资源信息 - 标题: {}, 文件: {}", resource.getTitle(), resource.getFileName());
+            
+            // 2. 删除所有关联的学生标注（级联删除）
+            try {
+                int annotationCount = studentAnnotationMapper.deleteByResourceId(id);
+                log.info("删除关联标注成功，数量: {}", annotationCount);
+            } catch (Exception e) {
+                log.warn("删除关联标注时出错（可能没有标注）: {}", e.getMessage());
+                // 继续执行，即使没有标注也要删除资源
+            }
+            
+            // 3. 删除数据库记录
             int result = courseResourceMapper.deleteById(id);
             if (result > 0) {
+                log.info("数据库记录删除成功，资源ID: {}", id);
+                
+                // 4. 尝试删除物理文件
+                try {
+                    String projectRoot = System.getProperty("user.dir");
+                    String filePath = projectRoot + resource.getFileUrl().replace("/", File.separator);
+                    Path path = Paths.get(filePath);
+                    
+                    if (Files.exists(path)) {
+                        Files.delete(path);
+                        log.info("物理文件删除成功: {}", filePath);
+                    } else {
+                        log.warn("物理文件不存在: {}", filePath);
+                    }
+                } catch (Exception e) {
+                    log.error("删除物理文件失败，但数据库记录已删除", e);
+                    // 即使物理文件删除失败，也返回成功（数据库记录已删除）
+                }
+                
                 return Result.success("删除资源成功");
             } else {
+                log.error("删除资源失败，数据库操作返回0");
                 return Result.error("删除资源失败");
             }
         } catch (Exception e) {
-            log.error("删除资源失败", e);
+            log.error("删除资源失败，资源ID: {}", id, e);
             return Result.error("删除资源失败: " + e.getMessage());
         }
     }
@@ -234,6 +279,48 @@ public class CourseResourceController {
     }
 
     /**
+     * 读取文件内容（用于文档预览）
+     */
+    @GetMapping("/{id}/content")
+    public Result<String> getResourceContent(@PathVariable Long id) {
+        try {
+            log.info("开始读取资源内容，资源ID: {}", id);
+            
+            CourseResource resource = courseResourceMapper.findById(id);
+            if (resource == null) {
+                log.error("资源不存在，ID: {}", id);
+                return Result.error("资源不存在");
+            }
+            
+            log.info("资源信息 - 标题: {}, 文件URL: {}", resource.getTitle(), resource.getFileUrl());
+
+            // 获取文件路径
+            String projectRoot = System.getProperty("user.dir");
+            String filePath = projectRoot + resource.getFileUrl().replace("/", File.separator);
+            log.info("项目根目录: {}", projectRoot);
+            log.info("完整文件路径: {}", filePath);
+            
+            Path path = Paths.get(filePath);
+
+            if (!Files.exists(path)) {
+                log.error("文件不存在: {}", filePath);
+                return Result.error("文件不存在: " + filePath);
+            }
+
+            // 读取文件内容
+            log.info("开始读取文件内容，文件大小: {} 字节", Files.size(path));
+            String content = new String(Files.readAllBytes(path), "UTF-8");
+            log.info("文件内容读取成功，内容长度: {} 字符", content.length());
+            
+            return Result.success("读取文件内容成功", content);
+
+        } catch (Exception e) {
+            log.error("读取文件内容失败，资源ID: {}", id, e);
+            return Result.error("读取文件内容失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 根据文件扩展名确定文件类型
      */
     private String getFileType(String filename) {
@@ -258,6 +345,9 @@ public class CourseResourceController {
             case "png":
             case "gif":
                 return "image";
+            case "txt":
+            case "md":
+                return "text";
             default:
                 return "other";
         }

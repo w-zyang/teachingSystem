@@ -4,6 +4,9 @@ import com.aliyun.oss.ClientException;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.OSSException;
+import com.aliyun.oss.model.CannedAccessControlList;
+import com.aliyun.oss.model.ObjectMetadata;
+import com.aliyun.oss.model.PutObjectRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -20,32 +23,56 @@ public class AliOssUtil {
     private String bucketName;
 
     /**
-     * 文件上传
+     * 文件上传（默认公共读）
      *
      * @param bytes
      * @param objectName
      * @return
      */
     public String upload(byte[] bytes, String objectName) {
+        return upload(bytes, objectName, true);
+    }
+
+    /**
+     * 文件上传
+     *
+     * @param bytes 文件字节数组
+     * @param objectName OSS对象名称
+     * @param publicRead 是否设置为公共读（true=公共读，false=私有）
+     * @return 文件访问URL
+     */
+    public String upload(byte[] bytes, String objectName, boolean publicRead) {
 
         // 创建OSSClient实例。
         OSS ossClient = new OSSClientBuilder().build(endpoint, accessKeyId, accessKeySecret);
 
         try {
-            // 创建PutObject请求。
-            ossClient.putObject(bucketName, objectName, new ByteArrayInputStream(bytes));
+            // 创建PutObjectRequest请求
+            PutObjectRequest putObjectRequest = new PutObjectRequest(
+                    bucketName, 
+                    objectName, 
+                    new ByteArrayInputStream(bytes)
+            );
+            
+            // 如果设置为公共读，则设置ACL
+            if (publicRead) {
+                ObjectMetadata metadata = new ObjectMetadata();
+                metadata.setObjectAcl(CannedAccessControlList.PublicRead);
+                putObjectRequest.setMetadata(metadata);
+                log.info("设置文件ACL为公共读: {}", objectName);
+            }
+            
+            // 执行上传
+            ossClient.putObject(putObjectRequest);
+            log.info("文件上传成功: {}", objectName);
+            
         } catch (OSSException oe) {
-            System.out.println("Caught an OSSException, which means your request made it to OSS, "
-                    + "but was rejected with an error response for some reason.");
-            System.out.println("Error Message:" + oe.getErrorMessage());
-            System.out.println("Error Code:" + oe.getErrorCode());
-            System.out.println("Request ID:" + oe.getRequestId());
-            System.out.println("Host ID:" + oe.getHostId());
+            log.error("OSS异常 - Error Message: {}, Error Code: {}, Request ID: {}, Host ID: {}", 
+                    oe.getErrorMessage(), oe.getErrorCode(), oe.getRequestId(), oe.getHostId());
+            throw new RuntimeException("OSS上传失败: " + oe.getErrorMessage(), oe);
         } catch (ClientException ce) {
-            System.out.println("Caught an ClientException, which means the client encountered "
-                    + "a serious internal problem while trying to communicate with OSS, "
-                    + "such as not being able to access the network.");
-            System.out.println("Error Message:" + ce.getMessage());
+            log.error("OSS客户端异常 - Error Message: {}", ce.getMessage());
+            throw new RuntimeException("OSS客户端异常: " + ce.getMessage(), ce);
         } finally {
             if (ossClient != null) {
                 ossClient.shutdown();
@@ -61,7 +88,7 @@ public class AliOssUtil {
                 .append("/")
                 .append(objectName);
 
-        log.info("文件上传到:{}", stringBuilder.toString());
+        log.info("文件访问URL: {}", stringBuilder.toString());
 
         return stringBuilder.toString();
     }

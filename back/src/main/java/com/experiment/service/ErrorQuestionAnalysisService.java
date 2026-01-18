@@ -74,4 +74,21 @@ public interface ErrorQuestionAnalysisService {
      * @return 评估结果
      */
     Map<String, Object> evaluateTrainingEffect(Long studentId, Long trainingId, List<String> answers);
+    
+    /**
+     * 记录单个错题
+     * @param studentId 学生ID
+     * @param errorQuestion 错题信息
+     * @return 是否成功
+     */
+    boolean recordErrorQuestion(Long studentId, Map<String, Object> errorQuestion);
+    
+    /**
+     * 批量记录错题
+     * @param studentId 学生ID
+     * @param errorQuestions 错题列表
+     * @param source 来源
+     * @return 记录数量
+     */
+    int batchRecordErrorQuestions(Long studentId, List<Map<String, Object>> errorQuestions, String source);
 } 

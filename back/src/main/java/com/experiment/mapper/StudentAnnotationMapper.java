@@ -54,6 +54,11 @@ public interface StudentAnnotationMapper {
     int deleteById(@Param("id") Long id);
     
     /**
+     * 根据资源ID删除所有标注（级联删除）
+     */
+    int deleteByResourceId(@Param("resourceId") Long resourceId);
+    
+    /**
      * 根据重要程度获取标注
      */
     List<StudentAnnotation> findByImportance(@Param("studentId") Long studentId,

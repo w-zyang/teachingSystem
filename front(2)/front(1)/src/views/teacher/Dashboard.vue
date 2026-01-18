@@ -10,7 +10,7 @@
         <p class="header-subtitle">欢迎使用智能教学管理系统，这里是您的教学管理中心</p>
       </div>
       <div class="header-actions">
-        <button @click="$router.push('/teacher/course-design')" class="action-btn primary">
+        <button @click="$router.push('/teacher/create-course')" class="action-btn primary">
           <img src="@/assets/add.png" alt="创建课程" class="btn-icon">
           创建课程
         </button>
@@ -66,7 +66,7 @@
           <div class="icon-glow"></div>
         </div>
         <div class="stat-content">
-          <h3>{{ stats.avgScore }}%</h3>
+          <h3>{{ formatAvgScore(stats.avgScore) }}%</h3>
           <p>平均成绩</p>
           <span class="stat-change positive">
             <img src="@/assets/add.png" alt="增长" class="change-icon">
@@ -105,12 +105,22 @@
           <p class="header-description">常用功能快速访问</p>
         </div>
         <div class="actions-grid">
-          <button @click="$router.push('/teacher/course-design')" class="action-btn">
+          <button @click="$router.push('/teacher/create-course')" class="action-btn">
+            <div class="action-icon">
+              <img src="@/assets/add.png" alt="创建课程" class="icon-img">
+            </div>
+            <div class="action-content">
+              <span class="action-title">创建新课程</span>
+              <span class="action-desc">创建课程基础信息</span>
+            </div>
+            <div class="action-decoration"></div>
+          </button>
+          <button @click="$router.push('/teacher/ai-course-design')" class="action-btn">
             <div class="action-icon">
               <img src="@/assets/add.png" alt="设计课程" class="icon-img">
             </div>
             <div class="action-content">
-              <span class="action-title">设计新课程</span>
+              <span class="action-title">AI课程设计</span>
               <span class="action-desc">AI辅助课程设计</span>
             </div>
             <div class="action-decoration"></div>
@@ -205,8 +215,13 @@ import { getCoursesByTeacherId } from '@/api/course'
 
 const router = useRouter()
 
-// 假设当前教师ID为2，实际项目中应从登录信息获取
-const teacherId = 2
+// 从localStorage获取教师ID
+const getTeacherId = () => {
+  const userId = localStorage.getItem('userId')
+  return userId ? parseInt(userId) : 2 // 默认使用ID 2（如果未登录）
+}
+
+const teacherId = getTeacherId()
 
 // 响应式变量
 const stats = ref({
@@ -253,6 +268,17 @@ const isLoading = ref(false)
 const hasData = computed(() => {
   return stats.value.totalStudents > 0 || stats.value.totalCourses > 0
 })
+
+// 格式化平均成绩为百分比
+const formatAvgScore = (score) => {
+  if (!score || score === 0) return '0.00'
+  // 如果分数已经是百分比格式（0-100），直接返回
+  if (score <= 100) {
+    return score.toFixed(2)
+  }
+  // 如果分数是0-1格式，转换为百分比
+  return (score * 100).toFixed(2)
+}
 
 // 获取教师统计信息
 const fetchTeacherStats = async () => {

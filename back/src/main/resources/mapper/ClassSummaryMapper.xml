@@ -81,12 +81,21 @@
 
     <!-- 更新课堂总结 -->
     <update id="update" parameterType="com.experiment.pojo.ClassSummary">
-        UPDATE class_summary SET
-            title = #{title},
-            description = #{description},
-            final_content = #{finalContent},
-            keywords = #{keywords},
-            update_time = #{updateTime}
+        UPDATE class_summary
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="audioFilePath != null">audio_file_path = #{audioFilePath},</if>
+            <if test="audioDuration != null">audio_duration = #{audioDuration},</if>
+            <if test="coursewareFilePath != null">courseware_file_path = #{coursewareFilePath},</if>
+            <if test="transcriptText != null">transcript_text = #{transcriptText},</if>
+            <if test="summaryContent != null">summary_content = #{summaryContent},</if>
+            <if test="finalContent != null">final_content = #{finalContent},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="keywords != null">keywords = #{keywords},</if>
+            <if test="publishTime != null">publish_time = #{publishTime},</if>
+            update_time = NOW()
+        </set>
         WHERE id = #{id}
     </update>
 

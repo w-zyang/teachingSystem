@@ -74,4 +74,28 @@ export const getErrorQuestionDistribution = (studentId) => {
  */
 export const evaluateTrainingEffect = (params) => {
   return request.post('/api/error-questions/training/evaluate', params)
+}
+
+/**
+ * 记录错题
+ * @param {object} params 参数
+ * @param {number} params.studentId 学生ID
+ * @param {object} params.question 题目信息
+ * @param {string} params.userAnswer 学生答案
+ * @param {string} params.correctAnswer 正确答案
+ * @param {string} params.source 来源（practice/exam）
+ */
+export const recordErrorQuestion = (params) => {
+  return request.post('/api/error-questions/record', params)
+}
+
+/**
+ * 批量记录错题
+ * @param {object} params 参数
+ * @param {number} params.studentId 学生ID
+ * @param {Array} params.errorQuestions 错题列表
+ * @param {string} params.source 来源（practice/exam）
+ */
+export const batchRecordErrorQuestions = (params) => {
+  return request.post('/api/error-questions/batch-record', params)
 } 

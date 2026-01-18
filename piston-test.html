@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代码执行测试 - Piston</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            resize: vertical;
+            transition: all 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-run {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-run:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-clear {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .btn-clear:hover {
+            background: #e0e0e0;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .result-content {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-content pre {
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .examples {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .examples h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .example-code {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 代码执行测试</h1>
+            <p>支持 Python 和 C 语言 | 使用 Piston 引擎</p>
+        </div>
+
+        <div class="content">
+            <!-- 语言选择 -->
+            <div class="form-group">
+                <label for="language">选择编程语言</label>
+                <select id="language" onchange="updateExample()">
+                    <option value="71">Python 3</option>
+                    <option value="50">C (GCC)</option>
+                </select>
+            </div>
+
+            <!-- 代码编辑器 -->
+            <div class="form-group">
+                <label for="sourceCode">源代码</label>
+                <textarea id="sourceCode" rows="12" placeholder="在这里输入你的代码...">print('Hello, World!')
+print('欢迎使用代码执行系统！')</textarea>
+            </div>
+
+            <!-- 输入数据 -->
+            <div class="form-group">
+                <label for="stdin">标准输入 (可选)</label>
+                <textarea id="stdin" rows="4" placeholder="如果程序需要输入数据，在这里输入..."></textarea>
+            </div>
+
+            <!-- 按钮组 -->
+            <div class="button-group">
+                <button class="btn-run" onclick="runCode()">▶ 运行代码</button>
+                <button class="btn-clear" onclick="clearAll()">🗑️ 清空</button>
+            </div>
+
+            <!-- 示例代码 -->
+            <div class="examples">
+                <h3>💡 示例代码</h3>
+                <div id="exampleCode"></div>
+            </div>
+
+            <!-- 结果显示 -->
+            <div id="resultSection" class="result-section">
+                <div class="result-header">
+                    <h3>执行结果</h3>
+                    <span id="statusBadge" class="status-badge"></span>
+                </div>
+                <div class="result-content">
+                    <pre id="resultOutput"></pre>
+                </div>
+            </div>
+
+            <!-- 加载提示 -->
+            <div id="loading" class="loading" style="display: none;">
+                ⏳ 正在执行代码，请稍候...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 示例代码
+        const examples = {
+            '71': {
+                code: `# Python 示例：计算两个数的和
+a = int(input())
+b = int(input())
+print(f"结果: {a + b}")`,
+                input: `10
+20`
+            },
+            '50': {
+                code: `// C 示例：Hello World
+#include <stdio.h>
+
+int main() {
+    printf("Hello, World!\\n");
+    printf("欢迎使用 C 语言！\\n");
+    return 0;
+}`,
+                input: ``
+            }
+        };
+
+        // 更新示例代码
+        function updateExample() {
+            const language = document.getElementById('language').value;
+            const example = examples[language];
+            document.getElementById('exampleCode').innerHTML = 
+                `<div class="example-code">${escapeHtml(example.code)}</div>`;
+        }
+
+        // 初始化示例
+        updateExample();
+
+        // 运行代码
+        async function runCode() {
+            const sourceCode = document.getElementById('sourceCode').value.trim();
+            const languageId = parseInt(document.getElementById('language').value);
+            const stdin = document.getElementById('stdin').value;
+
+            if (!sourceCode) {
+                alert('请输入源代码！');
+                return;
+            }
+
+            // 显示加载
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultSection').classList.remove('show');
+
+            try {
+                const response = await fetch('http://localhost:8080/api/code/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sourceCode: sourceCode,
+                        languageId: languageId,
+                        stdin: stdin
+                    })
+                });
+
+                const result = await response.json();
+
+                // 隐藏加载
+                document.getElementById('loading').style.display = 'none';
+
+                if (result.code === 1) {
+                    // 成功
+                    displayResult(result.data);
+                } else {
+                    // 失败
+                    displayError(result.msg);
+                }
+
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                displayError('网络错误: ' + error.message);
+            }
+        }
+
+        // 显示结果
+        function displayResult(data) {
+            const resultSection = document.getElementById('resultSection');
+            const statusBadge = document.getElementById('statusBadge');
+            const resultOutput = document.getElementById('resultOutput');
+
+            // 设置状态
+            const isSuccess = data.statusId === 3 || data.exitCode === 0;
+            statusBadge.textContent = data.status || (isSuccess ? '通过' : '错误');
+            statusBadge.className = 'status-badge ' + (isSuccess ? 'status-success' : 'status-error');
+
+            // 构建输出
+            let output = '';
+            
+            if (data.stdout) {
+                output += '📤 标准输出:\n' + data.stdout + '\n';
+            }
+            
+            if (data.stderr) {
+                output += '\n❌ 标准错误:\n' + data.stderr + '\n';
+            }
+            
+            if (data.compileOutput) {
+                output += '\n⚠️ 编译输出:\n' + data.compileOutput + '\n';
+            }
+            
+            if (data.message) {
+                output += '\n💬 消息:\n' + data.message + '\n';
+            }
+
+            if (data.exitCode !== undefined) {
+                output += `\n🔢 退出码: ${data.exitCode}`;
+            }
+
+            if (!output.trim()) {
+                output = '✅ 程序执行完成，无输出';
+            }
+
+            resultOutput.textContent = output;
+            resultSection.classList.add('show');
+        }
+
+        // 显示错误
+        function displayError(message) {
+            const resultSection = document.getElementById('resultSection');
+            const statusBadge = document.getElementById('statusBadge');
+            const resultOutput = document.getElementById('resultOutput');
+
+            statusBadge.textContent = '错误';
+            statusBadge.className = 'status-badge status-error';
+            resultOutput.textContent = '❌ ' + message;
+            resultSection.classList.add('show');
+        }
+
+        // 清空所有内容
+        function clearAll() {
+            document.getElementById('sourceCode').value = '';
+            document.getElementById('stdin').value = '';
+            document.getElementById('resultSection').classList.remove('show');
+        }
+
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

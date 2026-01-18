@@ -176,4 +176,53 @@ public class ErrorQuestionController {
             return Result.error("评估训练效果失败：" + e.getMessage());
         }
     }
+    
+    /**
+     * 记录单个错题
+     */
+    @PostMapping("/record")
+    public Result<String> recordErrorQuestion(@RequestBody Map<String, Object> request) {
+        Long studentId = ((Number) request.get("studentId")).longValue();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> question = (Map<String, Object>) request.get("question");
+        
+        log.info("记录学生 {} 的错题", studentId);
+        
+        try {
+            boolean success = errorQuestionAnalysisService.recordErrorQuestion(studentId, question);
+            if (success) {
+                return Result.success("记录错题成功", "OK");
+            } else {
+                return Result.error("记录错题失败");
+            }
+        } catch (Exception e) {
+            log.error("记录错题失败", e);
+            return Result.error("记录错题失败：" + e.getMessage());
+        }
+    }
+    
+    /**
+     * 批量记录错题
+     */
+    @PostMapping("/batch-record")
+    public Result<String> batchRecordErrorQuestions(@RequestBody Map<String, Object> request) {
+        Long studentId = ((Number) request.get("studentId")).longValue();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> errorQuestions = (List<Map<String, Object>>) request.get("errorQuestions");
+        String source = (String) request.getOrDefault("source", "practice");
+        
+        log.info("批量记录学生 {} 的错题，数量: {}，来源: {}", studentId, errorQuestions.size(), source);
+        
+        try {
+            int count = errorQuestionAnalysisService.batchRecordErrorQuestions(studentId, errorQuestions, source);
+            if (count > 0) {
+                return Result.success("批量记录错题成功", "已记录 " + count + " 道错题");
+            } else {
+                return Result.error("记录错题失败");
+            }
+        } catch (Exception e) {
+            log.error("批量记录错题失败", e);
+            return Result.error("批量记录错题失败：" + e.getMessage());
+        }
+    }
 } 

@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.experiment.config.BailianConfig;
 import com.experiment.mapper.ClassSummaryMapper;
 import com.experiment.pojo.ClassSummary;
 import com.experiment.pojo.ClassSummaryDTO;
@@ -35,6 +36,12 @@ public class ClassSummaryServiceImpl implements ClassSummaryService {
     
     @Autowired
     private AIService aiService;
+    
+    @Autowired
+    private BailianConfig bailianConfig;
+    
+    @Autowired
+    private com.experiment.utils.AliOssProperties aliOssProperties;
     
     private static final String AUDIO_UPLOAD_PATH = "uploads/audio/";
     
@@ -59,26 +66,52 @@ public class ClassSummaryServiceImpl implements ClassSummaryService {
     }
     
     @Override
-    public String uploadAudioFile(MultipartFile audioFile, Long courseId) {
+    public String uploadAudioFile(MultipartFile audioFile, Long courseId, Long summaryId, Integer audioDuration) {
         try {
-            // 创建上传目录
+            // 生成唯一文件名
+            String originalFilename = audioFile.getOriginalFilename();
+            String extension = originalFilename != null && originalFilename.contains(".") 
+                    ? originalFilename.substring(originalFilename.lastIndexOf(".")) 
+                    : ".webm";
+            String filename = UUID.randomUUID().toString() + extension;
+            
+            // 保存到本地（本地运行，不需要 OSS）
             String uploadDir = AUDIO_UPLOAD_PATH + "course" + courseId + "/";
             File dir = new File(uploadDir);
             if (!dir.exists()) {
                 dir.mkdirs();
             }
             
-            // 生成唯一文件名
-            String originalFilename = audioFile.getOriginalFilename();
-            String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            String filename = UUID.randomUUID().toString() + extension;
-            String filePath = uploadDir + filename;
+            // 获取绝对路径
+            String filePath = new File(uploadDir + filename).getAbsolutePath();
             
             // 保存文件
             Path path = Paths.get(filePath);
+            Files.createDirectories(path.getParent()); // 确保目录存在
             Files.write(path, audioFile.getBytes());
             
-            log.info("录音文件上传成功: {}", filePath);
+            log.info("录音文件已保存到本地: 物理路径={}, 文件大小={} bytes, 时长={}秒", 
+                    filePath, audioFile.getSize(), audioDuration);
+            
+            // 如果提供了summaryId，更新数据库中的音频文件路径和时长
+            if (summaryId != null) {
+                ClassSummary summary = classSummaryMapper.selectById(summaryId);
+                if (summary != null) {
+                    // 保存物理路径到数据库
+                    summary.setAudioFilePath(filePath);
+                    if (audioDuration != null && audioDuration > 0) {
+                        summary.setAudioDuration(audioDuration);
+                    }
+                    summary.setUpdateTime(LocalDateTime.now());
+                    classSummaryMapper.update(summary);
+                    log.info("已更新课堂总结的音频信息，总结ID: {}, 路径: {}, 时长: {}秒", 
+                            summaryId, filePath, audioDuration);
+                } else {
+                    log.warn("未找到对应的课堂总结，总结ID: {}", summaryId);
+                }
+            }
+            
+            // 返回物理路径（用于 Whisper 直接调用）
             return filePath;
             
         } catch (IOException e) {
@@ -88,21 +121,25 @@ public class ClassSummaryServiceImpl implements ClassSummaryService {
     }
     
     @Override
-    public String processAudioToText(Long summaryId, String audioFilePath) {
+    public String processAudioToText(Long summaryId, String audioUrl) {
         try {
-            log.info("开始处理录音文件: {}", audioFilePath);
+            log.info("========== 开始处理录音转文字 ==========");
+            log.info("总结ID: {}, 音频文件路径: {}", summaryId, audioUrl);
             
-            // 构建语音转文字的提示词
-            String prompt = "请将以下录音内容转录为文字，保持原有的语言风格和教学特点。" +
-                    "如果有专业术语，请准确转录。如果有停顿或重复，可以适当整理但保持原意。";
+            if (audioUrl == null || audioUrl.isEmpty()) {
+                throw new RuntimeException("音频文件路径不能为空");
+            }
             
-            // 调用AI服务进行语音转文字（这里模拟实现）
-            String transcriptText = simulateAudioToText(audioFilePath);
+            // 调用 AI 服务进行语音转文字（直接使用本地文件路径）
+            String transcriptText = aiService.speechToText(audioUrl);
             
             // 更新数据库
+            if (summaryId != null) {
             classSummaryMapper.updateTranscriptText(summaryId, transcriptText);
+                log.info("已更新数据库，总结ID: {}, 转录文本长度: {}", summaryId, transcriptText.length());
+            }
             
-            log.info("录音转文字完成，字数: {}", transcriptText.length());
+            log.info("========== 录音转文字完成，字数: {} ==========", transcriptText.length());
             return transcriptText;
             
         } catch (Exception e) {
@@ -113,44 +150,45 @@ public class ClassSummaryServiceImpl implements ClassSummaryService {
     
     @Override
     public String generateSummaryWithAI(Long summaryId, String transcriptText, String coursewareContent) {
+        String summaryContent = null;
         try {
-            log.info("开始生成AI重点整理，转录文字长度: {}", transcriptText.length());
+            log.info("========== 开始生成AI重点整理 ==========");
+            log.info("总结ID: {}", summaryId);
+            log.info("转录文字长度: {}", transcriptText != null ? transcriptText.length() : 0);
+            log.info("课件内容长度: {}", coursewareContent != null ? coursewareContent.length() : 0);
+            log.info("课件内容是否为空: {}", coursewareContent == null || coursewareContent.trim().isEmpty());
             
-            // 构建AI分析提示词
-            StringBuilder prompt = new StringBuilder();
-            prompt.append("请基于以下课堂录音转录内容");
-            if (coursewareContent != null && !coursewareContent.isEmpty()) {
-                prompt.append("和课件内容");
+            // 调用阿里云百炼生成重点整理API
+            String apiKey = bailianConfig.getSummaryGeneration().getApiKey();
+            String appId = bailianConfig.getSummaryGeneration().getAppId();
+            
+            log.info("使用API Key: {}...", apiKey != null && apiKey.length() > 10 ? apiKey.substring(0, 10) : "null");
+            log.info("使用App ID: {}", appId);
+            
+            // 调用AI服务，传递转录文本和课件内容
+            summaryContent = aiService.generateSummary(transcriptText, coursewareContent, apiKey, appId);
+            log.info("AI重点整理生成成功，内容长度: {}", summaryContent.length());
+            
+            // 尝试更新数据库，如果失败不影响返回结果
+            try {
+                classSummaryMapper.updateSummaryContent(summaryId, summaryContent);
+                log.info("数据库更新成功，总结ID: {}", summaryId);
+            } catch (Exception dbException) {
+                log.error("数据库更新失败（但AI生成成功），总结ID: {}，错误: {}", summaryId, dbException.getMessage(), dbException);
+                // 数据库更新失败不影响返回AI生成的内容
             }
-            prompt.append("，生成一份结构化的课堂重点整理文档。\n\n");
             
-            prompt.append("要求：\n");
-            prompt.append("1. 提取课堂的核心知识点和重点概念\n");
-            prompt.append("2. 整理成清晰的层次结构（使用Markdown格式）\n");
-            prompt.append("3. 包含关键概念、重要公式、案例分析等\n");
-            prompt.append("4. 添加学习要点和注意事项\n");
-            prompt.append("5. 如果有实例或案例，请详细说明\n\n");
-            
-            prompt.append("课堂录音转录内容：\n");
-            prompt.append(transcriptText);
-            
-            if (coursewareContent != null && !coursewareContent.isEmpty()) {
-                prompt.append("\n\n课件内容：\n");
-                prompt.append(coursewareContent);
-            }
-            
-            // 调用AI服务生成总结
-            String summaryContent = aiService.simpleChat(prompt.toString());
-            
-            // 更新数据库
-            classSummaryMapper.updateSummaryContent(summaryId, summaryContent);
-            
-            log.info("AI重点整理生成完成，内容长度: {}", summaryContent.length());
+            log.info("========== AI重点整理生成完成 ==========");
             return summaryContent;
             
         } catch (Exception e) {
             log.error("AI重点整理生成失败", e);
-            throw new RuntimeException("AI重点整理生成失败: " + e.getMessage());
+            // 如果AI生成失败，抛出异常
+            if (summaryContent != null) {
+                log.warn("AI生成成功但处理过程中出现异常，返回已生成的内容");
+                return summaryContent;
+            }
+            throw new RuntimeException("AI重点整理生成失败: " + e.getMessage(), e);
         }
     }
     
@@ -162,6 +200,25 @@ public class ClassSummaryServiceImpl implements ClassSummaryService {
     
     @Override
     public void publishClassSummary(Long summaryId) {
+        // 获取课堂总结
+        ClassSummary summary = classSummaryMapper.selectById(summaryId);
+        if (summary == null) {
+            throw new RuntimeException("课堂总结不存在");
+        }
+        
+        // 确保有最终内容可以发布
+        if (summary.getFinalContent() == null || summary.getFinalContent().trim().isEmpty()) {
+            // 如果没有最终内容，使用AI生成的内容
+            if (summary.getSummaryContent() != null && !summary.getSummaryContent().trim().isEmpty()) {
+                summary.setFinalContent(summary.getSummaryContent());
+                classSummaryMapper.updateFinalContent(summaryId, summary.getSummaryContent());
+                log.info("使用AI生成的内容作为最终内容");
+            } else {
+                throw new RuntimeException("没有可发布的内容，请先生成或编辑内容");
+            }
+        }
+        
+        // 更新状态为已发布
         classSummaryMapper.updateStatus(summaryId, "PUBLISHED", LocalDateTime.now());
         log.info("发布课堂总结成功，ID: {}", summaryId);
     }
@@ -178,7 +235,30 @@ public class ClassSummaryServiceImpl implements ClassSummaryService {
     
     @Override
     public List<ClassSummary> getAllPublishedSummaries() {
-        return classSummaryMapper.selectAllPublished();
+        log.info("========== Service: 查询所有已发布的课堂总结 ==========");
+        try {
+            List<ClassSummary> summaries = classSummaryMapper.selectAllPublished();
+            log.info("Mapper 返回结果数量: {}", summaries != null ? summaries.size() : 0);
+            
+            if (summaries != null && !summaries.isEmpty()) {
+                for (ClassSummary summary : summaries) {
+                    log.info("课堂总结详情: ID={}, 标题={}, 状态={}, 课程ID={}, 教师ID={}, 发布时间={}", 
+                            summary.getId(), 
+                            summary.getTitle(), 
+                            summary.getStatus(),
+                            summary.getCourseId(),
+                            summary.getTeacherId(),
+                            summary.getPublishTime());
+                }
+            } else {
+                log.warn("⚠️ Mapper 返回空列表或 null");
+            }
+            
+            return summaries;
+        } catch (Exception e) {
+            log.error("查询所有已发布课堂总结失败", e);
+            throw new RuntimeException("查询失败: " + e.getMessage(), e);
+        }
     }
     
     @Override
@@ -244,17 +324,6 @@ public class ClassSummaryServiceImpl implements ClassSummaryService {
      * 模拟录音转文字功能
      * 实际实现中应该调用真实的语音识别服务
      */
-    private String simulateAudioToText(String audioFilePath) {
-        // 这里模拟语音转文字的结果
-        return "今天我们学习的主题是Linux系统的基础命令操作。首先，我们来了解一下文件系统的基本概念。" +
-                "在Linux中，一切皆文件，这是一个非常重要的概念。接下来我们学习几个常用的命令：" +
-                "ls命令用于列出目录内容，cd命令用于切换目录，mkdir命令用于创建目录，" +
-                "cp命令用于复制文件，mv命令用于移动或重命名文件。" +
-                "这些命令是Linux操作的基础，同学们需要熟练掌握。" +
-                "在实际使用中，还要注意权限的问题，chmod命令可以修改文件权限，" +
-                "chown命令可以修改文件所有者。大家在课后要多练习这些基本操作。";
-    }
-    
     /**
      * 删除关联的文件
      */
@@ -266,5 +335,38 @@ public class ClassSummaryServiceImpl implements ClassSummaryService {
         } catch (IOException e) {
             log.warn("删除关联文件失败: {}", e.getMessage());
         }
+    }
+    
+    @Override
+    public void deleteAudioFile(Long summaryId, Long teacherId) {
+        ClassSummary summary = classSummaryMapper.selectById(summaryId);
+        if (summary == null) {
+            throw new RuntimeException("课堂总结不存在");
+        }
+        if (!summary.getTeacherId().equals(teacherId)) {
+            throw new RuntimeException("无权限删除此录音");
+        }
+        
+        // 删除录音文件
+        try {
+            if (summary.getAudioFilePath() != null) {
+                Files.deleteIfExists(Paths.get(summary.getAudioFilePath()));
+                log.info("删除录音文件成功: {}", summary.getAudioFilePath());
+            }
+        } catch (IOException e) {
+            log.warn("删除录音文件失败: {}", e.getMessage());
+        }
+        
+        // 清空数据库中的录音文件路径
+        summary.setAudioFilePath(null);
+        summary.setAudioDuration(null);
+        classSummaryMapper.update(summary);
+        log.info("删除录音文件成功，总结ID: {}", summaryId);
+    }
+    
+    @Override
+    public void updateTranscriptText(Long summaryId, String transcriptText) {
+        classSummaryMapper.updateTranscriptText(summaryId, transcriptText);
+        log.info("更新转录文本成功，总结ID: {}, 文本长度: {}", summaryId, transcriptText != null ? transcriptText.length() : 0);
     }
 } 

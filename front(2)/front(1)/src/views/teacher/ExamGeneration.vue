@@ -381,7 +381,7 @@
               </div>
               <span class="question-score">{{ question.score }}分</span>
             </div>
-            <div class="question-content">{{ question.content }}</div>
+            <div class="question-content" v-html="formatQuestionContent(question.content)"></div>
             <div v-if="question.options" class="question-options">
               <div v-for="option in question.options" :key="option.key" class="option">
                 <img src="@/assets/author.png" alt="选项" class="option-icon">
@@ -439,7 +439,7 @@
                   <span class="preview-type">{{ getQuestionTypeName(question.type) }}</span>
                   <span class="preview-score">({{ question.score }}分)</span>
                 </div>
-                <div class="preview-content">{{ question.content }}</div>
+                <div class="preview-content" v-html="formatQuestionContent(question.content)"></div>
                 <div v-if="question.options" class="preview-options">
                   <div v-for="option in question.options" :key="option.key" class="preview-option">
                     <span class="preview-option-key">{{ option.key }}.</span>
@@ -1300,6 +1300,58 @@ const formatDate = (dateString) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+// 格式化题目内容，自动识别并美化排版
+const formatQuestionContent = (content) => {
+  if (!content) return ''
+  
+  let html = ''
+  const lines = content.split('\n')
+  
+  const sectionKeywords = ['编程要求', '题目描述', '输入格式', '输出格式', '示例', '数据范围', '注意', '说明', '提示', '解释']
+  
+  for (let line of lines) {
+    line = line.trim()
+    if (!line) {
+      html += '<br>'
+      continue
+    }
+    
+    // 检查是否是章节标题
+    let isSection = false
+    for (let keyword of sectionKeywords) {
+      if (line.includes(keyword + '：') || line.includes(keyword + ':')) {
+        const parts = line.split(/[：:]/)
+        html += `<div class="content-section-title">📌 ${parts[0]}</div>`
+        if (parts[1] && parts[1].trim()) {
+          html += `<div class="content-line">${escapeHtml(parts[1].trim())}</div>`
+        }
+        isSection = true
+        break
+      }
+    }
+    
+    if (!isSection) {
+      // 检查是否是代码行
+      if (line.match(/^(def|function|class|import|from|return|if|for|while|#|\/\/)/)) {
+        html += `<div class="content-code">${escapeHtml(line)}</div>`
+      } else if (line.startsWith('输入：') || line.startsWith('输出：')) {
+        html += `<div class="content-example">${escapeHtml(line)}</div>`
+      } else {
+        html += `<div class="content-line">${escapeHtml(line)}</div>`
+      }
+    }
+  }
+  
+  return html
+}
+
+// HTML转义函数
+const escapeHtml = (text) => {
+  const div = document.createElement('div')
+  div.textContent = text
+  return div.innerHTML
 }
 
 // 根据课程ID获取考试列表
@@ -2173,7 +2225,49 @@ onMounted(async () => {
           font-size: 14px;
           color: #2d3748;
           margin-bottom: 12px;
-          line-height: 1.6;
+          line-height: 1.8;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+        
+        .content-section-title {
+          font-weight: 600;
+          color: #2d3748;
+          margin: 16px 0 8px 0;
+          padding: 8px 12px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border-radius: 6px;
+          font-size: 15px;
+        }
+        
+        .content-line {
+          margin: 6px 0;
+          padding-left: 12px;
+          color: #4a5568;
+          line-height: 1.8;
+        }
+        
+        .content-code {
+          margin: 6px 0;
+          padding: 8px 12px;
+          background: #2d3748;
+          color: #f8f9fa;
+          border-radius: 4px;
+          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+          font-size: 13px;
+          overflow-x: auto;
+        }
+        
+        .content-example {
+          margin: 6px 0;
+          padding: 8px 12px;
+          background: #f0fff4;
+          border-left: 4px solid #48bb78;
+          border-radius: 4px;
+          color: #2d3748;
+          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+          font-size: 13px;
         }
         
         .question-options {
@@ -2382,7 +2476,48 @@ onMounted(async () => {
               font-size: 14px;
               color: #2d3748;
               margin-bottom: 12px;
-              line-height: 1.6;
+              line-height: 1.8;
+              white-space: pre-wrap;
+              word-wrap: break-word;
+            }
+            
+            .preview-content .content-section-title {
+              font-weight: 600;
+              color: white;
+              margin: 16px 0 8px 0;
+              padding: 8px 12px;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              border-radius: 6px;
+              font-size: 15px;
+            }
+            
+            .preview-content .content-line {
+              margin: 6px 0;
+              padding-left: 12px;
+              color: #4a5568;
+              line-height: 1.8;
+            }
+            
+            .preview-content .content-code {
+              margin: 6px 0;
+              padding: 8px 12px;
+              background: #2d3748;
+              color: #f8f9fa;
+              border-radius: 4px;
+              font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+              font-size: 13px;
+              overflow-x: auto;
+            }
+            
+            .preview-content .content-example {
+              margin: 6px 0;
+              padding: 8px 12px;
+              background: #f0fff4;
+              border-left: 4px solid #48bb78;
+              border-radius: 4px;
+              color: #2d3748;
+              font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+              font-size: 13px;
             }
             
             .preview-options {

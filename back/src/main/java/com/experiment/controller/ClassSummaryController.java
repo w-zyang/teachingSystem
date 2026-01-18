@@ -1,5 +1,6 @@
 package com.experiment.controller;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -54,15 +55,18 @@ public class ClassSummaryController {
      */
     @PostMapping("/upload-audio")
     public Result<String> uploadAudioFile(@RequestParam("audioFile") MultipartFile audioFile,
-                                         @RequestParam("courseId") Long courseId) {
-        log.info("上传录音文件，课程ID: {}, 文件大小: {}", courseId, audioFile.getSize());
+                                         @RequestParam("courseId") Long courseId,
+                                         @RequestParam(value = "summaryId", required = false) Long summaryId,
+                                         @RequestParam(value = "audioDuration", required = false) Integer audioDuration) {
+        log.info("上传录音文件，课程ID: {}, 总结ID: {}, 文件大小: {}, 时长: {}秒", 
+                courseId, summaryId, audioFile.getSize(), audioDuration);
         
         try {
             if (audioFile.isEmpty()) {
                 return Result.error("录音文件不能为空");
             }
             
-            String filePath = classSummaryService.uploadAudioFile(audioFile, courseId);
+            String filePath = classSummaryService.uploadAudioFile(audioFile, courseId, summaryId, audioDuration);
             return Result.success("录音文件上传成功", filePath);
         } catch (Exception e) {
             log.error("上传录音文件失败", e);
@@ -76,16 +80,78 @@ public class ClassSummaryController {
     @PostMapping("/process-audio")
     public Result<String> processAudioToText(@RequestBody Map<String, Object> request) {
         Long summaryId = ((Number) request.get("summaryId")).longValue();
-        String audioFilePath = (String) request.get("audioFilePath");
+        // 支持 audioUrl 和 audioFilePath 两种参数名（兼容前端）
+        String audioPath = (String) (request.get("audioFilePath") != null ? 
+            request.get("audioFilePath") : request.get("audioUrl"));
         
-        log.info("处理录音转文字，总结ID: {}", summaryId);
+        // 清理路径：去除首尾的引号和空格
+        if (audioPath != null) {
+            audioPath = audioPath.trim();
+            // 去除首尾的引号（单引号或双引号）
+            if ((audioPath.startsWith("\"") && audioPath.endsWith("\"")) ||
+                (audioPath.startsWith("'") && audioPath.endsWith("'"))) {
+                audioPath = audioPath.substring(1, audioPath.length() - 1).trim();
+            }
+        }
+        
+        log.info("========== 开始处理录音转文字 ==========");
+        log.info("总结ID: {}, 音频文件路径: {}", summaryId, audioPath);
         
         try {
-            String transcriptText = classSummaryService.processAudioToText(summaryId, audioFilePath);
-            return Result.success("录音转文字成功", transcriptText);
+            if (audioPath == null || audioPath.isEmpty()) {
+                return Result.error("音频文件路径不能为空");
+        }
+        
+            String transcriptText = classSummaryService.processAudioToText(summaryId, audioPath);
+            log.info("========== 录音转文字成功，文本长度: {} ==========", transcriptText != null ? transcriptText.length() : 0);
+            return Result.success("语音转文字成功", transcriptText);
         } catch (Exception e) {
-            log.error("录音转文字失败", e);
-            return Result.error("录音转文字失败: " + e.getMessage());
+            log.error("========== 录音转文字失败 ==========", e);
+            return Result.error("语音转文字失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 测试接口：验证音频文件路径和OSS上传
+     */
+    @GetMapping("/test-audio/{summaryId}")
+    public Result<Map<String, Object>> testAudioFile(@PathVariable Long summaryId) {
+        log.info("========== 测试音频文件 ==========");
+        log.info("总结ID: {}", summaryId);
+        
+        Map<String, Object> result = new HashMap<>();
+        try {
+            ClassSummary summary = classSummaryService.getSummaryById(summaryId);
+            if (summary == null) {
+                return Result.error("课堂总结不存在");
+            }
+            
+            String audioFilePath = summary.getAudioFilePath();
+            result.put("summaryId", summaryId);
+            result.put("audioFilePath", audioFilePath);
+            result.put("audioDuration", summary.getAudioDuration());
+            
+            if (audioFilePath != null) {
+                // 检查本地文件
+                if (!audioFilePath.startsWith("http://") && !audioFilePath.startsWith("https://")) {
+                    java.io.File audioFile = new java.io.File(audioFilePath);
+                    result.put("localFileExists", audioFile.exists());
+                    result.put("localFileSize", audioFile.exists() ? audioFile.length() : 0);
+                    result.put("localFileAbsolutePath", audioFile.getAbsolutePath());
+                } else {
+                    result.put("isRemoteUrl", true);
+                    result.put("remoteUrl", audioFilePath);
+                }
+            } else {
+                result.put("error", "音频文件路径为空");
+            }
+            
+            log.info("测试结果: {}", result);
+            return Result.success("测试完成", result);
+        } catch (Exception e) {
+            log.error("测试失败", e);
+            result.put("error", e.getMessage());
+            return Result.error("测试失败: " + e.getMessage());
         }
     }
 
@@ -94,14 +160,21 @@ public class ClassSummaryController {
      */
     @PostMapping("/generate-summary")
     public Result<String> generateSummaryWithAI(@RequestBody Map<String, Object> request) {
+        log.info("========== 收到生成AI重点整理请求 ==========");
+        log.info("请求体: {}", request);
+        
         Long summaryId = ((Number) request.get("summaryId")).longValue();
         String transcriptText = (String) request.get("transcriptText");
         String coursewareContent = (String) request.get("coursewareContent");
         
-        log.info("生成AI重点整理，总结ID: {}", summaryId);
+        log.info("总结ID: {}", summaryId);
+        log.info("转录文本长度: {}", transcriptText != null ? transcriptText.length() : 0);
+        log.info("课件内容长度: {}", coursewareContent != null ? coursewareContent.length() : 0);
+        log.info("课件内容是否为空: {}", coursewareContent == null || coursewareContent.trim().isEmpty());
         
         try {
             String summaryContent = classSummaryService.generateSummaryWithAI(summaryId, transcriptText, coursewareContent);
+            log.info("AI重点整理生成成功，返回内容长度: {}", summaryContent.length());
             return Result.success("AI重点整理生成成功", summaryContent);
         } catch (Exception e) {
             log.error("AI重点整理生成失败", e);
@@ -181,13 +254,28 @@ public class ClassSummaryController {
      */
     @GetMapping("/published")
     public Result<List<ClassSummary>> getAllPublishedSummaries() {
-        log.info("获取所有已发布的课堂总结");
+        log.info("========== 获取所有已发布的课堂总结 ==========");
         
         try {
             List<ClassSummary> summaries = classSummaryService.getAllPublishedSummaries();
+            log.info("查询到的课堂总结数量: {}", summaries != null ? summaries.size() : 0);
+            
+            if (summaries != null && !summaries.isEmpty()) {
+                for (ClassSummary summary : summaries) {
+                    log.info("课堂总结: ID={}, 标题={}, 状态={}, 课程={}, 教师={}", 
+                            summary.getId(), 
+                            summary.getTitle(), 
+                            summary.getStatus(),
+                            summary.getCourseName(),
+                            summary.getTeacherName());
+                }
+            } else {
+                log.warn("⚠️ 数据库中没有已发布的课堂总结");
+            }
+            
             return Result.success("获取所有已发布总结成功", summaries);
         } catch (Exception e) {
-            log.error("获取所有已发布总结失败", e);
+            log.error("========== 获取所有已发布总结失败 ==========", e);
             return Result.error("获取所有已发布总结失败: " + e.getMessage());
         }
     }
@@ -260,6 +348,23 @@ public class ClassSummaryController {
         } catch (Exception e) {
             log.error("获取统计信息失败", e);
             return Result.error("获取统计信息失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 删除录音文件
+     */
+    @DeleteMapping("/delete-audio/{summaryId}")
+    public Result<Void> deleteAudioFile(@PathVariable Long summaryId,
+                                        @RequestParam Long teacherId) {
+        log.info("删除录音文件，总结ID: {}, 教师ID: {}", summaryId, teacherId);
+        
+        try {
+            classSummaryService.deleteAudioFile(summaryId, teacherId);
+            return Result.success("删除录音文件成功");
+        } catch (Exception e) {
+            log.error("删除录音文件失败", e);
+            return Result.error("删除录音文件失败: " + e.getMessage());
         }
     }
 } 

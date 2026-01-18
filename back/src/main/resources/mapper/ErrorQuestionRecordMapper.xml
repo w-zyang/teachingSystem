@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.ErrorQuestionRecordMapper">
+    
+    <resultMap id="ErrorQuestionRecordResultMap" type="com.experiment.pojo.ErrorQuestionRecord">
+        <id column="id" property="id"/>
+        <result column="student_id" property="studentId"/>
+        <result column="question_id" property="questionId"/>
+        <result column="question_type" property="questionType"/>
+        <result column="question_content" property="questionContent"/>
+        <result column="question_options" property="questionOptions"/>
+        <result column="user_answer" property="userAnswer"/>
+        <result column="correct_answer" property="correctAnswer"/>
+        <result column="knowledge_point" property="knowledgePoint"/>
+        <result column="error_type" property="errorType"/>
+        <result column="error_reason" property="errorReason"/>
+        <result column="source" property="source"/>
+        <result column="error_count" property="errorCount"/>
+        <result column="error_rate" property="errorRate"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+    
+    <insert id="insert" parameterType="com.experiment.pojo.ErrorQuestionRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO error_question_record (
+            student_id, question_id, question_type, question_content, question_options,
+            user_answer, correct_answer, knowledge_point, error_type, error_reason,
+            source, error_count, error_rate, create_time, update_time
+        ) VALUES (
+            #{studentId}, #{questionId}, #{questionType}, #{questionContent}, #{questionOptions},
+            #{userAnswer}, #{correctAnswer}, #{knowledgePoint}, #{errorType}, #{errorReason},
+            #{source}, #{errorCount}, #{errorRate}, #{createTime}, #{updateTime}
+        )
+    </insert>
+    
+    <insert id="batchInsert">
+        INSERT INTO error_question_record (
+            student_id, question_id, question_type, question_content, question_options,
+            user_answer, correct_answer, knowledge_point, error_type, error_reason,
+            source, error_count, error_rate, create_time, update_time
+        ) VALUES
+        <foreach collection="records" item="item" separator=",">
+            (
+                #{item.studentId}, #{item.questionId}, #{item.questionType}, #{item.questionContent}, #{item.questionOptions},
+                #{item.userAnswer}, #{item.correctAnswer}, #{item.knowledgePoint}, #{item.errorType}, #{item.errorReason},
+                #{item.source}, #{item.errorCount}, #{item.errorRate}, #{item.createTime}, #{item.updateTime}
+            )
+        </foreach>
+    </insert>
+    
+    <select id="selectByStudentId" resultMap="ErrorQuestionRecordResultMap">
+        SELECT * FROM error_question_record 
+        WHERE student_id = #{studentId}
+        ORDER BY create_time DESC
+    </select>
+    
+    <select id="selectByStudentAndQuestion" resultMap="ErrorQuestionRecordResultMap">
+        SELECT * FROM error_question_record 
+        WHERE student_id = #{studentId} AND question_id = #{questionId}
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+    
+    <update id="update" parameterType="com.experiment.pojo.ErrorQuestionRecord">
+        UPDATE error_question_record 
+        SET student_id = #{studentId}, question_id = #{questionId}, question_type = #{questionType},
+            question_content = #{questionContent}, question_options = #{questionOptions},
+            user_answer = #{userAnswer}, correct_answer = #{correctAnswer},
+            knowledge_point = #{knowledgePoint}, error_type = #{errorType}, error_reason = #{errorReason},
+            source = #{source}, error_count = #{errorCount}, error_rate = #{errorRate},
+            update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteById">
+        DELETE FROM error_question_record WHERE id = #{id}
+    </delete>
+    
+    <delete id="deleteByStudentId">
+        DELETE FROM error_question_record WHERE student_id = #{studentId}
+    </delete>
+    
+    <select id="selectErrorStatistics" resultType="java.util.Map">
+        SELECT 
+            COUNT(*) as total_errors,
+            COUNT(DISTINCT question_id) as unique_questions,
+            COUNT(DISTINCT knowledge_point) as knowledge_points,
+            AVG(error_rate) as avg_error_rate
+        FROM error_question_record
+        WHERE student_id = #{studentId}
+    </select>
+
+</mapper>
+

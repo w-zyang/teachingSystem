@@ -133,4 +133,15 @@ export function getAllResources() {
     url: '/api/course-resources/admin/all',
     method: 'get'
   })
+}
+
+/**
+ * 获取资源文件内容（用于文档预览）
+ * @param {number} resourceId 资源ID
+ */
+export function getResourceContent(resourceId) {
+  return request({
+    url: `/api/course-resources/${resourceId}/content`,
+    method: 'get'
+  })
 } 
