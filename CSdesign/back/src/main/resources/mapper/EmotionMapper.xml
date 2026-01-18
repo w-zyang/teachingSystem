@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.EmotionMapper">
+
+    <!-- 注意：删除了与EmotionMapper.java接口注解重复的方法定义 -->
+    <!-- 以下方法已在Java接口中用注解定义，不需要在XML中重复： -->
+    <!-- recordEmotion, getRecentEmotions, analyzeEmotionTrend, recordLearningStatus, -->
+    <!-- getSuggestions, recordIntervention, getLearningStatusStats, updateInterventionFeedback -->
+
+    <!-- 以下是XML独有的方法，没有在Java接口中用注解定义 -->
+
+    <!-- 获取情绪历史趋势 -->
+    <select id="getEmotionHistory" resultType="java.util.Map">
+        SELECT 
+            emotion_type,
+            intensity,
+            detection_time,
+            context
+        FROM emotion_detection_record 
+        WHERE student_id = #{studentId}
+        AND detection_time &gt;= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        ORDER BY detection_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 获取干预历史记录 -->
+    <select id="getInterventionHistory" resultType="java.util.Map">
+        SELECT 
+            eir.*,
+            edr.emotion_type,
+            edr.intensity as emotion_intensity
+        FROM emotion_intervention_record eir
+        LEFT JOIN emotion_detection_record edr ON eir.emotion_record_id = edr.id
+        WHERE eir.student_id = #{studentId}
+        ORDER BY eir.intervention_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 分析学习效果与情绪关联 -->
+    <select id="analyzeEmotionEffectCorrelation" resultType="java.util.Map">
+        SELECT 
+            edr.emotion_type,
+            AVG(edr.intensity) as avg_emotion_intensity,
+            AVG(lsm.learning_efficiency) as avg_learning_efficiency,
+            COUNT(*) as correlation_count
+        FROM emotion_detection_record edr
+        JOIN learning_status_monitor lsm ON edr.student_id = lsm.student_id 
+            AND DATE(edr.detection_time) = DATE(lsm.status_time)
+        WHERE edr.student_id = #{studentId}
+        AND edr.detection_time &gt;= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        GROUP BY edr.emotion_type
+        HAVING correlation_count &gt;= 3
+        ORDER BY avg_learning_efficiency DESC
+    </select>
+
+    <!-- 获取个性化建议配置 -->
+    <select id="getPersonalizedSuggestions" resultType="java.util.Map">
+        SELECT 
+            lsc.*,
+            CASE 
+                WHEN eir.effectiveness_score IS NOT NULL THEN eir.effectiveness_score 
+                ELSE lsc.expected_effectiveness 
+            END as adjusted_effectiveness
+        FROM learning_suggestion_config lsc
+        LEFT JOIN (
+            SELECT intervention_type, AVG(effectiveness_score) as effectiveness_score
+            FROM emotion_intervention_record 
+            WHERE student_id = #{studentId} AND effectiveness_score IS NOT NULL
+            GROUP BY intervention_type
+        ) eir ON lsc.suggestion_type = eir.intervention_type
+        WHERE lsc.trigger_emotion = #{emotionType}
+        AND lsc.min_intensity &lt;= #{intensity}
+        AND lsc.max_intensity &gt;= #{intensity}
+        AND lsc.status = 'active'
+        ORDER BY adjusted_effectiveness DESC, lsc.priority_level DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper> 

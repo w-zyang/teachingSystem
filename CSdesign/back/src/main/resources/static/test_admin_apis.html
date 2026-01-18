@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员API测试</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .test-section h2 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #fff;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            border-left-color: #4CAF50;
+            background-color: #f0f8f0;
+        }
+        .error {
+            border-left-color: #f44336;
+            background-color: #fdf0f0;
+        }
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .status.error {
+            background-color: #f44336;
+            color: white;
+        }
+        .status.loading {
+            background-color: #ff9800;
+            color: white;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 12px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 管理员API功能测试</h1>
+        
+        <div class="grid">
+            <!-- 系统统计测试 -->
+            <div class="test-section">
+                <h2>📊 系统统计</h2>
+                <button onclick="testSystemStats()">测试系统统计</button>
+                <button onclick="testUsageStats()">测试使用统计</button>
+                <button onclick="testEfficiencyIndex()">测试效率指数</button>
+                <div id="systemStatsResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- 用户管理测试 -->
+            <div class="test-section">
+                <h2>👥 用户管理</h2>
+                <button onclick="testUserList()">测试用户列表</button>
+                <button onclick="testUserStats()">测试用户统计</button>
+                <button onclick="testAddUser()">测试添加用户</button>
+                <div id="userResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- 资源管理测试 -->
+            <div class="test-section">
+                <h2>📁 资源管理</h2>
+                <button onclick="testResourceList()">测试资源列表</button>
+                <button onclick="testResourceStats()">测试资源统计</button>
+                <button onclick="testCourseResources()">测试课程资源</button>
+                <div id="resourceResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- 成绩分析测试 -->
+            <div class="test-section">
+                <h2>📈 成绩分析</h2>
+                <button onclick="testGradeDistribution()">测试成绩分布</button>
+                <button onclick="testErrorTopics()">测试错误知识点</button>
+                <button onclick="testLearningTrends()">测试学习趋势</button>
+                <div id="gradeResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- 系统监控测试 -->
+            <div class="test-section">
+                <h2>🖥️ 系统监控</h2>
+                <button onclick="testSystemStatus()">测试系统状态</button>
+                <button onclick="testPerformanceMetrics()">测试性能指标</button>
+                <button onclick="testSystemInfo()">测试系统信息</button>
+                <div id="monitorResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- 综合测试 -->
+            <div class="test-section">
+                <h2>🔄 综合测试</h2>
+                <button onclick="testAllAPIs()">测试所有API</button>
+                <button onclick="clearAllResults()">清空结果</button>
+                <div id="overallResult" class="result" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        
+        // 通用请求函数
+        async function makeRequest(url, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                mode: 'cors'
+            };
+            
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+            
+            try {
+                const response = await fetch(API_BASE + url, options);
+                const result = await response.json();
+                return { success: true, data: result, status: response.status };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        // 显示结果
+        function showResult(elementId, title, result) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            
+            let statusClass = result.success ? 'success' : 'error';
+            let statusText = result.success ? 'SUCCESS' : 'ERROR';
+            
+            element.innerHTML = `
+                <strong>${title}</strong> 
+                <span class="status ${statusClass}">${statusText}</span>
+                <pre>${JSON.stringify(result, null, 2)}</pre>
+            `;
+            element.className = `result ${statusClass}`;
+        }
+
+        // 系统统计测试
+        async function testSystemStats() {
+            const result = await makeRequest('/api/stats/system');
+            showResult('systemStatsResult', '系统统计', result);
+        }
+
+        async function testUsageStats() {
+            const result = await makeRequest('/api/stats/usage');
+            showResult('systemStatsResult', '使用统计', result);
+        }
+
+        async function testEfficiencyIndex() {
+            const result = await makeRequest('/api/stats/efficiency');
+            showResult('systemStatsResult', '效率指数', result);
+        }
+
+        // 用户管理测试
+        async function testUserList() {
+            const result = await makeRequest('/api/user/list?page=1&size=10');
+            showResult('userResult', '用户列表', result);
+        }
+
+        async function testUserStats() {
+            const result = await makeRequest('/api/user/stats');
+            showResult('userResult', '用户统计', result);
+        }
+
+        async function testAddUser() {
+            const userData = {
+                username: 'test_user_' + Date.now(),
+                name: '测试用户',
+                email: 'test@example.com',
+                role: 'student',
+                password: '123456'
+            };
+            const result = await makeRequest('/api/user/add', 'POST', userData);
+            showResult('userResult', '添加用户', result);
+        }
+
+        // 资源管理测试
+        async function testResourceList() {
+            const result = await makeRequest('/api/stats/resources?page=1&size=10');
+            showResult('resourceResult', '资源列表', result);
+        }
+
+        async function testResourceStats() {
+            const result = await makeRequest('/api/stats/resources/stats');
+            showResult('resourceResult', '资源统计', result);
+        }
+
+        async function testCourseResources() {
+            const result = await makeRequest('/api/course-resources/list?page=1&size=10');
+            showResult('resourceResult', '课程资源', result);
+        }
+
+        // 成绩分析测试
+        async function testGradeDistribution() {
+            const result = await makeRequest('/api/stats/grade-distribution');
+            showResult('gradeResult', '成绩分布', result);
+        }
+
+        async function testErrorTopics() {
+            const result = await makeRequest('/api/stats/error-topics');
+            showResult('gradeResult', '错误知识点', result);
+        }
+
+        async function testLearningTrends() {
+            const result = await makeRequest('/api/stats/learning-trends');
+            showResult('gradeResult', '学习趋势', result);
+        }
+
+        // 系统监控测试
+        async function testSystemStatus() {
+            const result = await makeRequest('/api/stats/status');
+            showResult('monitorResult', '系统状态', result);
+        }
+
+        async function testPerformanceMetrics() {
+            const result = await makeRequest('/api/stats/performance');
+            showResult('monitorResult', '性能指标', result);
+        }
+
+        async function testSystemInfo() {
+            const result = await makeRequest('/api/stats/info');
+            showResult('monitorResult', '系统信息', result);
+        }
+
+        // 综合测试
+        async function testAllAPIs() {
+            const overallElement = document.getElementById('overallResult');
+            overallElement.style.display = 'block';
+            overallElement.innerHTML = '<div class="status loading">TESTING</div> 正在测试所有API...';
+            
+            const tests = [
+                { name: '系统统计', url: '/api/stats/system' },
+                { name: '用户列表', url: '/api/user/list?page=1&size=5' },
+                { name: '资源列表', url: '/api/stats/resources?page=1&size=5' },
+                { name: '成绩分布', url: '/api/stats/grade-distribution' },
+                { name: '系统状态', url: '/api/stats/status' },
+                { name: '效率指数', url: '/api/stats/efficiency' },
+                { name: '使用统计', url: '/api/stats/usage' },
+                { name: '性能指标', url: '/api/stats/performance' }
+            ];
+            
+            const results = [];
+            
+            for (const test of tests) {
+                const result = await makeRequest(test.url);
+                results.push({
+                    name: test.name,
+                    success: result.success,
+                    status: result.status || 'N/A',
+                    hasData: result.success && result.data && Object.keys(result.data).length > 0
+                });
+            }
+            
+            let html = '<h3>📋 API测试总结</h3>';
+            let successCount = 0;
+            
+            results.forEach(result => {
+                const statusClass = result.success ? 'success' : 'error';
+                const statusIcon = result.success ? '✅' : '❌';
+                const dataIcon = result.hasData ? '📊' : '📄';
+                
+                html += `
+                    <div style="margin: 8px 0; padding: 8px; border-radius: 4px; background: ${result.success ? '#f0f8f0' : '#fdf0f0'}">
+                        ${statusIcon} ${dataIcon} <strong>${result.name}</strong> 
+                        <span class="status ${statusClass}">${result.status}</span>
+                        ${result.hasData ? '<small>(有数据)</small>' : '<small>(无数据)</small>'}
+                    </div>
+                `;
+                
+                if (result.success) successCount++;
+            });
+            
+            const successRate = ((successCount / results.length) * 100).toFixed(1);
+            html += `
+                <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 5px;">
+                    <strong>测试结果：</strong> ${successCount}/${results.length} 成功 (${successRate}%)
+                </div>
+            `;
+            
+            overallElement.innerHTML = html;
+            overallElement.className = successCount === results.length ? 'result success' : 'result error';
+        }
+
+        // 清空所有结果
+        function clearAllResults() {
+            const results = document.querySelectorAll('.result');
+            results.forEach(result => {
+                result.style.display = 'none';
+                result.innerHTML = '';
+            });
+        }
+
+        // 页面加载时显示说明
+        window.onload = function() {
+            console.log('管理员API测试页面已加载');
+            console.log('请确保后端服务已启动在端口8080');
+        };
+    </script>
+</body>
+</html> 

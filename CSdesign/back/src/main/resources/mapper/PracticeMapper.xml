@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.PracticeMapper">
+    
+    <resultMap id="PracticeResultMap" type="com.experiment.pojo.Practice">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="type" property="type"/>
+        <result column="difficulty" property="difficulty"/>
+        <result column="duration" property="duration"/>
+        <result column="question_count" property="questionCount"/>
+        <result column="course_id" property="courseId"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+    
+    <insert id="insert" parameterType="com.experiment.pojo.Practice" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO practice (title, description, type, difficulty, duration, question_count, course_id, status, create_time, update_time)
+        VALUES (#{title}, #{description}, #{type}, #{difficulty}, #{duration}, #{questionCount}, #{courseId}, #{status}, #{createTime}, #{updateTime})
+    </insert>
+    
+    <select id="selectById" resultMap="PracticeResultMap">
+        SELECT * FROM practice WHERE id = #{id}
+    </select>
+    
+    <select id="selectByCourseId" resultMap="PracticeResultMap">
+        SELECT * FROM practice WHERE course_id = #{courseId} ORDER BY create_time DESC
+    </select>
+    
+    <select id="selectByType" resultMap="PracticeResultMap">
+        SELECT * FROM practice WHERE type = #{type} ORDER BY create_time DESC
+    </select>
+    
+    <select id="selectByDifficulty" resultMap="PracticeResultMap">
+        SELECT * FROM practice WHERE difficulty = #{difficulty} ORDER BY create_time DESC
+    </select>
+    
+    <update id="update" parameterType="com.experiment.pojo.Practice">
+        UPDATE practice 
+        SET title = #{title}, description = #{description}, type = #{type}, difficulty = #{difficulty},
+            duration = #{duration}, question_count = #{questionCount}, course_id = #{courseId},
+            status = #{status}, update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteById">
+        DELETE FROM practice WHERE id = #{id}
+    </delete>
+    
+    <select id="selectByPage" resultMap="PracticeResultMap">
+        SELECT * FROM practice ORDER BY create_time DESC LIMIT #{offset}, #{limit}
+    </select>
+    
+    <select id="countTotal" resultType="int">
+        SELECT COUNT(*) FROM practice
+    </select>
+    
+</mapper> 

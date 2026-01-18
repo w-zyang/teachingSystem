@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.StudentProgressMapper">
+    
+    <resultMap id="StudentProgressResultMap" type="com.experiment.pojo.StudentProgress">
+        <id column="id" property="id"/>
+        <result column="student_id" property="studentId"/>
+        <result column="course_id" property="courseId"/>
+        <result column="chapter_id" property="chapterId"/>
+        <result column="lesson_id" property="lessonId"/>
+        <result column="status" property="status"/>
+        <result column="progress" property="progress"/>
+        <result column="start_time" property="startTime"/>
+        <result column="complete_time" property="completeTime"/>
+        <result column="study_duration" property="studyDuration"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+    
+    <insert id="insert" parameterType="com.experiment.pojo.StudentProgress" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO student_progress (student_id, course_id, chapter_id, lesson_id, status, progress, start_time, complete_time, study_duration, create_time, update_time)
+        VALUES (#{studentId}, #{courseId}, #{chapterId}, #{lessonId}, #{status}, #{progress}, #{startTime}, #{completeTime}, #{studyDuration}, #{createTime}, #{updateTime})
+    </insert>
+    
+    <select id="selectById" resultMap="StudentProgressResultMap">
+        SELECT * FROM student_progress WHERE id = #{id}
+    </select>
+    
+    <select id="selectByStudentId" resultMap="StudentProgressResultMap">
+        SELECT * FROM student_progress WHERE student_id = #{studentId} ORDER BY create_time DESC
+    </select>
+    
+    <select id="selectByStudentAndCourse" resultMap="StudentProgressResultMap">
+        SELECT * FROM student_progress WHERE student_id = #{studentId} AND course_id = #{courseId}
+    </select>
+    
+    <select id="selectByStudentAndChapter" resultMap="StudentProgressResultMap">
+        SELECT * FROM student_progress WHERE student_id = #{studentId} AND chapter_id = #{chapterId} ORDER BY create_time DESC
+    </select>
+    
+    <update id="update" parameterType="com.experiment.pojo.StudentProgress">
+        UPDATE student_progress 
+        SET student_id = #{studentId}, course_id = #{courseId}, chapter_id = #{chapterId}, lesson_id = #{lessonId},
+            status = #{status}, progress = #{progress}, start_time = #{startTime}, complete_time = #{completeTime},
+            study_duration = #{studyDuration}, update_time = #{updateTime}
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="deleteById">
+        DELETE FROM student_progress WHERE id = #{id}
+    </delete>
+    
+    <select id="selectTotalStudyTime" resultType="java.lang.Integer">
+        SELECT SUM(study_duration) FROM student_progress WHERE student_id = #{studentId}
+    </select>
+    
+    <select id="selectCourseCompletionRate" resultType="java.lang.Double">
+        SELECT 
+            CASE 
+                WHEN COUNT(*) = 0 THEN 0 
+                ELSE (COUNT(CASE WHEN status = 'completed' THEN 1 END) * 100.0 / COUNT(*))
+            END
+        FROM student_progress 
+        WHERE student_id = #{studentId} AND course_id = #{courseId}
+    </select>
+    
+    <select id="selectTotalStudyTimeByTeacher" resultType="java.lang.Integer">
+        SELECT SUM(sp.study_duration) 
+        FROM student_progress sp
+        INNER JOIN course c ON sp.course_id = c.id
+        WHERE c.teacher_id = #{teacherId}
+    </select>
+    
+</mapper> 

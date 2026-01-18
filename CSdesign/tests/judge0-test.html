@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Judge0 OJ 测试界面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #6c757d;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        .status-dot.error {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .panel {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #dee2e6;
+        }
+
+        .panel h2 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #495057;
+            font-weight: 600;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 200px;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover:not(:disabled) {
+            background: #138496;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(23, 162, 184, 0.4);
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover:not(:disabled) {
+            background: #e0a800;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 193, 7, 0.4);
+        }
+
+        .output-panel {
+            background: #212529;
+            color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .output-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .output-panel::-webkit-scrollbar-track {
+            background: #343a40;
+            border-radius: 4px;
+        }
+
+        .output-panel::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .log-entry.success {
+            border-left: 4px solid #28a745;
+        }
+
+        .log-entry.error {
+            border-left: 4px solid #dc3545;
+        }
+
+        .log-entry.info {
+            border-left: 4px solid #17a2b8;
+        }
+
+        .log-entry.warning {
+            border-left: 4px solid #ffc107;
+        }
+
+        .timestamp {
+            color: #6c757d;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+
+        .result-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 10px;
+            border: 1px solid #dee2e6;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.accepted {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.wrong {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-badge.error {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.pending {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .result-details {
+            font-size: 14px;
+            color: #495057;
+        }
+
+        .result-details div {
+            margin-bottom: 5px;
+        }
+
+        .result-details strong {
+            color: #212529;
+        }
+
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 5px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .examples {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .examples h3 {
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .example-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .example-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .example-item strong {
+            color: #667eea;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Judge0 OJ 测试平台</h1>
+            <p>在线代码评测系统 - 支持多种编程语言</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">正在连接...</span>
+            </div>
+            <div>
+                <button class="btn-info" onclick="testConnection()" style="padding: 8px 16px;">
+                    🔌 测试连接
+                </button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- 左侧：代码输入 -->
+            <div>
+                <div class="panel">
+                    <h2>📝 代码编辑器</h2>
+                    
+                    <div class="form-group">
+                        <label for="language">选择编程语言</label>
+                        <select id="language">
+                            <option value="71">Python (3.8.1)</option>
+                            <option value="62">Java (OpenJDK 13.0.1)</option>
+                            <option value="63">JavaScript (Node.js 12.14.0)</option>
+                            <option value="50">C (GCC 9.2.0)</option>
+                            <option value="54">C++ (GCC 9.2.0)</option>
+                            <option value="51">C# (Mono 6.6.0.161)</option>
+                            <option value="60">Go (1.13.5)</option>
+                            <option value="68">PHP (7.4.1)</option>
+                            <option value="72">Ruby (2.7.0)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sourceCode">源代码</label>
+                        <textarea id="sourceCode" placeholder="在此输入你的代码...">print('Hello, Judge0!')
+print('欢迎使用在线代码评测系统！')</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="stdin">标准输入（可选）</label>
+                        <textarea id="stdin" style="min-height: 100px;" placeholder="输入测试数据..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="expectedOutput">期望输出（可选）</label>
+                        <textarea id="expectedOutput" style="min-height: 100px;" placeholder="期望的输出结果..."></textarea>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn-success" onclick="runCode()" id="runBtn">
+                            ▶️ 运行代码
+                        </button>
+                        <button class="btn-primary" onclick="submitCode()" id="submitBtn">
+                            ✅ 提交评测
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 代码示例 -->
+                <div class="examples">
+                    <h3>💡 代码示例（点击加载）</h3>
+                    <div class="example-item" onclick="loadExample('python')">
+                        <strong>Python:</strong> 两数之和
+                    </div>
+                    <div class="example-item" onclick="loadExample('java')">
+                        <strong>Java:</strong> Hello World
+                    </div>
+                    <div class="example-item" onclick="loadExample('cpp')">
+                        <strong>C++:</strong> 快速排序
+                    </div>
+                    <div class="example-item" onclick="loadExample('javascript')">
+                        <strong>JavaScript:</strong> 斐波那契数列
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：输出结果 -->
+            <div>
+                <div class="panel">
+                    <h2>📊 运行结果</h2>
+                    <div class="output-panel" id="output">
+                        <div class="log-entry info">
+                            <span class="timestamp">[系统]</span>
+                            <span>欢迎使用 Judge0 测试平台！</span>
+                        </div>
+                        <div class="log-entry info">
+                            <span class="timestamp">[提示]</span>
+                            <span>请选择编程语言，输入代码，然后点击"运行代码"或"提交评测"</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-top: 20px;">
+                    <h2>⚙️ 快速操作</h2>
+                    <div class="button-group">
+                        <button class="btn-info" onclick="getLanguages()">
+                            📋 语言列表
+                        </button>
+                        <button class="btn-warning" onclick="clearOutput()">
+                            🗑️ 清空输出
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080/api/code';
+        let currentToken = null;
+
+        // 添加日志
+        function addLog(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `
+                <span class="timestamp">[${timestamp}]</span>
+                <span>${message}</span>
+            `;
+            output.appendChild(logEntry);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // 添加结果卡片
+        function addResultCard(result) {
+            const output = document.getElementById('output');
+            const card = document.createElement('div');
+            card.className = 'result-card';
+            
+            let statusClass = 'pending';
+            if (result.statusId === 3) statusClass = 'accepted';
+            else if (result.statusId === 4) statusClass = 'wrong';
+            else if (result.statusId >= 5) statusClass = 'error';
+
+            card.innerHTML = `
+                <div class="result-header">
+                    <strong>评测结果</strong>
+                    <span class="status-badge ${statusClass}">${result.status}</span>
+                </div>
+                <div class="result-details">
+                    ${result.time ? `<div><strong>运行时间:</strong> ${result.time}s</div>` : ''}
+                    ${result.memory ? `<div><strong>内存使用:</strong> ${result.memory} KB</div>` : ''}
+                    ${result.stdout ? `<div><strong>标准输出:</strong><pre>${result.stdout}</pre></div>` : ''}
+                    ${result.stderr ? `<div><strong>错误输出:</strong><pre style="color: #dc3545;">${result.stderr}</pre></div>` : ''}
+                    ${result.compileOutput ? `<div><strong>编译错误:</strong><pre style="color: #ffc107;">${result.compileOutput}</pre></div>` : ''}
+                    ${result.message ? `<div><strong>消息:</strong><pre>${result.message}</pre></div>` : ''}
+                </div>
+            `;
+            output.appendChild(card);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // 测试连接
+        async function testConnection() {
+            addLog('正在测试 Judge0 连接...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/test-connection`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog('✅ Judge0 连接成功！' + data.data, 'success');
+                    updateStatus(true);
+                } else {
+                    addLog('❌ 连接失败: ' + data.message, 'error');
+                    updateStatus(false);
+                }
+            } catch (error) {
+                addLog('❌ 连接错误: ' + error.message, 'error');
+                updateStatus(false);
+            }
+        }
+
+        // 更新状态指示器
+        function updateStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            if (connected) {
+                dot.className = 'status-dot connected';
+                text.textContent = 'Judge0 已连接';
+            } else {
+                dot.className = 'status-dot error';
+                text.textContent = 'Judge0 未连接';
+            }
+        }
+
+        // 运行代码
+        async function runCode() {
+            const sourceCode = document.getElementById('sourceCode').value;
+            const languageId = document.getElementById('language').value;
+            const stdin = document.getElementById('stdin').value;
+
+            if (!sourceCode.trim()) {
+                addLog('❌ 请输入代码！', 'error');
+                return;
+            }
+
+            const runBtn = document.getElementById('runBtn');
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<span class="spinner"></span> 运行中...';
+
+            addLog('🚀 正在运行代码...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sourceCode, languageId: parseInt(languageId), stdin })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    addLog('✅ 代码运行完成', 'success');
+                    addResultCard(data.data);
+                } else {
+                    addLog('❌ 运行失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                addLog('❌ 请求错误: ' + error.message, 'error');
+            } finally {
+                runBtn.disabled = false;
+                runBtn.innerHTML = '▶️ 运行代码';
+            }
+        }
+
+        // 提交代码
+        async function submitCode() {
+            const sourceCode = document.getElementById('sourceCode').value;
+            const languageId = document.getElementById('language').value;
+            const stdin = document.getElementById('stdin').value;
+            const expectedOutput = document.getElementById('expectedOutput').value;
+
+            if (!sourceCode.trim()) {
+                addLog('❌ 请输入代码！', 'error');
+                return;
+            }
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span> 提交中...';
+
+            addLog('📤 正在提交代码...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        sourceCode, 
+                        languageId: parseInt(languageId), 
+                        stdin,
+                        expectedOutput 
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentToken = data.data.token;
+                    addLog('✅ 提交成功，Token: ' + currentToken, 'success');
+                    addLog('⏳ 正在评测中，请稍候...', 'info');
+                    
+                    // 轮询结果
+                    pollResult(currentToken);
+                } else {
+                    addLog('❌ 提交失败: ' + data.message, 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '✅ 提交评测';
+                }
+            } catch (error) {
+                addLog('❌ 请求错误: ' + error.message, 'error');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '✅ 提交评测';
+            }
+        }
+
+        // 轮询结果
+        async function pollResult(token, attempt = 0) {
+            const maxAttempts = 10;
+            
+            if (attempt >= maxAttempts) {
+                addLog('⏱️ 评测超时', 'warning');
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('submitBtn').innerHTML = '✅ 提交评测';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/result/${token}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const result = data.data;
+                    const statusId = result.statusId;
+
+                    // 1=队列中, 2=处理中
+                    if (statusId === 1 || statusId === 2) {
+                        addLog(`⏳ ${result.status}... (${attempt + 1}/${maxAttempts})`, 'info');
+                        setTimeout(() => pollResult(token, attempt + 1), 1000);
+                    } else {
+                        addLog('✅ 评测完成', 'success');
+                        addResultCard(result);
+                        document.getElementById('submitBtn').disabled = false;
+                        document.getElementById('submitBtn').innerHTML = '✅ 提交评测';
+                    }
+                } else {
+                    addLog('❌ 获取结果失败: ' + data.message, 'error');
+                    document.getElementById('submitBtn').disabled = false;
+                    document.getElementById('submitBtn').innerHTML = '✅ 提交评测';
+                }
+            } catch (error) {
+                addLog('❌ 请求错误: ' + error.message, 'error');
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('submitBtn').innerHTML = '✅ 提交评测';
+            }
+        }
+
+        // 获取语言列表
+        async function getLanguages() {
+            addLog('📋 正在获取支持的语言列表...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/languages`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const languages = JSON.parse(data.data);
+                    addLog(`✅ 共支持 ${languages.length} 种编程语言`, 'success');
+                    
+                    // 显示前10种语言
+                    const top10 = languages.slice(0, 10).map(lang => 
+                        `${lang.name} (ID: ${lang.id})`
+                    ).join(', ');
+                    addLog(`常用语言: ${top10}...`, 'info');
+                } else {
+                    addLog('❌ 获取失败: ' + data.message, 'error');
+                }
+            } catch (error) {
+                addLog('❌ 请求错误: ' + error.message, 'error');
+            }
+        }
+
+        // 清空输出
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+            addLog('🗑️ 输出已清空', 'info');
+        }
+
+        // 加载示例代码
+        function loadExample(type) {
+            const examples = {
+                python: {
+                    code: `# 两数之和
+n = int(input())
+nums = list(map(int, input().split()))
+target = int(input())
+
+for i in range(n):
+    for j in range(i + 1, n):
+        if nums[i] + nums[j] == target:
+            print(i, j)
+            break`,
+                    stdin: `4\n2 7 11 15\n9`,
+                    output: `0 1`,
+                    lang: '71'
+                },
+                java: {
+                    code: `public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+        System.out.println("欢迎使用 Judge0!");
+    }
+}`,
+                    stdin: '',
+                    output: 'Hello, World!\n欢迎使用 Judge0!',
+                    lang: '62'
+                },
+                cpp: {
+                    code: `#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+int main() {
+    vector<int> arr = {64, 34, 25, 12, 22, 11, 90};
+    
+    sort(arr.begin(), arr.end());
+    
+    cout << "排序后: ";
+    for(int num : arr) {
+        cout << num << " ";
+    }
+    cout << endl;
+    
+    return 0;
+}`,
+                    stdin: '',
+                    output: '排序后: 11 12 22 25 34 64 90',
+                    lang: '54'
+                },
+                javascript: {
+                    code: `// 斐波那契数列
+function fibonacci(n) {
+    if (n <= 1) return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+const n = 10;
+console.log(\`斐波那契数列前 \${n} 项:\`);
+for (let i = 0; i < n; i++) {
+    console.log(\`F(\${i}) = \${fibonacci(i)}\`);
+}`,
+                    stdin: '',
+                    output: '',
+                    lang: '63'
+                }
+            };
+
+            const example = examples[type];
+            if (example) {
+                document.getElementById('sourceCode').value = example.code;
+                document.getElementById('stdin').value = example.stdin;
+                document.getElementById('expectedOutput').value = example.output;
+                document.getElementById('language').value = example.lang;
+                addLog(`✅ 已加载 ${type.toUpperCase()} 示例代码`, 'success');
+            }
+        }
+
+        // 页面加载时测试连接
+        window.onload = function() {
+            testConnection();
+        };
+    </script>
+</body>
+</html>

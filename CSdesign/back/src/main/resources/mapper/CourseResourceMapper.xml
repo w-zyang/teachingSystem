@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.CourseResourceMapper">
+
+    <resultMap id="CourseResourceMap" type="com.experiment.pojo.CourseResource">
+        <id property="id" column="id"/>
+        <result property="courseId" column="course_id"/>
+        <result property="teacherId" column="teacher_id"/>
+        <result property="title" column="title"/>
+        <result property="description" column="description"/>
+        <result property="fileName" column="file_name"/>
+        <result property="fileUrl" column="file_url"/>
+        <result property="fileType" column="file_type"/>
+        <result property="fileSize" column="file_size"/>
+        <result property="downloadCount" column="download_count"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="teacherName" column="teacher_name"/>
+        <result property="courseName" column="course_name"/>
+    </resultMap>
+
+    <!-- 根据课程ID获取资源列表 -->
+    <select id="findByCourseId" resultMap="CourseResourceMap">
+        SELECT cr.*, u.real_name as teacher_name, c.title as course_name
+        FROM course_resource cr
+        LEFT JOIN user u ON cr.teacher_id = u.id
+        LEFT JOIN course c ON cr.course_id = c.id
+        WHERE cr.course_id = #{courseId} AND cr.status = 'published'
+        ORDER BY cr.create_time DESC
+    </select>
+
+    <!-- 根据教师ID获取资源列表 -->
+    <select id="findByTeacherId" resultMap="CourseResourceMap">
+        SELECT cr.*, u.real_name as teacher_name, c.title as course_name
+        FROM course_resource cr
+        LEFT JOIN user u ON cr.teacher_id = u.id
+        LEFT JOIN course c ON cr.course_id = c.id
+        WHERE cr.teacher_id = #{teacherId}
+        ORDER BY cr.create_time DESC
+    </select>
+
+    <!-- 根据ID获取资源详情 -->
+    <select id="findById" resultMap="CourseResourceMap">
+        SELECT cr.*, u.real_name as teacher_name, c.title as course_name
+        FROM course_resource cr
+        LEFT JOIN user u ON cr.teacher_id = u.id
+        LEFT JOIN course c ON cr.course_id = c.id
+        WHERE cr.id = #{id}
+    </select>
+
+    <!-- 插入新资源 -->
+    <insert id="insert" parameterType="com.experiment.pojo.CourseResource" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO course_resource (
+            course_id, teacher_id, title, description, file_name, 
+            file_url, file_type, file_size, download_count, status
+        ) VALUES (
+            #{courseId}, #{teacherId}, #{title}, #{description}, #{fileName},
+            #{fileUrl}, #{fileType}, #{fileSize}, #{downloadCount}, #{status}
+        )
+    </insert>
+
+    <!-- 更新资源信息 -->
+    <update id="update" parameterType="com.experiment.pojo.CourseResource">
+        UPDATE course_resource SET
+            title = #{title},
+            description = #{description},
+            status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除资源 -->
+    <delete id="deleteById">
+        DELETE FROM course_resource WHERE id = #{id}
+    </delete>
+
+    <!-- 更新下载次数 -->
+    <update id="updateDownloadCount">
+        UPDATE course_resource SET 
+            download_count = download_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <!-- 获取所有资源（管理员用） -->
+    <select id="findAll" resultMap="CourseResourceMap">
+        SELECT cr.*, u.real_name as teacher_name, c.title as course_name
+        FROM course_resource cr
+        LEFT JOIN user u ON cr.teacher_id = u.id
+        LEFT JOIN course c ON cr.course_id = c.id
+        ORDER BY cr.create_time DESC
+    </select>
+
+    <!-- 根据文件类型获取资源 -->
+    <select id="findByFileType" resultMap="CourseResourceMap">
+        SELECT cr.*, u.real_name as teacher_name, c.title as course_name
+        FROM course_resource cr
+        LEFT JOIN user u ON cr.teacher_id = u.id
+        LEFT JOIN course c ON cr.course_id = c.id
+        WHERE cr.file_type = #{fileType} AND cr.status = 'published'
+        ORDER BY cr.create_time DESC
+    </select>
+
+    <!-- 搜索资源 -->
+    <select id="searchResources" resultMap="CourseResourceMap">
+        SELECT cr.*, u.real_name as teacher_name, c.title as course_name
+        FROM course_resource cr
+        LEFT JOIN user u ON cr.teacher_id = u.id
+        LEFT JOIN course c ON cr.course_id = c.id
+        WHERE cr.status = 'published'
+        <if test="keyword != null and keyword != ''">
+            AND (cr.title LIKE CONCAT('%', #{keyword}, '%') 
+                 OR cr.description LIKE CONCAT('%', #{keyword}, '%')
+                 OR cr.file_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="courseId != null">
+            AND cr.course_id = #{courseId}
+        </if>
+        <if test="fileType != null and fileType != ''">
+            AND cr.file_type = #{fileType}
+        </if>
+        ORDER BY cr.create_time DESC
+    </select>
+
+</mapper> 

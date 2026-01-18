@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.experiment.mapper.LearningPathMapper">
+
+    <!-- 注意：删除了与LearningPathMapper.java接口注解重复的方法定义 -->
+    <!-- 以下方法已在Java接口中用注解定义，不需要在XML中重复： -->
+    <!-- findByStudentId, createLearningPath, updateProgress, getPathTemplates, -->
+    <!-- getKnowledgePoints, getPathDetails, generateRecommendedPath, updateStepStatus, getLearningStats -->
+
+    <!-- 以下是XML独有的方法，没有在Java接口中用注解定义 -->
+
+    <!-- 创建路径步骤 -->
+    <insert id="createPathStep">
+        INSERT INTO learning_path_step (
+            path_id, step_number, knowledge_point_id, status, create_time
+        ) VALUES (
+            #{pathId}, #{stepNumber}, #{knowledgePointId}, 'pending', NOW()
+        )
+    </insert>
+
+    <!-- 更新路径进度 -->
+    <update id="updatePathProgress">
+        UPDATE personalized_learning_path 
+        SET completion_rate = #{completionRate}, current_step = #{currentStep},
+            update_time = NOW()
+        WHERE id = #{pathId}
+    </update>
+
+    <!-- 记录能力评估 -->
+    <insert id="recordAbilityAssessment">
+        INSERT INTO learning_ability_assessment (
+            student_id, knowledge_point_id, mastery_level, confidence_level,
+            assessment_time, assessment_method
+        ) VALUES (
+            #{studentId}, #{knowledgePointId}, #{masteryLevel}, #{confidenceLevel},
+            NOW(), #{assessmentMethod}
+        )
+        ON DUPLICATE KEY UPDATE
+            mastery_level = #{masteryLevel},
+            confidence_level = #{confidenceLevel},
+            assessment_time = NOW()
+    </insert>
+
+    <!-- 获取学生能力评估 -->
+    <select id="getStudentAbilityAssessment" resultType="java.util.Map">
+        SELECT 
+            laa.*,
+            kp.name as knowledge_name,
+            kp.difficulty_level
+        FROM learning_ability_assessment laa
+        JOIN knowledge_point kp ON laa.knowledge_point_id = kp.id
+        WHERE laa.student_id = #{studentId}
+        ORDER BY laa.assessment_time DESC
+    </select>
+
+</mapper> 

@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课堂重点整理API测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .test-section:hover {
+            border-color: #4CAF50;
+            box-shadow: 0 10px 20px rgba(76, 175, 80, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .test-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.btn-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        }
+
+        .btn.btn-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+        }
+
+        .btn.btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+
+        .response-section {
+            margin-top: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border-left: 5px solid #4CAF50;
+        }
+
+        .response-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .response-content {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .status-indicator {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            background: #f8f9fa;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .file-input-wrapper:hover {
+            border-color: #4CAF50;
+            background: #f0fff0;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: #4CAF50;
+            transform: translateY(-2px);
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .test-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 课堂重点整理API测试</h1>
+            <p>测试录音上传、AI分析、文档生成等功能</p>
+        </div>
+
+        <div class="content">
+            <!-- 统计信息 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalRequests">0</div>
+                    <div class="stat-label">总请求数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="successCount">0</div>
+                    <div class="stat-label">成功次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="errorCount">0</div>
+                    <div class="stat-label">失败次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="avgResponseTime">0ms</div>
+                    <div class="stat-label">平均响应时间</div>
+                </div>
+            </div>
+
+            <div class="test-grid">
+                <!-- 1. 创建课堂总结 -->
+                <div class="test-section">
+                    <h3><span class="icon">📝</span>创建课堂总结</h3>
+                    <div class="form-group">
+                        <label>课程ID:</label>
+                        <input type="number" id="createCourseId" class="form-control" value="16" placeholder="输入课程ID">
+                    </div>
+                    <div class="form-group">
+                        <label>教师ID:</label>
+                        <input type="number" id="createTeacherId" class="form-control" value="2" placeholder="输入教师ID">
+                    </div>
+                    <div class="form-group">
+                        <label>课堂标题:</label>
+                        <input type="text" id="createTitle" class="form-control" value="Linux系统管理进阶" placeholder="输入课堂标题">
+                    </div>
+                    <div class="form-group">
+                        <label>课堂描述:</label>
+                        <textarea id="createDescription" class="form-control" placeholder="输入课堂描述">本次课程深入讲解Linux系统管理的高级技巧，包括用户权限管理、系统监控、日志分析等内容。</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>关键词:</label>
+                        <input type="text" id="createKeywords" class="form-control" value="Linux,系统管理,权限,监控" placeholder="用逗号分隔关键词">
+                    </div>
+                    <button class="btn" onclick="createClassSummary()">创建课堂总结</button>
+                </div>
+
+                <!-- 2. 上传录音文件 -->
+                <div class="test-section">
+                    <h3><span class="icon">🎤</span>上传录音文件</h3>
+                    <div class="form-group">
+                        <label>课程ID:</label>
+                        <input type="number" id="uploadCourseId" class="form-control" value="16" placeholder="输入课程ID">
+                    </div>
+                    <div class="form-group">
+                        <label>选择音频文件:</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="audioFile" accept=".mp3,.wav,.m4a,.webm" onchange="updateFileName()">
+                            <div id="fileDisplayName">点击选择音频文件 (.mp3, .wav, .m4a, .webm)</div>
+                        </div>
+                    </div>
+                    <button class="btn" onclick="uploadAudioFile()">上传录音文件</button>
+                </div>
+
+                <!-- 3. 语音转文字 -->
+                <div class="test-section">
+                    <h3><span class="icon">🎵</span>语音转文字</h3>
+                    <div class="form-group">
+                        <label>课堂总结ID:</label>
+                        <input type="number" id="transcriptSummaryId" class="form-control" value="1" placeholder="输入课堂总结ID">
+                    </div>
+                    <div class="form-group">
+                        <label>音频文件路径:</label>
+                        <input type="text" id="transcriptAudioPath" class="form-control" value="uploads/audio/course16/sample.wav" placeholder="输入音频文件路径">
+                    </div>
+                    <button class="btn btn-info" onclick="processAudioToText()">开始语音转文字</button>
+                </div>
+
+                <!-- 4. AI生成重点整理 -->
+                <div class="test-section">
+                    <h3><span class="icon">🤖</span>AI重点整理</h3>
+                    <div class="form-group">
+                        <label>课堂总结ID:</label>
+                        <input type="number" id="aiSummaryId" class="form-control" value="1" placeholder="输入课堂总结ID">
+                    </div>
+                    <div class="form-group">
+                        <label>转录文本:</label>
+                        <textarea id="aiTranscriptText" class="form-control" placeholder="输入转录的文本内容">今天我们学习Linux系统管理的高级技巧。首先讲解用户权限管理，包括sudo配置、组权限设置等。然后介绍系统监控工具如top、htop、iotop的使用方法。最后讲解日志分析技巧，包括系统日志、应用日志的查看和分析。</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>课件内容 (可选):</label>
+                        <textarea id="aiCoursewareContent" class="form-control" placeholder="输入课件内容">Linux系统管理进阶教程大纲：\n1. 用户权限管理\n2. 系统监控工具\n3. 日志分析技巧\n4. 性能优化方法</textarea>
+                    </div>
+                    <button class="btn btn-warning" onclick="generateAISummary()">生成AI重点整理</button>
+                </div>
+
+                <!-- 5. 更新最终内容 -->
+                <div class="test-section">
+                    <h3><span class="icon">✏️</span>更新最终内容</h3>
+                    <div class="form-group">
+                        <label>课堂总结ID:</label>
+                        <input type="number" id="updateSummaryId" class="form-control" value="1" placeholder="输入课堂总结ID">
+                    </div>
+                    <div class="form-group">
+                        <label>最终文档内容:</label>
+                        <textarea id="updateFinalContent" class="form-control" style="min-height: 120px;" placeholder="输入最终编辑的文档内容"># Linux系统管理进阶课堂总结
+
+## 用户权限管理
+- sudo配置与使用
+- 用户组管理
+- 文件权限设置
+
+## 系统监控
+- top命令详解
+- htop高级用法
+- iotop磁盘监控
+
+## 日志分析
+- 系统日志位置
+- 日志分析工具
+- 故障排查方法</textarea>
+                    </div>
+                    <button class="btn" onclick="updateFinalContent()">更新最终内容</button>
+                </div>
+
+                <!-- 6. 发布课堂总结 -->
+                <div class="test-section">
+                    <h3><span class="icon">🚀</span>发布课堂总结</h3>
+                    <div class="form-group">
+                        <label>课堂总结ID:</label>
+                        <input type="number" id="publishSummaryId" class="form-control" value="1" placeholder="输入课堂总结ID">
+                    </div>
+                    <button class="btn btn-danger" onclick="publishClassSummary()">发布到学生端</button>
+                </div>
+            </div>
+
+            <!-- 查询功能 -->
+            <div class="test-grid">
+                <!-- 7. 获取教师课堂总结列表 -->
+                <div class="test-section">
+                    <h3><span class="icon">📋</span>教师课堂总结列表</h3>
+                    <div class="form-group">
+                        <label>教师ID:</label>
+                        <input type="number" id="listTeacherId" class="form-control" value="2" placeholder="输入教师ID">
+                    </div>
+                    <button class="btn btn-info" onclick="getTeacherSummaries()">获取列表</button>
+                </div>
+
+                <!-- 8. 获取已发布总结列表 -->
+                <div class="test-section">
+                    <h3><span class="icon">📖</span>已发布总结列表</h3>
+                    <div class="form-group">
+                        <label>课程ID (可选):</label>
+                        <input type="number" id="publishedCourseId" class="form-control" value="16" placeholder="输入课程ID，留空获取全部">
+                    </div>
+                    <button class="btn btn-info" onclick="getPublishedSummaries()">获取已发布列表</button>
+                </div>
+
+                <!-- 9. 搜索课堂总结 -->
+                <div class="test-section">
+                    <h3><span class="icon">🔍</span>搜索课堂总结</h3>
+                    <div class="form-group">
+                        <label>搜索关键词:</label>
+                        <input type="text" id="searchKeyword" class="form-control" value="Linux" placeholder="输入搜索关键词">
+                    </div>
+                    <button class="btn btn-info" onclick="searchSummaries()">搜索</button>
+                </div>
+
+                <!-- 10. 获取统计信息 -->
+                <div class="test-section">
+                    <h3><span class="icon">📊</span>统计信息</h3>
+                    <div class="form-group">
+                        <label>教师ID:</label>
+                        <input type="number" id="statsTeacherId" class="form-control" value="2" placeholder="输入教师ID">
+                    </div>
+                    <button class="btn btn-info" onclick="getSummaryStatistics()">获取统计</button>
+                </div>
+            </div>
+
+            <!-- 响应结果显示区域 -->
+            <div class="response-section">
+                <h3><span class="icon">📊</span>API响应结果</h3>
+                <div id="requestStatus" class="status-indicator status-loading" style="display: none;">请求中...</div>
+                <div id="responseContent" class="response-content">等待API调用...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API基础URL
+        const BASE_URL = 'http://localhost:8080/api/class-summary';
+        
+        // 统计数据
+        let stats = {
+            totalRequests: 0,
+            successCount: 0,
+            errorCount: 0,
+            responseTimes: []
+        };
+
+        // 更新统计显示
+        function updateStats() {
+            document.getElementById('totalRequests').textContent = stats.totalRequests;
+            document.getElementById('successCount').textContent = stats.successCount;
+            document.getElementById('errorCount').textContent = stats.errorCount;
+            
+            const avgTime = stats.responseTimes.length > 0 
+                ? Math.round(stats.responseTimes.reduce((a, b) => a + b, 0) / stats.responseTimes.length)
+                : 0;
+            document.getElementById('avgResponseTime').textContent = avgTime + 'ms';
+        }
+
+        // 通用API请求函数
+        async function makeRequest(url, options = {}) {
+            const startTime = Date.now();
+            stats.totalRequests++;
+            
+            // 显示请求状态
+            const statusEl = document.getElementById('requestStatus');
+            const contentEl = document.getElementById('responseContent');
+            
+            statusEl.style.display = 'block';
+            statusEl.className = 'status-indicator status-loading';
+            statusEl.textContent = '请求中...';
+            contentEl.textContent = '正在发送请求...';
+
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                stats.responseTimes.push(responseTime);
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    stats.successCount++;
+                    statusEl.className = 'status-indicator status-success';
+                    statusEl.textContent = `请求成功 (${responseTime}ms)`;
+                } else {
+                    stats.errorCount++;
+                    statusEl.className = 'status-indicator status-error';
+                    statusEl.textContent = `请求失败 (${responseTime}ms)`;
+                }
+
+                contentEl.textContent = JSON.stringify(data, null, 2);
+                updateStats();
+                
+                return data;
+            } catch (error) {
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                stats.responseTimes.push(responseTime);
+                stats.errorCount++;
+                
+                statusEl.className = 'status-indicator status-error';
+                statusEl.textContent = `网络错误 (${responseTime}ms)`;
+                contentEl.textContent = `错误: ${error.message}`;
+                updateStats();
+                
+                throw error;
+            }
+        }
+
+        // 1. 创建课堂总结
+        async function createClassSummary() {
+            const data = {
+                courseId: parseInt(document.getElementById('createCourseId').value),
+                teacherId: parseInt(document.getElementById('createTeacherId').value),
+                title: document.getElementById('createTitle').value,
+                description: document.getElementById('createDescription').value,
+                keywords: document.getElementById('createKeywords').value
+            };
+
+            await makeRequest(BASE_URL + '/create', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+        }
+
+        // 2. 上传录音文件
+        async function uploadAudioFile() {
+            const fileInput = document.getElementById('audioFile');
+            const courseId = document.getElementById('uploadCourseId').value;
+            
+            if (!fileInput.files[0]) {
+                alert('请选择音频文件');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('audioFile', fileInput.files[0]);
+            formData.append('courseId', courseId);
+
+            await makeRequest(BASE_URL + '/upload-audio', {
+                method: 'POST',
+                headers: {}, // 清空Content-Type，让浏览器设置
+                body: formData
+            });
+        }
+
+        // 更新文件名显示
+        function updateFileName() {
+            const fileInput = document.getElementById('audioFile');
+            const displayEl = document.getElementById('fileDisplayName');
+            
+            if (fileInput.files[0]) {
+                displayEl.textContent = `已选择: ${fileInput.files[0].name}`;
+            } else {
+                displayEl.textContent = '点击选择音频文件 (.mp3, .wav, .m4a, .webm)';
+            }
+        }
+
+        // 3. 语音转文字
+        async function processAudioToText() {
+            const data = {
+                summaryId: parseInt(document.getElementById('transcriptSummaryId').value),
+                audioFilePath: document.getElementById('transcriptAudioPath').value
+            };
+
+            await makeRequest(BASE_URL + '/process-audio', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+        }
+
+        // 4. AI生成重点整理
+        async function generateAISummary() {
+            const data = {
+                summaryId: parseInt(document.getElementById('aiSummaryId').value),
+                transcriptText: document.getElementById('aiTranscriptText').value,
+                coursewareContent: document.getElementById('aiCoursewareContent').value
+            };
+
+            await makeRequest(BASE_URL + '/generate-summary', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+        }
+
+        // 5. 更新最终内容
+        async function updateFinalContent() {
+            const summaryId = document.getElementById('updateSummaryId').value;
+            const data = {
+                finalContent: document.getElementById('updateFinalContent').value
+            };
+
+            await makeRequest(BASE_URL + `/update-content/${summaryId}`, {
+                method: 'PUT',
+                body: JSON.stringify(data)
+            });
+        }
+
+        // 6. 发布课堂总结
+        async function publishClassSummary() {
+            const summaryId = document.getElementById('publishSummaryId').value;
+
+            await makeRequest(BASE_URL + `/publish/${summaryId}`, {
+                method: 'PUT'
+            });
+        }
+
+        // 7. 获取教师课堂总结列表
+        async function getTeacherSummaries() {
+            const teacherId = document.getElementById('listTeacherId').value;
+
+            await makeRequest(BASE_URL + `/teacher/${teacherId}`, {
+                method: 'GET'
+            });
+        }
+
+        // 8. 获取已发布总结列表
+        async function getPublishedSummaries() {
+            const courseId = document.getElementById('publishedCourseId').value;
+            
+            const url = courseId 
+                ? BASE_URL + `/course/${courseId}`
+                : BASE_URL + '/published';
+
+            await makeRequest(url, {
+                method: 'GET'
+            });
+        }
+
+        // 9. 搜索课堂总结
+        async function searchSummaries() {
+            const keyword = document.getElementById('searchKeyword').value;
+
+            await makeRequest(BASE_URL + `/search?keyword=${encodeURIComponent(keyword)}`, {
+                method: 'GET'
+            });
+        }
+
+        // 10. 获取统计信息
+        async function getSummaryStatistics() {
+            const teacherId = document.getElementById('statsTeacherId').value;
+
+            await makeRequest(BASE_URL + `/statistics/${teacherId}`, {
+                method: 'GET'
+            });
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStats();
+            console.log('课堂重点整理API测试页面已加载');
+        });
+    </script>
+</body>
+</html> 

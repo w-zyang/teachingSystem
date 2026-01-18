@@ -11,6 +11,8 @@ target/
 .vscode/
 *.swp
 *.swo
+*.iws
+*.ipr
 
 # 日志
 logs/
@@ -37,3 +39,28 @@ uploads/
 # 环境配置（保护敏感信息）
 back/src/main/resources/application.yml
 application.properties
+
+# 排除特殊目录
+-/
+
+# 排除敏感配置文件（CSdesign子目录结构）
+CSdesign/back/src/main/resources/application.yml
+
+# Maven（CSdesign子目录结构）
+CSdesign/back/target/
+CSdesign/back/.mvn/
+CSdesign/back/mvnw
+CSdesign/back/mvnw.cmd
+
+# Node modules（CSdesign子目录结构）
+CSdesign/front(2)/front(1)/node_modules/
+CSdesign/front(2)/node_modules/
+
+# 上传文件（CSdesign子目录结构）
+CSdesign/back/uploads/
+
+# 输出文件
+output/
+
+# Judge0 压缩包
+CSdesign/judge0/judge0-v1.13.0.zip
