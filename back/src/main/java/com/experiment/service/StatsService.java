@@ -66,4 +66,7 @@ public interface StatsService {
     
     // 更新资源
     Map<String, Object> updateResource(Map<String, Object> resourceData);
+    
+    // 获取教学效率趋势
+    Map<String, Object> getEfficiencyTrend(Long teacherId, String type);
 } 

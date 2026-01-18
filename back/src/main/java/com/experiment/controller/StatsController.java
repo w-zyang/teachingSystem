@@ -182,4 +182,14 @@ public class StatsController {
         Map<String, Object> result = statsService.updateResource(resourceData);
         return Result.success("更新资源成功", result);
     }
+    
+    // 获取教学效率趋势
+    @GetMapping("/teacher/{teacherId}/efficiency-trend")
+    public Result getEfficiencyTrend(
+        @PathVariable Long teacherId,
+        @RequestParam(defaultValue = "month") String type
+    ) {
+        Map<String, Object> trend = statsService.getEfficiencyTrend(teacherId, type);
+        return Result.success("获取教学效率趋势成功", trend);
+    }
 } 

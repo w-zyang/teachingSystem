@@ -160,20 +160,7 @@
       
       <!-- 教学效率图表 -->
       <div class="efficiency-chart card">
-        <div class="card-header">
-          <div class="header-left">
-            <img src="@/assets/balance.png" alt="教学效率" class="header-icon">
-            <h3>教学效率趋势</h3>
-          </div>
-          <p class="header-description">本周教学效果分析</p>
-        </div>
-        <div class="chart-container">
-          <div class="chart-placeholder">
-            <img src="@/assets/category.png" alt="图表" class="chart-icon">
-            <p>教学效率趋势图</p>
-            <span>数据加载中...</span>
-          </div>
-        </div>
+        <EfficiencyTrendChart :teacher-id="teacherId" />
       </div>
     </div>
     
@@ -212,6 +199,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { getTeacherStats, getCourseStats } from '@/api/stats'
 import { getCoursesByTeacherId } from '@/api/course'
+import EfficiencyTrendChart from '@/components/EfficiencyTrendChart.vue'
 
 const router = useRouter()
 

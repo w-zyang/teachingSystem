@@ -169,4 +169,13 @@ export function getResourceStats() {
     url: '/api/stats/resources/stats',
     method: 'get'
   })
+}
+
+// 获取教学效率趋势
+export function getEfficiencyTrend(teacherId, type = 'month') {
+  return request({
+    url: `/api/stats/teacher/${teacherId}/efficiency-trend`,
+    method: 'get',
+    params: { type }
+  })
 } 
