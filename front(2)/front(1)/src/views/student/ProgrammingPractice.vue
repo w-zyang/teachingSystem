@@ -139,18 +139,32 @@ const question = ref({
   ]
 })
 
-const defaultLanguage = ref('71') // Python
-const defaultCode = ref(`# Python 示例代码
-n = int(input())
-nums = list(map(int, input().split()))
-target = int(input())
+const defaultLanguage = ref('50') // C语言
+const defaultCode = ref(`// C 示例代码
+#include <stdio.h>
 
-# 在这里编写你的代码
-for i in range(n):
-    for j in range(i + 1, n):
-        if nums[i] + nums[j] == target:
-            print(i, j)
-            break
+int main() {
+    int n, target;
+    scanf("%d", &n);
+    
+    int nums[n];
+    for (int i = 0; i < n; i++) {
+        scanf("%d", &nums[i]);
+    }
+    scanf("%d", &target);
+    
+    // 在这里编写你的代码
+    for (int i = 0; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (nums[i] + nums[j] == target) {
+                printf("%d %d\\n", i, j);
+                return 0;
+            }
+        }
+    }
+    
+    return 0;
+}
 `)
 
 const getDifficultyText = (difficulty) => {

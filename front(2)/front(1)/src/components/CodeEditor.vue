@@ -17,6 +17,11 @@
           <i v-else class="fas fa-play"></i>
           {{ isRunning ? '运行中...' : '运行代码' }}
         </button>
+        <button v-if="testCases.length > 0" @click="submitCode" :disabled="isSubmitting" class="btn btn-submit">
+          <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
+          <i v-else class="fas fa-check"></i>
+          {{ isSubmitting ? '评测中...' : '提交代码' }}
+        </button>
       </div>
     </div>
 
@@ -35,45 +40,54 @@
     <!-- 红色分隔线 -->
     <div class="divider-line"></div>
 
-    <!-- 输出结果区域 -->
-    <div class="result-area">
-      <div class="result-header">
-        <h4>运行结果</h4>
-        <span v-if="output" class="status-badge" :class="statusClass">
-          {{ output.status }}
-        </span>
+    <!-- 输入输出区域 -->
+    <div class="io-area">
+      <!-- 输入区域 -->
+      <div class="input-section">
+        <div class="section-header">
+          <h4>📥 输入</h4>
+        </div>
+        <textarea
+          v-model="stdin"
+          class="input-textarea"
+          placeholder="请输入测试数据..."
+          spellcheck="false"
+        ></textarea>
       </div>
-      
-      <div v-if="output" class="output-content" :class="outputClass">
-        <div v-if="output.stdout" class="output-section">
-          <div class="output-label">📤 标准输出：</div>
-          <pre class="output-text">{{ output.stdout }}</pre>
-        </div>
 
-        <div v-if="output.stderr" class="output-section error">
-          <div class="output-label">❌ 错误输出：</div>
-          <pre class="output-text">{{ output.stderr }}</pre>
+      <!-- 输出区域 -->
+      <div class="output-section-wrapper">
+        <div class="section-header">
+          <h4>📤 输出</h4>
+          <span v-if="output" class="status-badge" :class="statusClass">
+            {{ output.status }}
+          </span>
         </div>
+        
+        <div v-if="output" class="output-content" :class="outputClass">
+          <div v-if="output.stdout" class="output-block">
+            <pre class="output-text">{{ output.stdout }}</pre>
+          </div>
 
-        <div v-if="output.compileOutput" class="output-section error">
-          <div class="output-label">⚠️ 编译错误：</div>
-          <pre class="output-text">{{ output.compileOutput }}</pre>
-        </div>
+          <div v-if="output.stderr" class="output-block error">
+            <div class="output-label">错误输出：</div>
+            <pre class="output-text">{{ output.stderr }}</pre>
+          </div>
 
-        <div v-if="output.message" class="output-section">
-          <div class="output-label">💬 消息：</div>
-          <pre class="output-text">{{ output.message }}</pre>
-        </div>
+          <div v-if="output.compileOutput" class="output-block error">
+            <div class="output-label">编译错误：</div>
+            <pre class="output-text">{{ output.compileOutput }}</pre>
+          </div>
 
-        <div v-if="output.exitCode !== undefined" class="output-section">
-          <div class="output-label">🔢 退出码：</div>
-          <span class="exit-code">{{ output.exitCode }}</span>
+          <div v-if="output.message" class="output-block">
+            <pre class="output-text">{{ output.message }}</pre>
+          </div>
         </div>
-      </div>
-      
-      <div v-else class="output-placeholder">
-        <i class="fas fa-info-circle"></i>
-        点击"运行代码"按钮后，结果将显示在这里
+        
+        <div v-else class="output-placeholder">
+          <i class="fas fa-info-circle"></i>
+          点击"运行代码"查看结果
+        </div>
       </div>
     </div>
 
@@ -125,7 +139,7 @@ const props = defineProps({
   },
   defaultLanguage: {
     type: String,
-    default: '71' // Python
+    default: '50' // C语言
   },
   defaultCode: {
     type: String,
@@ -223,6 +237,7 @@ const resetCode = () => {
   code.value = codeTemplates[selectedLanguage.value]
   output.value = null
   testResults.value = []
+  stdin.value = ''
   ElMessage.info('代码已重置')
 }
 
@@ -239,16 +254,12 @@ const runCode = async () => {
     const response = await axios.post('http://localhost:8080/api/code/run', {
       sourceCode: code.value,
       languageId: parseInt(selectedLanguage.value),
-      stdin: stdin.value
+      stdin: stdin.value || ''
     })
-
-    console.log('API 完整响应:', response)
-    console.log('API 响应数据:', response.data)
 
     // 检查 success 字段（而不是 code 字段）
     if (response.data.success === true && response.data.data) {
       const result = response.data.data
-      console.log('解析的结果数据:', result)
       
       // 构建输出对象
       output.value = {
@@ -257,11 +268,8 @@ const runCode = async () => {
         stdout: result.stdout || result.output || '',
         stderr: result.stderr || '',
         compileOutput: result.compileOutput || result.compile_output || '',
-        message: result.message || '',
-        exitCode: result.exitCode !== undefined ? result.exitCode : (result.exit_code !== undefined ? result.exit_code : 0)
+        message: result.message || ''
       }
-      
-      console.log('设置的 output.value:', output.value)
       
       // 根据结果显示不同的消息
       if (output.value.stderr || output.value.compileOutput) {
@@ -309,8 +317,8 @@ const submitCode = async () => {
   testResults.value = []
   
   try {
-    // 批量提交测试用例
-    const response = await axios.post('/api/code/submit-batch', {
+    // 使用 Piston 批量执行测试用例
+    const response = await axios.post('http://localhost:8080/api/code/run-batch', {
       sourceCode: code.value,
       languageId: parseInt(selectedLanguage.value),
       testCases: props.testCases.map(tc => ({
@@ -320,17 +328,17 @@ const submitCode = async () => {
     })
 
     if (response.data.success) {
-      const tokens = response.data.data.tokens
-      ElMessage.success('代码已提交，正在评测...')
+      const results = response.data.data
+      ElMessage.success('代码评测完成')
 
-      // 轮询获取结果
-      await pollResults(tokens)
+      // 直接处理结果（Piston 直接返回结果，不需要轮询）
+      processResults(results)
     } else {
-      ElMessage.error(response.data.message || '提交失败')
+      ElMessage.error(response.data.msg || '提交失败')
     }
   } catch (error) {
     console.error('提交代码失败:', error)
-    ElMessage.error('提交失败: ' + (error.response?.data?.message || error.message))
+    ElMessage.error('提交失败: ' + (error.response?.data?.msg || error.message))
   } finally {
     isSubmitting.value = false
   }
@@ -377,6 +385,46 @@ const pollResults = async (tokens) => {
     attempts++
   }
 
+  testResults.value = results
+
+  // 计算通过率
+  const passedCount = results.filter(r => r.passed).length
+  const totalCount = results.length
+
+  if (passedCount === totalCount) {
+    ElMessage.success(`恭喜！所有测试用例通过 (${passedCount}/${totalCount})`)
+    emit('submit-success', {
+      passed: true,
+      score: 100,
+      results: results
+    })
+  } else {
+    ElMessage.warning(`部分测试用例未通过 (${passedCount}/${totalCount})`)
+    emit('submit-success', {
+      passed: false,
+      score: Math.round((passedCount / totalCount) * 100),
+      results: results
+    })
+  }
+}
+
+const processResults = (pistonResults) => {
+  const results = []
+  
+  pistonResults.forEach((result, index) => {
+    const actualOutput = (result.stdout || '').trim()
+    const expectedOutput = (props.testCases[index].output || '').trim()
+    const passed = actualOutput === expectedOutput
+    
+    results.push({
+      input: props.testCases[index].input,
+      expectedOutput: expectedOutput,
+      actualOutput: actualOutput,
+      passed: passed,
+      status: result.status || '完成'
+    })
+  })
+  
   testResults.value = results
 
   // 计算通过率
@@ -500,7 +548,7 @@ const pollResults = async (tokens) => {
 
 .code-textarea {
   width: 100%;
-  height: 350px;
+  height: 600px;
   padding: 16px;
   border: 2px solid #ddd;
   border-radius: 8px;
@@ -529,112 +577,151 @@ const pollResults = async (tokens) => {
   box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
 }
 
-/* 结果区域 */
-.result-area {
-  background: white;
-  padding: 20px;
-  min-height: 300px;
-  max-height: 500px;
-  overflow-y: auto;
+/* 输入输出区域 */
+.io-area {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  padding: 15px 20px;
+  background: #f8f9fa;
 }
 
-.result-header {
+.input-section,
+.output-section-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #ecf0f1;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #e0e0e0;
+  min-height: 30px;
+  flex-shrink: 0;
 }
 
-.result-header h4 {
+.section-header h4 {
   margin: 0;
   color: #2c3e50;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
 }
 
-.output-content {
-  padding: 16px;
+.input-textarea {
+  width: 100%;
+  height: 180px;
+  padding: 12px;
   border: 2px solid #ddd;
-  border-radius: 8px;
-  background: #f8f9fa;
+  border-radius: 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: none;
+  background: white;
+  color: #2c3e50;
+  box-sizing: border-box;
+}
+
+.input-textarea:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.input-textarea::placeholder {
+  color: #95a5a6;
+}
+
+.output-content {
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  height: 180px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .output-content.success {
   border-color: #27ae60;
-  background: #d4edda;
+  background: #f0f9ff;
 }
 
 .output-content.error {
   border-color: #e74c3c;
-  background: #f8d7da;
+  background: #fff5f5;
 }
 
 .output-content.compile-error {
   border-color: #f39c12;
-  background: #fff3cd;
+  background: #fffbf0;
 }
 
-.output-section {
-  margin-bottom: 16px;
+.output-block {
+  margin-bottom: 8px;
 }
 
-.output-section:last-child {
+.output-block:last-child {
   margin-bottom: 0;
 }
 
 .output-label {
   font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 8px;
-  font-size: 14px;
+  color: #e74c3c;
+  margin-bottom: 6px;
+  font-size: 13px;
 }
 
 .output-text {
   margin: 0;
-  padding: 12px;
-  background: white;
-  border-radius: 6px;
+  padding: 8px;
+  background: transparent;
+  border-radius: 4px;
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   line-height: 1.6;
   white-space: pre-wrap;
   word-wrap: break-word;
   color: #2c3e50;
-  border: 1px solid #e0e0e0;
+  border: none;
 }
 
-.output-section.error .output-text {
+.output-block.error .output-text {
   color: #e74c3c;
-  background: #fff5f5;
-}
-
-.exit-code {
-  display: inline-block;
-  padding: 4px 12px;
-  background: white;
-  border-radius: 4px;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-weight: 600;
-  color: #2c3e50;
-  border: 1px solid #e0e0e0;
+  background: transparent;
 }
 
 .output-placeholder {
-  padding: 60px 20px;
+  padding: 40px 20px;
   text-align: center;
   color: #95a5a6;
-  font-size: 15px;
+  font-size: 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  height: 180px;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  background: white;
 }
 
 .output-placeholder i {
-  font-size: 48px;
+  font-size: 32px;
   opacity: 0.5;
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .io-area {
+    grid-template-columns: 1fr;
+  }
 }
 
 .status-badge {

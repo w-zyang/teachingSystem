@@ -337,13 +337,6 @@
                   <div class="coding-layout">
                     <!-- 左侧：题目描述 -->
                     <div class="coding-left">
-                      <div class="coding-tags">
-                        <el-tag type="success" size="small">编程题</el-tag>
-                        <el-tag type="warning" size="small">{{ currentQuestion.difficulty || 'intermediate' }}</el-tag>
-                      </div>
-                      
-                      <h3 class="coding-title">{{ currentQuestion.title }}</h3>
-                      
                       <div class="coding-section">
                         <h4 class="section-title">编程要求：</h4>
                         <div class="section-content" v-html="formatQuestionContent(currentQuestion.requirements || currentQuestion.content)"></div>
@@ -374,11 +367,22 @@
                     
                     <!-- 右侧：代码编辑器组件 -->
                     <div class="coding-right">
+                      <!-- 调试信息 -->
+                      <div v-if="currentQuestion.testCases && currentQuestion.testCases.length > 0" style="padding: 10px; background: #e7f3ff; border-radius: 4px; margin-bottom: 10px; font-size: 12px;">
+                        <strong>✅ 已配置 {{ currentQuestion.testCases.length }} 个测试用例</strong>
+                      </div>
+                      <div v-else style="padding: 10px; background: #fff3cd; border-radius: 4px; margin-bottom: 10px; font-size: 12px;">
+                        <strong>⚠️ 该题目暂未配置测试用例，无法进行自动评测</strong>
+                      </div>
+                      
                       <CodeEditor
                         title="代码编辑"
                         :question-id="currentQuestion.id"
+                        :default-language="'50'"
                         :default-code="userAnswers[currentQuestionIndex]"
+                        :test-cases="currentQuestion.testCases || []"
                         @code-change="(code) => userAnswers[currentQuestionIndex] = code"
+                        @submit-success="handleCodingSubmit"
                       />
                     </div>
                   </div>
@@ -491,6 +495,15 @@
               <p><strong>你的答案：</strong>{{ analysis.userAnswer || '未作答' }}</p>
               <p><strong>正确答案：</strong>{{ analysis.correctAnswer }}</p>
               <p v-if="analysis.explanation"><strong>题目解析：</strong>{{ analysis.explanation }}</p>
+              
+              <!-- 编程题特殊显示 -->
+              <div v-if="analysis.codingScore !== undefined" class="coding-result">
+                <p><strong>测试用例通过率：</strong>{{ analysis.codingScore }}%</p>
+                <el-progress 
+                  :percentage="analysis.codingScore" 
+                  :color="analysis.codingScore === 100 ? '#67c23a' : '#e6a23c'"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -652,7 +665,31 @@ export default {
         console.log('收到生成练习题目响应:', response)
         
         if (response.success === true && response.data && response.data.questions) {
-          practiceQuestions.value = response.data.questions
+          // 处理题目数据：将 examples 转换为 testCases
+          practiceQuestions.value = response.data.questions.map(q => {
+            // 处理编程题的测试用例
+            if (q.type === 'coding') {
+              let testCases = q.testCases || []
+              if (testCases.length === 0 && q.examples && Array.isArray(q.examples)) {
+                console.log(`AI生成的编程题 "${q.title}" 从 examples 转换测试用例:`, q.examples)
+                testCases = q.examples.map(ex => ({
+                  input: ex.input,
+                  output: ex.output
+                }))
+              }
+              console.log(`编程题 "${q.title}" 测试用例数量:`, testCases.length)
+              
+              return {
+                ...q,
+                examples: q.examples || [], // 保留示例用于显示
+                testCases: testCases, // 用于评测
+                requirements: q.requirements || q.content || q.title, // 编程要求
+                hints: q.hints || '' // 提示
+              }
+            }
+            return q
+          })
+          
           // 根据题目类型初始化答案数组
           userAnswers.value = practiceQuestions.value.map(q => {
             if (q.type === 'fill' && q.blanks && Array.isArray(q.blanks)) {
@@ -843,6 +880,20 @@ export default {
       }
     }
     
+    // 处理编程题提交结果
+    const handleCodingSubmit = (result) => {
+      console.log('编程题提交结果:', result)
+      
+      if (result.passed) {
+        ElMessage.success(`恭喜！所有测试用例通过，得分：${result.score}`)
+      } else {
+        ElMessage.warning(`部分测试用例未通过，得分：${result.score}`)
+      }
+      
+      // 可以在这里保存编程题的得分
+      codeResults.value[currentQuestionIndex.value] = result
+    }
+    
     // 重置代码
     const resetCode = (questionIndex) => {
       userAnswers.value[questionIndex] = ''
@@ -857,6 +908,33 @@ export default {
       // 清除开始时间戳,因为练习已结束
       localStorage.removeItem('practiceStartTime')
       
+      // 检查是否有编程题未提交
+      const hasUnsubmittedCoding = practiceQuestions.value.some((q, idx) => {
+        return q.type === 'coding' && !codeResults.value[idx]
+      })
+      
+      if (hasUnsubmittedCoding) {
+        ElMessageBox.confirm(
+          '检测到有编程题尚未提交评测，是否继续提交练习？未评测的编程题将得0分。',
+          '提示',
+          {
+            confirmButtonText: '继续提交',
+            cancelButtonText: '返回检查',
+            type: 'warning'
+          }
+        ).then(() => {
+          doSubmitPractice()
+        }).catch(() => {
+          // 用户取消，恢复计时器
+          startTimer()
+        })
+      } else {
+        doSubmitPractice()
+      }
+    }
+    
+    // 执行提交练习
+    const doSubmitPractice = async () => {
       try {
         // 处理多题型答案
         const answers = practiceQuestions.value.map((q, idx) => {
@@ -877,8 +955,48 @@ export default {
         if (response.success === true && response.data) {
           practiceResult.value = response.data
           
+          // 合并编程题的评测结果
+          practiceResult.value.analysis = practiceResult.value.analysis.map((item, idx) => {
+            const question = practiceQuestions.value[idx]
+            if (question.type === 'coding' && codeResults.value[idx]) {
+              // 使用编程题的实际评测结果
+              const codingResult = codeResults.value[idx]
+              return {
+                ...item,
+                isCorrect: codingResult.passed || false,
+                userAnswer: userAnswers.value[idx],
+                correctAnswer: '通过所有测试用例',
+                explanation: `测试用例通过率: ${codingResult.score}%`,
+                codingScore: codingResult.score
+              }
+            }
+            return item
+          })
+          
+          // 重新计算总分（考虑编程题得分）
+          let totalScore = 0
+          let correctCount = 0
+          practiceResult.value.analysis.forEach((item, idx) => {
+            const question = practiceQuestions.value[idx]
+            if (question.type === 'coding' && item.codingScore !== undefined) {
+              // 编程题按测试用例通过率计分
+              totalScore += (item.codingScore / 100) * (question.score || 10)
+              if (item.codingScore === 100) correctCount++
+            } else {
+              // 其他题型
+              if (item.isCorrect) {
+                totalScore += (question.score || 10)
+                correctCount++
+              }
+            }
+          })
+          
+          practiceResult.value.score = Math.round(totalScore)
+          practiceResult.value.correctCount = correctCount
+          practiceResult.value.accuracy = Math.round((correctCount / practiceQuestions.value.length) * 100)
+          
           // 记录错题
-          await recordErrorQuestions(response.data.analysis)
+          await recordErrorQuestions(practiceResult.value.analysis)
           
           savePracticeData() // 保存结果
           ElMessage.success('练习评测完成！')
@@ -904,6 +1022,41 @@ export default {
         const answers = userAnswers.value
         
         questions.forEach((q, idx) => {
+          // 编程题特殊处理
+          if (q.type === 'coding') {
+            const codingResult = codeResults.value[idx]
+            if (codingResult) {
+              const score = (codingResult.score / 100) * (q.score || 10)
+              totalScore += score
+              if (codingResult.passed) correctCount++
+              
+              analysis.push({
+                title: q.title,
+                userAnswer: answers[idx],
+                correctAnswer: '通过所有测试用例',
+                isCorrect: codingResult.passed,
+                explanation: `测试用例通过率: ${codingResult.score}%`,
+                detailedAnalysis: `您的代码通过了 ${codingResult.results?.filter(r => r.passed).length || 0} / ${codingResult.results?.length || 0} 个测试用例`,
+                suggestion: codingResult.passed ? '代码完全正确！' : '部分测试用例未通过，请检查代码逻辑',
+                codingScore: codingResult.score
+              })
+            } else {
+              // 未提交的编程题
+              analysis.push({
+                title: q.title,
+                userAnswer: '未提交',
+                correctAnswer: '通过所有测试用例',
+                isCorrect: false,
+                explanation: '未提交代码评测',
+                detailedAnalysis: '您没有提交代码进行评测',
+                suggestion: '请编写代码并点击"提交代码"按钮进行评测',
+                codingScore: 0
+              })
+            }
+            return
+          }
+          
+          // 其他题型的评测逻辑
           const userAns = (answers[idx] || '').toString().trim()
           let stdAns = ''
           let isCorrect = false
@@ -929,12 +1082,6 @@ export default {
               isCorrect = checkShortAnswerSimilarity(userAns, stdAns)
               break
               
-            case 'coding':
-              // 编程题：检查代码结构和关键词
-              stdAns = (q.answer || '').toString().trim()
-              isCorrect = checkCodingAnswerSimilarity(userAns, stdAns)
-              break
-              
             case 'essay':
               // 论述题：检查内容完整性和关键词
               stdAns = (q.answer || '').toString().trim()
@@ -947,7 +1094,10 @@ export default {
               isCorrect = userAns.toLowerCase() === stdAns.toLowerCase()
           }
           
-          if (isCorrect) correctCount++
+          if (isCorrect) {
+            correctCount++
+            totalScore += (q.score || 10)
+          }
           
           analysis.push({
             title: q.title,
@@ -960,11 +1110,10 @@ export default {
           })
         })
         
-        totalScore = correctCount * 10 // 每题10分
         const accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0
         
         practiceResult.value = {
-          score: totalScore,
+          score: Math.round(totalScore),
           correctCount,
           accuracy,
           timeUsed: Math.round((practiceForm.timeLimit * 60 - remainingTime.value) / 60),
@@ -1517,7 +1666,17 @@ export default {
                 score: 30,
                 difficulty: 'hard',
                 answer: '参考实现：使用数组或链表实现栈的基本操作',
-                analysis: '这道编程题考查学生对栈数据结构的实际编程能力。'
+                analysis: '这道编程题考查学生对栈数据结构的实际编程能力。',
+                testCases: [
+                  {
+                    input: '3\npush 1\npush 2\npop',
+                    output: '2'
+                  },
+                  {
+                    input: '5\npush 10\npush 20\npush 30\npop\npop',
+                    output: '30\n20'
+                  }
+                ]
               }
             ]
           },
@@ -1577,7 +1736,17 @@ export default {
                 score: 50,
                 difficulty: 'hard',
                 answer: '需要定义Animal基类，包含共同属性和方法；Dog和Cat继承Animal并重写方法',
-                analysis: '这道编程题综合考查学生对Java面向对象编程的掌握程度。'
+                analysis: '这道编程题综合考查学生对Java面向对象编程的掌握程度。',
+                testCases: [
+                  {
+                    input: 'Dog\nBuddy',
+                    output: 'Dog Buddy says: Woof!'
+                  },
+                  {
+                    input: 'Cat\nWhiskers',
+                    output: 'Cat Whiskers says: Meow!'
+                  }
+                ]
               }
             ]
           }
@@ -1652,20 +1821,42 @@ export default {
       // 获取考试的详细题目信息
       const examDetails = await fetchExamDetails(exam.id)
       if (examDetails && examDetails.questions) {
+        console.log('原始题目数据:', examDetails.questions)
+        
         // 将教师生成的题目转换为练习格式
-        practiceQuestions.value = examDetails.questions.map(q => ({
-          id: q.id,
-          title: q.content,
-          type: q.type,
-          content: q.content,
-          options: q.options ? q.options.map(opt => opt.content) : null,
-          optionKeys: q.options ? q.options.map(opt => opt.key) : null,
-          score: q.score,
-          difficulty: q.difficulty || 'medium',
-          answer: q.answer,
-          explanation: q.analysis || q.explanation || '',
-          examSource: true // 标记这是来自教师考试的题目
-        }))
+        practiceQuestions.value = examDetails.questions.map(q => {
+          // 处理测试用例：优先使用 testCases，如果没有则尝试从 examples 转换
+          let testCases = q.testCases || []
+          if (testCases.length === 0 && q.examples && Array.isArray(q.examples)) {
+            console.log(`题目 ${q.id} 从 examples 转换测试用例:`, q.examples)
+            testCases = q.examples.map(ex => ({
+              input: ex.input,
+              output: ex.output
+            }))
+          }
+          
+          console.log(`题目 ${q.id} (${q.type}) 测试用例数量:`, testCases.length)
+          
+          return {
+            id: q.id,
+            title: q.content,
+            type: q.type,
+            content: q.content,
+            options: q.options ? q.options.map(opt => opt.content) : null,
+            optionKeys: q.options ? q.options.map(opt => opt.key) : null,
+            score: q.score,
+            difficulty: q.difficulty || 'medium',
+            answer: q.answer,
+            explanation: q.analysis || q.explanation || '',
+            examples: q.examples || [], // 保留示例用于显示
+            testCases: testCases, // 包含测试用例
+            requirements: q.requirements || q.content, // 编程要求
+            hints: q.hints || '', // 提示
+            examSource: true // 标记这是来自教师考试的题目
+          }
+        })
+        
+        console.log('转换后的题目数据:', practiceQuestions.value)
         
         // 初始化用户答案数组
         userAnswers.value = practiceQuestions.value.map(q => {
@@ -1696,19 +1887,34 @@ export default {
       const examDetails = await fetchExamDetails(exam.id)
       if (examDetails && examDetails.questions) {
         // 将教师生成的题目转换为练习格式
-        practiceQuestions.value = examDetails.questions.map(q => ({
-          id: q.id,
-          title: q.content,
-          type: q.type,
-          content: q.content,
-          options: q.options ? q.options.map(opt => opt.content) : null,
-          optionKeys: q.options ? q.options.map(opt => opt.key) : null,
-          score: q.score,
-          difficulty: q.difficulty || 'medium',
-          answer: q.answer,
-          explanation: q.analysis || q.explanation || '',
-          examSource: true // 标记这是来自教师考试的题目
-        }))
+        practiceQuestions.value = examDetails.questions.map(q => {
+          // 处理测试用例：优先使用 testCases，如果没有则尝试从 examples 转换
+          let testCases = q.testCases || []
+          if (testCases.length === 0 && q.examples && Array.isArray(q.examples)) {
+            testCases = q.examples.map(ex => ({
+              input: ex.input,
+              output: ex.output
+            }))
+          }
+          
+          return {
+            id: q.id,
+            title: q.content,
+            type: q.type,
+            content: q.content,
+            options: q.options ? q.options.map(opt => opt.content) : null,
+            optionKeys: q.options ? q.options.map(opt => opt.key) : null,
+            score: q.score,
+            difficulty: q.difficulty || 'medium',
+            answer: q.answer,
+            explanation: q.analysis || q.explanation || '',
+            examples: q.examples || [], // 保留示例用于显示
+            testCases: testCases, // 包含测试用例
+            requirements: q.requirements || q.content, // 编程要求
+            hints: q.hints || '', // 提示
+            examSource: true // 标记这是来自教师考试的题目
+          }
+        })
         
         ElMessage.success(`预览考试：${exam.name}，共${practiceQuestions.value.length}道题`)
         
@@ -1861,6 +2067,7 @@ export default {
       getQuestionTypeName,
       runCode,
       resetCode,
+      handleCodingSubmit,
       codeResults,
       reportDialogVisible,
       currentReport,
@@ -2667,6 +2874,20 @@ export default {
 .analysis-content p {
   margin: 8px 0;
   line-height: 1.6;
+}
+
+.coding-result {
+  margin-top: 15px;
+  padding: 15px;
+  background: #f0f9ff;
+  border-radius: 6px;
+  border-left: 4px solid #409eff;
+}
+
+.coding-result p {
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: #409eff;
 }
 
 .detail-content {

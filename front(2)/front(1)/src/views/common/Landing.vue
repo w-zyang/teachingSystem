@@ -185,7 +185,7 @@
           </div>
         </div>
         <div class="footer-bottom">
-          <p>&copy; 2024 智能教学管理系统. 保留所有权利.</p>
+          <p>&copy; 2026 智能教学管理系统. 保留所有权利.</p>
         </div>
       </footer>
     </div>

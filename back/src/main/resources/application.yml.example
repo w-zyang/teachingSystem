@@ -1,0 +1,103 @@
+server:
+  port: 8080
+
+# 代码执行引擎配置
+# 可选值: piston (推荐), judge0
+code:
+  execution:
+    engine: piston
+
+spring:
+  datasource:
+    # 使用localhost或127.0.0.1可以绕过主机名限制
+    url: jdbc:mysql://localhost/web_experiment?useUnicode=true&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+    username: root
+    password: YOUR_DATABASE_PASSWORD
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    #分片上传大小限制
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+  # DevTools配置：减少不必要的自动重启
+  devtools:
+    restart:
+      enabled: true
+      # 排除这些路径，避免触发重启
+      exclude: "static/**,public/**,templates/**,META-INF/maven/**,META-INF/resources/**,resources/**,static/**,public/**,templates/**,**/*Test.class,**/*Tests.class"
+      # 添加触发重启的路径
+      additional-paths: "src/main/java"
+      # 触发重启的延迟时间（毫秒），给编译一些缓冲时间
+      poll-interval: 2000
+      quiet-period: 1000
+    livereload:
+      enabled: true
+  # 引入 Piston 配置
+  profiles:
+    include: piston
+
+mybatis:
+  #mapper配置文件
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.experiment.pojo
+  configuration:
+    #开启驼峰命名
+    map-underscore-to-camel-case: true
+
+# 阿里云OSS配置
+ali-oss:
+  endpoint: oss-cn-shanghai.aliyuncs.com
+  access-key-id: YOUR_ACCESS_KEY_ID
+  access-key-secret: YOUR_ACCESS_KEY_SECRET
+  bucket-name: YOUR_BUCKET_NAME
+
+# 通义千问API配置
+dashscope:
+  api-key: YOUR_DASHSCOPE_API_KEY
+  app-id: YOUR_APP_ID
+  model: qwen-plus
+  base-url: https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation
+
+# 阿里云百炼AI配置
+bailian:
+  # 语音转文字AI配置
+  speech-to-text:
+    api-key: YOUR_BAILIAN_API_KEY
+    app-id: YOUR_SPEECH_TO_TEXT_APP_ID
+  # 重点整理生成AI配置
+  summary-generation:
+    api-key: YOUR_BAILIAN_API_KEY
+    app-id: YOUR_SUMMARY_GENERATION_APP_ID
+
+# 讯飞API配置
+xunfei:
+  ppt:
+    appid: YOUR_XUNFEI_APPID
+    apisecret: YOUR_XUNFEI_APISECRET
+
+# Whisper 语音识别配置
+whisper:
+  # 虚拟环境名称（用于 conda activate 命令）
+  # 如果使用 conda 环境，填写环境名称即可（例如：whisper）
+  # 如果使用 venv/virtualenv，填写完整的 activate 脚本路径
+  # 注意：留空则直接执行 whisper 命令（需要 whisper 在系统 PATH 中）
+  venv-path: whisper
+  # Whisper 模型名称（tiny, base, small, medium, large）
+  # 注意：模型越大，识别准确度越高，但处理速度越慢
+  # medium 模型适合中文识别，准确度较高
+  model: medium
+  # 语言设置（Chinese, English, auto 等）
+  # 如果设置为 auto 或留空，Whisper 会自动检测语言
+  language: Chinese
+  # 输出目录（已弃用，现在使用固定目录 D:\my_git\CSdesign\output）
+  output-dir: 
+  # 临时文件存储目录（用于存储从 OSS 下载的音频文件）
+  temp-dir: temp/whisper
+  # 命令执行超时时间（秒），根据音频文件大小调整
+  # medium 模型处理时间较长，建议设置为 600 秒（10分钟）
+  timeout: 600
+  # 文件保留时间（小时），超过此时间的转录文件将被自动删除
+  # 默认保留 24 小时，可根据需要调整
+  # 清理任务每天凌晨 2 点自动执行
+  file-retention-hours: 24
+
