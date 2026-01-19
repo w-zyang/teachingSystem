@@ -9,10 +9,10 @@ code:
 
 spring:
   datasource:
-    # 使用localhost或127.0.0.1可以绕过主机名限制
-    url: jdbc:mysql://localhost/web_experiment?useUnicode=true&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
-    username: root
-    password: YOUR_DATABASE_PASSWORD
+    # 数据库连接配置
+    url: jdbc:mysql://localhost:3306/web_experiment?useUnicode=true&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+    username: your_database_username
+    password: your_database_password
     driver-class-name: com.mysql.cj.jdbc.Driver
     #分片上传大小限制
   servlet:
@@ -47,14 +47,14 @@ mybatis:
 # 阿里云OSS配置
 ali-oss:
   endpoint: oss-cn-shanghai.aliyuncs.com
-  access-key-id: YOUR_ACCESS_KEY_ID
-  access-key-secret: YOUR_ACCESS_KEY_SECRET
-  bucket-name: YOUR_BUCKET_NAME
+  access-key-id: your_access_key_id
+  access-key-secret: your_access_key_secret
+  bucket-name: your_bucket_name
 
 # 通义千问API配置
 dashscope:
-  api-key: YOUR_DASHSCOPE_API_KEY
-  app-id: YOUR_APP_ID
+  api-key: your_dashscope_api_key
+  app-id: your_app_id
   model: qwen-plus
   base-url: https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation
 
@@ -62,18 +62,18 @@ dashscope:
 bailian:
   # 语音转文字AI配置
   speech-to-text:
-    api-key: YOUR_BAILIAN_API_KEY
-    app-id: YOUR_SPEECH_TO_TEXT_APP_ID
+    api-key: your_speech_to_text_api_key
+    app-id: your_speech_to_text_app_id
   # 重点整理生成AI配置
   summary-generation:
-    api-key: YOUR_BAILIAN_API_KEY
-    app-id: YOUR_SUMMARY_GENERATION_APP_ID
+    api-key: your_summary_generation_api_key
+    app-id: your_summary_generation_app_id
 
 # 讯飞API配置
 xunfei:
   ppt:
-    appid: YOUR_XUNFEI_APPID
-    apisecret: YOUR_XUNFEI_APISECRET
+    appid: your_xunfei_appid
+    apisecret: your_xunfei_apisecret
 
 # Whisper 语音识别配置
 whisper:
@@ -89,7 +89,7 @@ whisper:
   # 语言设置（Chinese, English, auto 等）
   # 如果设置为 auto 或留空，Whisper 会自动检测语言
   language: Chinese
-  # 输出目录（已弃用，现在使用固定目录 D:\my_git\CSdesign\output）
+  # 输出目录（已弃用，现在使用固定目录）
   output-dir: 
   # 临时文件存储目录（用于存储从 OSS 下载的音频文件）
   temp-dir: temp/whisper
@@ -100,4 +100,3 @@ whisper:
   # 默认保留 24 小时，可根据需要调整
   # 清理任务每天凌晨 2 点自动执行
   file-retention-hours: 24
-
