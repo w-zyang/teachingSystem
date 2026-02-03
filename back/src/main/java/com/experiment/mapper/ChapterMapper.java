@@ -1,33 +1,25 @@
 package com.experiment.mapper;
 
+import com.experiment.pojo.Chapter;
+import org.apache.ibatis.annotations.*;
+
 import java.util.List;
 
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import com.experiment.pojo.Chapter;
-
+/**
+ * 章节 Mapper
+ */
 @Mapper
 public interface ChapterMapper {
     
-    // 根据ID查询章节
-    Chapter findById(@Param("id") Long id);
+    @Select("SELECT * FROM chapter WHERE course_id = #{courseId} ORDER BY sort_order ASC")
+    List<Chapter> selectByCourseId(Long courseId);
     
-    // 根据课程ID查询章节列表
-    List<Chapter> findByCourseId(@Param("courseId") Long courseId);
+    @Select("SELECT * FROM chapter WHERE id = #{id}")
+    Chapter selectById(Long id);
     
-    // 插入新章节
-    int insert(Chapter chapter);
+    @Select("SELECT * FROM chapter WHERE course_id = #{courseId} ORDER BY sort_order ASC")
+    List<Chapter> findByCourseId(Long courseId);
     
-    // 更新章节信息
-    int update(Chapter chapter);
-    
-    // 删除章节
-    int deleteById(@Param("id") Long id);
-    
-    // 根据课程ID删除章节
-    int deleteByCourseId(@Param("courseId") Long courseId);
-    
-    // 更新排序
-    int updateSortOrder(@Param("id") Long id, @Param("sortOrder") Integer sortOrder);
-} 
+    @Delete("DELETE FROM chapter WHERE course_id = #{courseId}")
+    void deleteByCourseId(Long courseId);
+}

@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>讯飞PPT API 调试工具</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button.secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        button.success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 15px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .error {
+            color: #f48771;
+        }
+        .success {
+            color: #a9dc76;
+        }
+        .info {
+            color: #78dce8;
+        }
+        .warning {
+            color: #ffd866;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+        label {
+            font-weight: 600;
+            display: block;
+            margin-top: 15px;
+            color: #555;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .tip {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 讯飞PPT生成API 调试工具</h1>
+
+    <div class="container">
+        <h2>📋 API配置信息</h2>
+        <div class="tip">
+            <strong>提示:</strong> 当前IP如果被封禁，请等待1-2小时后重试，或联系讯飞客服(400-9696-968)解封
+        </div>
+        
+        <label>App ID:</label>
+        <input type="text" id="appId" value="8dd2fe64" placeholder="输入你的App ID">
+        
+        <label>API Secret:</label>
+        <input type="text" id="apiSecret" value="ZmY0MmE3MThlMzQyNjZmZmJmNmVhZWY0" placeholder="输入你的API Secret">
+        
+        <label>API URL:</label>
+        <input type="text" id="apiUrl" value="https://zwapi.xfyun.cn/api/ppt/create" placeholder="讯飞PPT API地址">
+    </div>
+
+    <div class="container">
+        <h2>1️⃣ 测试后端连接</h2>
+        <p>测试后端服务是否正常运行</p>
+        <button onclick="testBackendConnection()">测试后端连接</button>
+        <div id="connectionOutput" class="output"></div>
+    </div>
+
+    <div class="container">
+        <h2>2️⃣ 生成PPT</h2>
+        
+        <label>PPT标题:</label>
+        <input type="text" id="pptTitle" value="Linux系统管理" placeholder="输入PPT标题">
+        
+        <label>PPT内容:</label>
+        <textarea id="pptContent" placeholder="输入PPT内容...">课程介绍：
+Linux是一个开源的操作系统，广泛应用于服务器、嵌入式系统等领域。
+
+主要内容：
+1. Linux系统安装与配置
+2. 基本命令操作
+3. 文件系统管理
+4. 用户权限管理
+5. 网络配置
+6. Shell脚本编程
+
+学习目标：
+- 掌握Linux基本操作
+- 理解Linux文件系统
+- 能够编写简单的Shell脚本</textarea>
+        
+        <div class="button-group">
+            <button onclick="generatePPT()">🚀 生成PPT</button>
+            <button class="secondary" onclick="generatePPTDirect()">🔧 直接调用讯飞API</button>
+        </div>
+        
+        <div id="generateOutput" class="output"></div>
+    </div>
+
+    <div class="container">
+        <h2>3️⃣ 查询PPT状态</h2>
+        
+        <label>任务ID (Task ID / SID):</label>
+        <input type="text" id="taskId" placeholder="输入生成PPT时返回的任务ID">
+        
+        <button class="success" onclick="checkPPTStatus()">📊 查询状态</button>
+        <div id="statusOutput" class="output"></div>
+    </div>
+
+    <div class="container">
+        <h2>4️⃣ 完整测试流程</h2>
+        <p>自动执行：生成PPT → 等待3秒 → 查询状态</p>
+        <button onclick="fullTest()">🎯 完整测试</button>
+        <div id="fullTestOutput" class="output"></div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://localhost:8080/api/ai';
+        let currentTaskId = null;
+
+        function log(elementId, message, type = 'info') {
+            const output = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            output.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clear(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        // 1. 测试后端连接
+        async function testBackendConnection() {
+            clear('connectionOutput');
+            log('connectionOutput', '正在测试后端连接...', 'info');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/course-design`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        courseInfo: {
+                            courseName: "测试课程",
+                            courseType: "测试",
+                            duration: "1",
+                            difficulty: "easy",
+                            outline: "测试连接"
+                        },
+                        options: ["lesson-plan"]
+                    })
+                });
+                
+                log('connectionOutput', `响应状态: ${response.status}`, 'info');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('connectionOutput', '✅ 后端连接成功！', 'success');
+                    log('connectionOutput', `响应数据: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    log('connectionOutput', '❌ 后端连接失败', 'error');
+                    const text = await response.text();
+                    log('connectionOutput', `错误信息: ${text}`, 'error');
+                }
+            } catch (error) {
+                log('connectionOutput', '❌ 请求错误: ' + error.message, 'error');
+                log('connectionOutput', '提示: 请确保后端服务在 http://localhost:8080 运行', 'warning');
+            }
+        }
+
+        // 2. 通过后端生成PPT
+        async function generatePPT() {
+            clear('generateOutput');
+            
+            const title = document.getElementById('pptTitle').value;
+            const content = document.getElementById('pptContent').value;
+            
+            if (!title.trim() || !content.trim()) {
+                log('generateOutput', '❌ 请输入标题和内容', 'error');
+                return;
+            }
+            
+            log('generateOutput', '正在通过后端生成PPT...', 'info');
+            log('generateOutput', `标题: ${title}`, 'info');
+            log('generateOutput', `内容长度: ${content.length} 字符`, 'info');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/course-design`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        courseInfo: {
+                            courseName: title,
+                            courseType: "测试",
+                            duration: "16",
+                            difficulty: "intermediate",
+                            outline: content
+                        },
+                        options: ["ppt"]
+                    })
+                });
+                
+                log('generateOutput', `响应状态: ${response.status}`, 'info');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('generateOutput', '响应数据: ' + JSON.stringify(data, null, 2), 'success');
+                    
+                    if (data.pptTaskId) {
+                        currentTaskId = data.pptTaskId;
+                        document.getElementById('taskId').value = currentTaskId;
+                        log('generateOutput', `✅ PPT生成任务已提交！`, 'success');
+                        log('generateOutput', `任务ID: ${currentTaskId}`, 'success');
+                        log('generateOutput', '提示: 请等待几秒后查询状态', 'warning');
+                    } else if (data.pptError) {
+                        log('generateOutput', `⚠️ PPT生成失败: ${data.pptError}`, 'error');
+                    } else {
+                        log('generateOutput', '⚠️ 未返回任务ID', 'warning');
+                    }
+                } else {
+                    const text = await response.text();
+                    log('generateOutput', '❌ 请求失败: ' + text, 'error');
+                }
+            } catch (error) {
+                log('generateOutput', '❌ 请求错误: ' + error.message, 'error');
+            }
+        }
+
+        // 2.5 直接调用讯飞API
+        async function generatePPTDirect() {
+            clear('generateOutput');
+            
+            const title = document.getElementById('pptTitle').value;
+            const content = document.getElementById('pptContent').value;
+            const appId = document.getElementById('appId').value;
+            const apiSecret = document.getElementById('apiSecret').value;
+            const apiUrl = document.getElementById('apiUrl').value;
+            
+            if (!title.trim() || !content.trim()) {
+                log('generateOutput', '❌ 请输入标题和内容', 'error');
+                return;
+            }
+            
+            log('generateOutput', '正在直接调用讯飞API...', 'info');
+            log('generateOutput', `API URL: ${apiUrl}`, 'info');
+            log('generateOutput', `App ID: ${appId}`, 'info');
+            
+            // 生成签名
+            const timestamp = Date.now();
+            const signature = await generateMD5(appId + apiSecret);
+            
+            const requestBody = {
+                pptTitle: title,
+                query: content.substring(0, 2000),
+                isFigure: 0
+            };
+            
+            log('generateOutput', '请求体: ' + JSON.stringify(requestBody, null, 2), 'info');
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'appId': appId,
+                        'timestamp': timestamp.toString(),
+                        'signature': signature,
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                log('generateOutput', `响应状态: ${response.status}`, 'info');
+                
+                const text = await response.text();
+                log('generateOutput', `响应内容: ${text}`, response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    try {
+                        const data = JSON.parse(text);
+                        if (data.code === 0 && data.data && data.data.sid) {
+                            currentTaskId = data.data.sid;
+                            document.getElementById('taskId').value = currentTaskId;
+                            log('generateOutput', `✅ 成功！任务ID: ${currentTaskId}`, 'success');
+                        }
+                    } catch (e) {
+                        log('generateOutput', '解析响应失败', 'error');
+                    }
+                } else if (response.status === 403) {
+                    log('generateOutput', '❌ 403 Forbidden - IP已被封禁', 'error');
+                    log('generateOutput', '解决方案:', 'warning');
+                    log('generateOutput', '1. 等待1-2小时后重试', 'warning');
+                    log('generateOutput', '2. 联系讯飞客服: 400-9696-968', 'warning');
+                    log('generateOutput', '3. 更换网络/IP地址', 'warning');
+                }
+            } catch (error) {
+                log('generateOutput', '❌ 请求错误: ' + error.message, 'error');
+            }
+        }
+
+        // 3. 查询PPT状态
+        async function checkPPTStatus() {
+            clear('statusOutput');
+            
+            const taskId = document.getElementById('taskId').value || currentTaskId;
+            
+            if (!taskId) {
+                log('statusOutput', '❌ 请输入任务ID', 'error');
+                return;
+            }
+            
+            log('statusOutput', `正在查询任务状态: ${taskId}`, 'info');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/check-ppt-status?taskId=${taskId}`);
+                
+                log('statusOutput', `响应状态: ${response.status}`, 'info');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('statusOutput', '响应数据: ' + JSON.stringify(data, null, 2), 'success');
+                    
+                    if (data.completed) {
+                        if (data.downloadUrl) {
+                            log('statusOutput', '✅ PPT生成完成！', 'success');
+                            log('statusOutput', `下载地址: ${data.downloadUrl}`, 'success');
+                            log('statusOutput', '点击下载: ', 'info');
+                            log('statusOutput', `<a href="${data.downloadUrl}" target="_blank" style="color: #4facfe;">${data.downloadUrl}</a>`, 'success');
+                        } else if (data.error) {
+                            log('statusOutput', `❌ 生成失败: ${data.error}`, 'error');
+                        }
+                    } else {
+                        log('statusOutput', '⏳ 正在生成中...', 'warning');
+                        log('statusOutput', '提示: 请稍后再次查询', 'info');
+                    }
+                } else {
+                    const text = await response.text();
+                    log('statusOutput', '❌ 查询失败: ' + text, 'error');
+                }
+            } catch (error) {
+                log('statusOutput', '❌ 请求错误: ' + error.message, 'error');
+            }
+        }
+
+        // 4. 完整测试
+        async function fullTest() {
+            clear('fullTestOutput');
+            log('fullTestOutput', '========== 开始完整测试 ==========', 'info');
+            
+            const title = document.getElementById('pptTitle').value;
+            const content = document.getElementById('pptContent').value;
+            
+            if (!title.trim() || !content.trim()) {
+                log('fullTestOutput', '❌ 请输入标题和内容', 'error');
+                return;
+            }
+            
+            // 步骤1: 生成PPT
+            log('fullTestOutput', '\n[步骤1] 生成PPT...', 'info');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/course-design`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        courseInfo: {
+                            courseName: title,
+                            courseType: "测试",
+                            duration: "16",
+                            difficulty: "intermediate",
+                            outline: content
+                        },
+                        options: ["ppt"]
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.pptTaskId) {
+                        currentTaskId = data.pptTaskId;
+                        log('fullTestOutput', `✅ 任务已提交，ID: ${currentTaskId}`, 'success');
+                        
+                        // 步骤2: 等待3秒
+                        log('fullTestOutput', '\n[步骤2] 等待3秒...', 'info');
+                        await sleep(3000);
+                        log('fullTestOutput', '✅ 等待完成', 'success');
+                        
+                        // 步骤3: 查询状态
+                        log('fullTestOutput', '\n[步骤3] 查询状态...', 'info');
+                        const statusResponse = await fetch(`${BACKEND_URL}/check-ppt-status?taskId=${currentTaskId}`);
+                        
+                        if (statusResponse.ok) {
+                            const statusData = await statusResponse.json();
+                            log('fullTestOutput', '状态数据: ' + JSON.stringify(statusData, null, 2), 'success');
+                            
+                            if (statusData.completed && statusData.downloadUrl) {
+                                log('fullTestOutput', '\n✅✅✅ 测试成功！PPT已生成！', 'success');
+                                log('fullTestOutput', `下载地址: ${statusData.downloadUrl}`, 'success');
+                            } else if (statusData.error) {
+                                log('fullTestOutput', '\n❌ 生成失败: ' + statusData.error, 'error');
+                            } else {
+                                log('fullTestOutput', '\n⏳ 仍在生成中，请稍后手动查询', 'warning');
+                            }
+                        }
+                    } else if (data.pptError) {
+                        log('fullTestOutput', `\n❌ 生成失败: ${data.pptError}`, 'error');
+                    }
+                } else {
+                    log('fullTestOutput', '❌ 请求失败', 'error');
+                }
+            } catch (error) {
+                log('fullTestOutput', '❌ 测试失败: ' + error.message, 'error');
+            }
+            
+            log('fullTestOutput', '\n========== 测试结束 ==========', 'info');
+        }
+
+        // 辅助函数
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function generateMD5(str) {
+            const msgBuffer = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest('MD5', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // 页面加载时的提示
+        window.onload = function() {
+            console.log('讯飞PPT API调试工具已加载');
+            console.log('提示: 如果遇到403错误，说明IP被封禁，请等待1-2小时或联系客服');
+        };
+    </script>
+</body>
+</html>

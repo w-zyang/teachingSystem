@@ -7,7 +7,8 @@ import java.util.List;
 @Data
 public class Course {
     private Long id;
-    private String name;
+    private String title; // 数据库字段是title
+    private String name; // 前端兼容字段，getter中返回title
     private String description;
     private String subject; // 专业方向
     private String grade; // 适用年级
@@ -16,6 +17,7 @@ public class Course {
     private String level; // 难度等级：beginner, intermediate, advanced
     private String levelText; // 难度等级文本
     private String image; // 课程封面
+    private String coverImage; // 数据库字段
     private Long teacherId; // 教师ID
     private String teacherName; // 教师姓名
     private Integer students; // 学习人数
@@ -24,4 +26,13 @@ public class Course {
     private List<Chapter> chapters; // 课程章节
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    
+    // 兼容前端，name返回title的值
+    public String getName() {
+        return this.title;
+    }
+    
+    public void setName(String name) {
+        this.title = name;
+    }
 } 

@@ -408,6 +408,8 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/assets/styles/theme.scss';
+
 .teacher-dashboard {
   max-width: 1200px;
   margin: 0 auto;
@@ -416,11 +418,11 @@ onMounted(async () => {
 
 /* 页面头部 */
 .page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 40px 32px;
-  border-radius: 24px;
-  margin-bottom: 32px;
+  @include gradient-bg($bg-gradient-1);
+  color: $white;
+  padding: $spacing-2xl $spacing-xl;
+  border-radius: $radius-2xl;
+  margin-bottom: $spacing-xl;
   position: relative;
   overflow: hidden;
   

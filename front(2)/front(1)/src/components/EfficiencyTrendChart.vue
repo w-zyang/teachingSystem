@@ -180,7 +180,7 @@ const fetchEfficiencyData = async () => {
 }
 
 // 使用默认数据
-const useDefaultData = () => {
+const useDefaultData = async () => {
   if (viewMode.value === 'month') {
     monthlyData.value = [
       { month: '1月', efficiency: 52, courseCount: 18, studentEngagement: 68 },
@@ -201,22 +201,37 @@ const useDefaultData = () => {
       { day: '周日', efficiency: 52, hours: 2 },
     ]
   }
+  
+  // 等待 DOM 更新
+  await nextTick()
+  
+  // 创建图表
   createMainChart()
   if (viewMode.value === 'month') {
+    await nextTick()
     createComparisonChart()
   }
 }
 
 // 创建主图表
 const createMainChart = () => {
-  if (!chartCanvas.value) return
+  console.log('开始创建主图表...')
+  console.log('chartCanvas.value:', chartCanvas.value)
+  
+  if (!chartCanvas.value) {
+    console.error('Canvas 元素不存在！')
+    return
+  }
   
   // 销毁旧图表
   if (mainChart) {
+    console.log('销毁旧图表')
     mainChart.destroy()
   }
 
   const data = viewMode.value === 'month' ? monthlyData.value : weeklyData.value
+  console.log('图表数据:', data)
+  
   if (!data || data.length === 0) {
     console.warn('没有数据可显示')
     return
@@ -224,90 +239,99 @@ const createMainChart = () => {
   
   const labels = data.map(item => viewMode.value === 'month' ? item.month : item.day)
   const values = data.map(item => item.efficiency)
-
-  const ctx = chartCanvas.value.getContext('2d')
   
-  // 创建渐变
-  const gradient = ctx.createLinearGradient(0, 0, 0, 300)
-  gradient.addColorStop(0, 'rgba(102, 126, 234, 0.3)')
-  gradient.addColorStop(1, 'rgba(102, 126, 234, 0)')
+  console.log('标签:', labels)
+  console.log('数值:', values)
 
-  mainChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '教学效率',
-        data: values,
-        borderColor: '#667eea',
-        backgroundColor: gradient,
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4,
-        pointRadius: 5,
-        pointBackgroundColor: '#667eea',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointHoverRadius: 7,
-        pointHoverBackgroundColor: '#667eea',
-        pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 3,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          display: false
-        },
-        tooltip: {
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          titleColor: '#2d3748',
-          bodyColor: '#4a5568',
-          borderColor: '#e2e8f0',
-          borderWidth: 1,
-          padding: 12,
-          displayColors: false,
-          callbacks: {
-            label: function(context) {
-              return `效率: ${context.parsed.y}%`
-            }
-          }
-        }
+  try {
+    const ctx = chartCanvas.value.getContext('2d')
+    
+    // 创建渐变
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300)
+    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.3)')
+    gradient.addColorStop(1, 'rgba(102, 126, 234, 0)')
+
+    mainChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '教学效率',
+          data: values,
+          borderColor: '#667eea',
+          backgroundColor: gradient,
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 5,
+          pointBackgroundColor: '#667eea',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointHoverRadius: 7,
+          pointHoverBackgroundColor: '#667eea',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 3,
+        }]
       },
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-          ticks: {
-            callback: function(value) {
-              return value + '%'
-            },
-            color: '#9ca3af',
-            font: {
-              size: 11
-            }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
           },
-          grid: {
-            color: '#f0f0f0',
-            drawBorder: false
+          tooltip: {
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            titleColor: '#2d3748',
+            bodyColor: '#4a5568',
+            borderColor: '#e2e8f0',
+            borderWidth: 1,
+            padding: 12,
+            displayColors: false,
+            callbacks: {
+              label: function(context) {
+                return `效率: ${context.parsed.y}%`
+              }
+            }
           }
         },
-        x: {
-          ticks: {
-            color: '#9ca3af',
-            font: {
-              size: 11
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: {
+              callback: function(value) {
+                return value + '%'
+              },
+              color: '#9ca3af',
+              font: {
+                size: 11
+              }
+            },
+            grid: {
+              color: '#f0f0f0',
+              drawBorder: false
             }
           },
-          grid: {
-            display: false
+          x: {
+            ticks: {
+              color: '#9ca3af',
+              font: {
+                size: 11
+              }
+            },
+            grid: {
+              display: false
+            }
           }
         }
       }
-    }
-  })
+    })
+    
+    console.log('主图表创建成功！', mainChart)
+  } catch (error) {
+    console.error('创建主图表失败:', error)
+  }
 }
 
 // 创建对比图表
@@ -425,8 +449,15 @@ watch(viewMode, async () => {
 })
 
 // 组件挂载时创建图表
-onMounted(() => {
-  fetchEfficiencyData()
+onMounted(async () => {
+  // 确保 DOM 已经渲染
+  await nextTick()
+  
+  // 先使用默认数据创建图表
+  useDefaultData()
+  
+  // 然后尝试获取真实数据
+  await fetchEfficiencyData()
 })
 </script>
 

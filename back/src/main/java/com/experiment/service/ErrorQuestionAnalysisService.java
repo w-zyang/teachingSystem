@@ -48,9 +48,10 @@ public interface ErrorQuestionAnalysisService {
      * 生成综合错题训练
      * @param studentId 学生ID
      * @param questionCount 生成题目数量
+     * @param selectedErrorQuestions 选中的错题信息
      * @return 训练题目数据
      */
-    ErrorQuestionTrainingDTO generateComprehensiveTraining(Long studentId, Integer questionCount);
+    ErrorQuestionTrainingDTO generateComprehensiveTraining(Long studentId, Integer questionCount, List<Map<String, Object>> selectedErrorQuestions);
     
     /**
      * 获取学生错题统计

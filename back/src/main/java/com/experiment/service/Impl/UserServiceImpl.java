@@ -2,6 +2,7 @@ package com.experiment.service.Impl;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,9 +37,6 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 登录
-     *
-     * @param loginDTO
-     * @return
      */
     @Override
     public Result<Map<String, Object>> login(UserLoginDTO loginDTO) {
@@ -77,9 +75,6 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 注册
-     *
-     * @param registerDTO
-     * @return
      */
     @Override
     public Result<User> register(UserRegisterDTO registerDTO) {
@@ -139,9 +134,6 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 修改密码
-     *
-     * @param changePwdDTO
-     * @return
      */
     @Override
     public Result<String> changePassword(UserChangePwdDTO changePwdDTO) {
@@ -174,18 +166,12 @@ public class UserServiceImpl implements UserService {
 
     /**
      * 头像上传
-     * @param file
-     * @return
      */
     public Result<String> upload(MultipartFile file) {
         try {
-            //原始文件名
             String originalFilename = file.getOriginalFilename();
-            //截取原始文件名的后缀——".png"
             String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            //构建新文件名称
             String objectName = UUID.randomUUID() + extension;
-            //文件的请求路径
             String filePath = aliOssUtil.upload(file.getBytes(), objectName);
             return Result.success("头像上传成功！", filePath);
         } catch (IOException e) {
@@ -195,9 +181,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
-     * 用户信息查询
-     * @param queryDTO
-     * @return
+     * 分页查询用户列表
      */
     @Override
     public PageResult<User> getUserList(UserQueryDTO queryDTO) {
@@ -221,9 +205,7 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
-     * 获取用户信息
-     * @param id
-     * @return
+     * 根据ID查询用户
      */
     @Override
     public Result<User> getUserById(Long id) {
@@ -236,13 +218,13 @@ public class UserServiceImpl implements UserService {
             return Result.error("用户不存在");
         }
 
+        // 不返回密码
+        user.setPassword(null);
         return Result.success("获取用户成功", user);
     }
 
     /**
      * 添加用户
-     * @param user
-     * @return
      */
     @Override
     public Result<String> addUser(User user) {
@@ -251,27 +233,43 @@ public class UserServiceImpl implements UserService {
             return Result.error("必填字段不能为空");
         }
 
-        // 检查用户名是否已存在
-        User existingUser = userMapper.findByUsernameAndRole(user.getUsername(), user.getRole());
-        if (existingUser != null) {
-            return Result.error("用户名已存在");
+        try {
+            // 检查用户名是否已存在
+            User existingUser = userMapper.findByUsernameAndRole(user.getUsername(), user.getRole());
+            if (existingUser != null) {
+                return Result.error("用户名已存在");
+            }
+
+            // 检查邮箱是否已存在（如果提供了邮箱）
+            if (user.getEmail() != null && !user.getEmail().isEmpty()) {
+                User existingEmail = userMapper.findByEmail(user.getEmail());
+                if (existingEmail != null) {
+                    return Result.error("邮箱已被注册");
+                }
+            }
+
+            // 加密密码
+            user.setPassword(DigestUtils.md5DigestAsHex(user.getPassword().getBytes()));
+            user.setStatus("active");
+            user.setRegisterDate(LocalDateTime.now());
+            user.setCreateTime(LocalDateTime.now());
+            user.setUpdateTime(LocalDateTime.now());
+
+            int result = userMapper.insert(user);
+            
+            if (result > 0) {
+                return Result.success("用户添加成功");
+            } else {
+                return Result.error("用户添加失败");
+            }
+        } catch (Exception e) {
+            log.error("添加用户失败：{}", e.getMessage());
+            return Result.error("添加用户失败：" + e.getMessage());
         }
-
-        // 加密密码
-        user.setPassword(DigestUtils.md5DigestAsHex(user.getPassword().getBytes()));
-        user.setStatus("active");
-        user.setRegisterDate(LocalDateTime.now());
-        user.setCreateTime(LocalDateTime.now());
-        user.setUpdateTime(LocalDateTime.now());
-
-        userMapper.insert(user);
-        return Result.success("用户添加成功");
     }
 
     /**
      * 更新用户
-     * @param user
-     * @return
      */
     @Override
     public Result<String> updateUser(User user) {
@@ -284,20 +282,31 @@ public class UserServiceImpl implements UserService {
             return Result.error("用户不存在");
         }
 
-        // 如果密码不为空，则加密密码
-        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
-            user.setPassword(DigestUtils.md5DigestAsHex(user.getPassword().getBytes()));
-        }
+        try {
+            // 如果密码不为空，则加密密码
+            if (user.getPassword() != null && !user.getPassword().isEmpty()) {
+                user.setPassword(DigestUtils.md5DigestAsHex(user.getPassword().getBytes()));
+            } else {
+                // 不修改密码时保持原密码
+                user.setPassword(existingUser.getPassword());
+            }
 
-        user.setUpdateTime(LocalDateTime.now());
-        userMapper.update(user);
-        return Result.success("用户更新成功");
+            user.setUpdateTime(LocalDateTime.now());
+            int result = userMapper.update(user);
+            
+            if (result > 0) {
+                return Result.success("用户更新成功");
+            } else {
+                return Result.error("用户更新失败，未找到要更新的记录");
+            }
+        } catch (Exception e) {
+            log.error("更新用户失败：{}", e.getMessage());
+            return Result.error("更新用户失败：" + e.getMessage());
+        }
     }
 
     /**
      * 删除用户
-     * @param id
-     * @return
      */
     @Override
     public Result<String> deleteUser(Long id) {
@@ -310,15 +319,29 @@ public class UserServiceImpl implements UserService {
             return Result.error("用户不存在");
         }
 
-        userMapper.deleteById(id);
-        return Result.success("用户删除成功");
+        try {
+            userMapper.deleteById(id);
+            return Result.success("用户删除成功");
+        } catch (Exception e) {
+            log.error("删除用户失败：{}", e.getMessage());
+            
+            // 检查是否是外键约束错误
+            if (e.getMessage() != null && e.getMessage().contains("foreign key constraint")) {
+                if (e.getMessage().contains("course")) {
+                    return Result.error("无法删除该用户，该教师还有关联的课程。请先删除或转移相关课程后再试。");
+                } else if (e.getMessage().contains("student_exam")) {
+                    return Result.error("无法删除该用户，该学生还有考试记录。请先删除相关考试记录后再试。");
+                } else {
+                    return Result.error("无法删除该用户，该用户还有关联的数据。请先删除相关数据后再试。");
+                }
+            }
+            
+            return Result.error("删除用户失败：" + e.getMessage());
+        }
     }
 
     /**
      * 更新用户状态
-     * @param id
-     * @param status
-     * @return
      */
     @Override
     public Result<String> updateUserStatus(Long id, String status) {
@@ -331,28 +354,56 @@ public class UserServiceImpl implements UserService {
             return Result.error("用户不存在");
         }
 
-        userMapper.updateStatus(id, status);
-        return Result.success("用户状态更新成功");
+        try {
+            int result = userMapper.updateStatus(id, status);
+            
+            if (result > 0) {
+                return Result.success("用户状态更新成功");
+            } else {
+                return Result.error("用户状态更新失败，未找到要更新的记录");
+            }
+        } catch (Exception e) {
+            log.error("更新用户状态失败：{}", e.getMessage());
+            return Result.error("更新用户状态失败：" + e.getMessage());
+        }
     }
 
     /**
      * 获取用户统计
-     * @return
      */
     @Override
     public Result<Object> getUserStats() {
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("totalTeachers", userMapper.countByRole("teacher"));
-        stats.put("totalStudents", userMapper.countByRole("student"));
-        stats.put("totalAdmins", userMapper.countByRole("admin"));
-        stats.put("activeUsers", userMapper.countByStatus("active"));
-        return Result.success("获取统计信息成功", stats);
+        try {
+            Map<String, Object> stats = new HashMap<>();
+            
+            Integer totalTeachers = userMapper.countByRole("teacher");
+            Integer totalStudents = userMapper.countByRole("student");
+            Integer totalAdmins = userMapper.countByRole("admin");
+            Integer activeUsers = userMapper.countByStatus("active");
+            
+            stats.put("totalTeachers", totalTeachers != null ? totalTeachers : 0);
+            stats.put("totalStudents", totalStudents != null ? totalStudents : 0);
+            stats.put("totalAdmins", totalAdmins != null ? totalAdmins : 0);
+            stats.put("activeUsers", activeUsers != null ? activeUsers : 0);
+            stats.put("totalUsers", (totalTeachers != null ? totalTeachers : 0) + 
+                                   (totalStudents != null ? totalStudents : 0) + 
+                                   (totalAdmins != null ? totalAdmins : 0));
+            
+            return Result.success("获取统计信息成功", stats);
+        } catch (Exception e) {
+            log.error("获取用户统计失败：{}", e.getMessage());
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("totalTeachers", 0);
+            stats.put("totalStudents", 0);
+            stats.put("totalAdmins", 0);
+            stats.put("activeUsers", 0);
+            stats.put("totalUsers", 0);
+            return Result.success("获取统计信息成功", stats);
+        }
     }
 
     /**
      * 批量删除用户
-     * @param ids
-     * @return
      */
     @Override
     public Result<String> batchDeleteUsers(Long[] ids) {
@@ -360,21 +411,65 @@ public class UserServiceImpl implements UserService {
             return Result.error("请选择要删除的用户");
         }
 
+        int successCount = 0;
+        int failCount = 0;
+        StringBuilder errorMsg = new StringBuilder();
+
         for (Long id : ids) {
-            userMapper.deleteById(id);
+            try {
+                User user = userMapper.findById(id);
+                if (user == null) {
+                    failCount++;
+                    errorMsg.append("用户ID ").append(id).append(" 不存在；");
+                    continue;
+                }
+                
+                userMapper.deleteById(id);
+                successCount++;
+            } catch (Exception e) {
+                failCount++;
+                log.error("删除用户 {} 失败：{}", id, e.getMessage());
+                
+                // 检查是否是外键约束错误
+                if (e.getMessage() != null && e.getMessage().contains("foreign key constraint")) {
+                    errorMsg.append("用户ID ").append(id).append(" 有关联数据无法删除；");
+                } else {
+                    errorMsg.append("用户ID ").append(id).append(" 删除失败；");
+                }
+            }
         }
 
-        return Result.success("批量删除成功");
+        if (failCount == 0) {
+            return Result.success("批量删除成功，共删除 " + successCount + " 个用户");
+        } else if (successCount == 0) {
+            return Result.error("批量删除失败：" + errorMsg.toString());
+        } else {
+            return Result.success("部分删除成功：成功 " + successCount + " 个，失败 " + failCount + " 个。" + errorMsg.toString());
+        }
     }
 
     /**
-     * 获取用户信息
-     * @param username
-     * @return
+     * 根据用户名查询用户
      */
     @Override
     public Result getUserByUsername(String username) {
-        // 保持原有方法兼容性
-        return Result.success("获取用户信息成功");
+        try {
+            // 查询所有角色的用户
+            List<User> users = new ArrayList<>();
+            String[] roles = {"teacher", "student", "admin"};
+            
+            for (String role : roles) {
+                User user = userMapper.findByUsernameAndRole(username, role);
+                if (user != null) {
+                    user.setPassword(null);
+                    return Result.success("查询成功", user);
+                }
+            }
+            
+            return Result.error("用户不存在");
+        } catch (Exception e) {
+            log.error("查询用户失败：{}", e.getMessage());
+            return Result.error("查询用户失败");
+        }
     }
 }

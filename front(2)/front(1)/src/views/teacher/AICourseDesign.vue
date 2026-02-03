@@ -319,6 +319,17 @@
         </el-tabs>
       </el-card>
     </div>
+    
+    <!-- AI生成进度条 -->
+    <AIGenerationProgress
+      :visible="showProgress"
+      title="AI 正在生成课程设计"
+      :progress="progressValue"
+      :current-step="currentStep"
+      :steps="progressSteps"
+      :message="progressMessage"
+      tip="💡 提示：生成时间取决于选择的内容类型和复杂度，通常需要2-5分钟"
+    />
   </div>
 </template>
 
@@ -330,12 +341,14 @@ import { aiAPI } from '@/api/ai'
 import { getCoursesByTeacherId } from '@/api/course'
 import { saveAs } from 'file-saver'
 import { Document, Packer, Paragraph, TextRun } from 'docx'
+import AIGenerationProgress from '@/components/AIGenerationProgress.vue'
 
 export default {
   name: 'AICourseDesign',
   components: {
     UploadFilled,
-    Edit
+    Edit,
+    AIGenerationProgress
   },
   setup() {
     // 课程选择相关数据
@@ -363,6 +376,18 @@ export default {
     const fileList = ref([])
     const uploadRef = ref()
     const pptGenerating = ref(false)
+
+    // 进度条相关
+    const showProgress = ref(false)
+    const progressValue = ref(0)
+    const currentStep = ref(0)
+    const progressMessage = ref('')
+    const progressSteps = ref([
+      { title: '准备数据', desc: '正在准备课程设计所需的数据...' },
+      { title: '调用AI服务', desc: '正在连接AI服务并发送请求...' },
+      { title: '生成内容', desc: 'AI正在生成课件、教案等内容...' },
+      { title: '完成', desc: '课程设计生成完成！' }
+    ])
 
     // 计算是否可以生成
     const canGenerate = computed(() => {
@@ -494,8 +519,18 @@ export default {
       }
 
       generating.value = true
+      
+      // 显示进度条
+      showProgress.value = true
+      progressValue.value = 0
+      currentStep.value = 0
+      progressMessage.value = '正在准备数据...'
 
       try {
+        // 步骤1: 准备数据
+        progressValue.value = 10
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
         // 确保数据类型正确
         const courseInfo = {
           ...courseForm,
@@ -512,7 +547,28 @@ export default {
           }))
         }
 
+        // 步骤2: 调用AI服务
+        currentStep.value = 1
+        progressValue.value = 25
+        progressMessage.value = '正在连接AI服务...'
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // 步骤3: 生成内容
+        currentStep.value = 2
+        progressValue.value = 40
+        progressMessage.value = 'AI正在生成课程内容，请耐心等待...'
+        
+        // 模拟进度增长
+        const progressInterval = setInterval(() => {
+          if (progressValue.value < 85) {
+            progressValue.value += Math.random() * 5
+          }
+        }, 1000)
+
         const response = await aiAPI.courseDesign(requestData)
+        clearInterval(progressInterval)
+        
+        progressValue.value = 90
 
         if (response.success === true) {
           // 检查是否有错误信息
@@ -529,6 +585,14 @@ export default {
           } else {
             activeTab.value = 'content'
           }
+
+          // 步骤4: 完成
+          currentStep.value = 3
+          progressValue.value = 100
+          progressMessage.value = '生成完成！'
+          
+          await new Promise(resolve => setTimeout(resolve, 800))
+          showProgress.value = false
 
           // 检查是否有PPT下载链接，如果有就自动下载
           if (response.data.pptDownloadUrl) {
@@ -547,9 +611,11 @@ export default {
             ElMessage.success('AI备课助手生成成功！')
           }
         } else {
+          showProgress.value = false
           throw new Error(response.msg || '生成失败')
         }
       } catch (error) {
+        showProgress.value = false
         console.error('AI备课助手生成失败:', error)
         let errorMsg = 'AI备课助手生成失败，请稍后重试'
 
@@ -687,41 +753,36 @@ export default {
     // 启动PPT状态检查定时器
     const startPPTStatusCheck = () => {
       const checkInterval = setInterval(async () => {
-        if (!pptGenerating.value) {
+        if (!pptGenerating.value || !designResult.value?.pptTaskId) {
           clearInterval(checkInterval)
           return
         }
 
         try {
-          // 重新调用后端检查PPT状态
-          const pptRequestData = {
-            courseInfo: {
-              courseName: courseForm.courseName,
-              courseType: courseForm.courseType,
-              duration: courseForm.duration.toString(),
-              difficulty: courseForm.difficulty.toString(),
-              outline: courseForm.outline,
-              requirements: courseForm.requirements
-            },
-            options: ['ppt'],
-            uploadedFiles: fileList.value.map(file => ({
-              name: file.name,
-              url: file.response?.data?.url || file.url
-            })),
-            existingContent: designResult.value
-          }
+          // 调用后端API检查PPT状态
+          const response = await aiAPI.checkPPTStatus(designResult.value.pptTaskId)
 
-          const response = await aiAPI.courseDesign(pptRequestData)
-
-          if (response.success === true && response.data.pptDownloadUrl) {
-            // PPT生成完成
-            designResult.value.pptDownloadUrl = response.data.pptDownloadUrl
-            pptGenerating.value = false
-            clearInterval(checkInterval)
-
-            // 自动下载PPT
-            window.open(response.data.pptDownloadUrl, '_blank')
-            ElMessage.success('PPT生成完成并开始下载！')
+          if (response.success === true) {
+            const status = response.data
+            
+            if (status.completed) {
+              // PPT生成完成
+              pptGenerating.value = false
+              clearInterval(checkInterval)
+              
+              if (status.downloadUrl) {
+                // 生成成功
+                designResult.value.pptDownloadUrl = status.downloadUrl
+                window.open(status.downloadUrl, '_blank')
+                ElMessage.success('PPT生成完成并开始下载！')
+              } else if (status.error) {
+                // 生成失败
+                ElMessage.error('PPT生成失败: ' + status.error)
+              }
+            } else {
+              // 仍在处理中
+              log.info('PPT正在生成中...')
+            }
           }
         } catch (error) {
           console.error('检查PPT状态失败:', error)
@@ -733,7 +794,7 @@ export default {
         if (pptGenerating.value) {
           pptGenerating.value = false
           clearInterval(checkInterval)
-          ElMessage.warning('PPT生成超时，请手动重试')
+          ElMessage.warning('PPT生成超时，请稍后手动查询或重试')
         }
       }, 300000)
     }
@@ -747,62 +808,70 @@ export default {
 
       // 如果已经有PPT下载链接，直接下载
       if (designResult.value.pptDownloadUrl) {
-        window.open(designResult.value.pptDownloadUrl, '_blank')
-        ElMessage.success('开始下载PPT！')
-        return
-      }
-
-      // 如果PPT正在生成中，提示用户等待
-      if (pptGenerating.value) {
-        ElMessage.info('PPT正在生成中，请稍候...')
-        return
-      }
-
-      // 开始生成PPT
-      pptGenerating.value = true
-      try {
-        ElMessage.info('正在生成PPT，请稍候...')
-
-        // 基于已生成的课程设计内容，只请求PPT生成
-        const pptRequestData = {
-          courseInfo: {
-            courseName: courseForm.courseName,
-            courseType: courseForm.courseType,
-            duration: courseForm.duration.toString(),
-            difficulty: courseForm.difficulty.toString(),
-            outline: courseForm.outline,
-            requirements: courseForm.requirements
-          },
-          options: ['ppt'], // 只生成PPT
-          uploadedFiles: fileList.value.map(file => ({
-            name: file.name,
-            url: file.response?.data?.url || file.url
-          })),
-          // 传递已生成的内容，避免重新生成
-          existingContent: designResult.value
+        try {
+          // 使用fetch下载文件并重命名
+          const response = await fetch(designResult.value.pptDownloadUrl)
+          const blob = await response.blob()
+          
+          // 生成有意义的文件名
+          const fileName = `${courseForm.courseName || '课程'}_AI课件_${new Date().toLocaleDateString().replace(/\//g, '-')}.pptx`
+          
+          // 使用file-saver保存文件
+          saveAs(blob, fileName)
+          ElMessage.success('PPT下载成功！')
+        } catch (error) {
+          console.error('PPT下载失败:', error)
+          // 如果fetch失败，回退到直接打开链接
+          window.open(designResult.value.pptDownloadUrl, '_blank')
+          ElMessage.success('开始下载PPT！')
         }
+        return
+      }
 
-        const response = await aiAPI.courseDesign(pptRequestData)
-
-        if (response.success === true) {
-          // 更新designResult，包含pptDownloadUrl
-          if (response.data.pptDownloadUrl) {
-            designResult.value.pptDownloadUrl = response.data.pptDownloadUrl
-            // 直接下载PPT
-            window.open(response.data.pptDownloadUrl, '_blank')
-            ElMessage.success('PPT生成成功并开始下载！')
-          } else {
-            ElMessage.warning('PPT生成完成，但未返回下载链接')
+      // 如果有任务ID且正在生成中，检查状态
+      if (designResult.value.pptTaskId) {
+        if (pptGenerating.value) {
+          ElMessage.info('PPT正在生成中，请稍候...')
+          return
+        }
+        
+        // 手动检查一次状态
+        try {
+          const response = await aiAPI.checkPPTStatus(designResult.value.pptTaskId)
+          
+          if (response.success === true) {
+            const status = response.data
+            
+            if (status.completed) {
+              if (status.downloadUrl) {
+                designResult.value.pptDownloadUrl = status.downloadUrl
+                
+                // 下载并重命名
+                const fileResponse = await fetch(status.downloadUrl)
+                const blob = await fileResponse.blob()
+                const fileName = `${courseForm.courseName || '课程'}_AI课件_${new Date().toLocaleDateString().replace(/\//g, '-')}.pptx`
+                saveAs(blob, fileName)
+                
+                ElMessage.success('PPT已生成完成，下载成功！')
+                return
+              } else if (status.error) {
+                ElMessage.error('PPT生成失败: ' + status.error)
+                return
+              }
+            } else {
+              ElMessage.info('PPT正在生成中，请稍候...')
+              pptGenerating.value = true
+              startPPTStatusCheck()
+              return
+            }
           }
-        } else {
-          throw new Error(response.msg || 'PPT生成失败')
+        } catch (error) {
+          console.error('检查PPT状态失败:', error)
         }
-      } catch (error) {
-        console.error('PPT生成失败:', error)
-        ElMessage.error('PPT生成失败: ' + error.message)
-      } finally {
-        pptGenerating.value = false
       }
+
+      // 如果没有任务ID，需要重新生成
+      ElMessage.warning('请重新生成课程设计以创建PPT')
     }
 
     return {
@@ -834,7 +903,13 @@ export default {
       exportToWord,
       formatContent,
       startPPTStatusCheck,
-      downloadPPTFromBackend
+      downloadPPTFromBackend,
+      // 进度条相关
+      showProgress,
+      progressValue,
+      currentStep,
+      progressMessage,
+      progressSteps
     }
   }
 }

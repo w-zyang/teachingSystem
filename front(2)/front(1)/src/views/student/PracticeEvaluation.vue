@@ -84,16 +84,17 @@
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="学科类型">
-                  <el-select v-model="practiceForm.subject" placeholder="请选择学科">
-                    <el-option label="JavaScript编程" value="javascript" />
-                    <el-option label="算法与数据结构" value="algorithms" />
-                    <el-option label="Vue.js开发" value="vue" />
-                    <el-option label="数据库设计" value="database" />
-                    <el-option label="数学计算" value="mathematics" />
-                    <el-option label="TensorFlow.js开发" value="tensorflow-js" />
-                    <el-option label="机器学习基础" value="machine-learning" />
-                    <el-option label="深度学习应用" value="deep-learning" />
-                  </el-select>
+                  <el-input 
+                    v-model="selectedSubjectLabel" 
+                    placeholder="点击选择学科类型" 
+                    readonly
+                    @click="showSubjectDialog = true"
+                    style="cursor: pointer;"
+                  >
+                    <template #suffix>
+                      <i class="el-icon-arrow-down"></i>
+                    </template>
+                  </el-input>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -194,6 +195,8 @@
           <el-button type="info" @click="testBackend">测试后端连接</el-button>
           <el-button type="warning" @click="healthCheck">健康检查</el-button>
         </div>
+        
+
       </el-card>
     </div>
     
@@ -337,13 +340,33 @@
                   <div class="coding-layout">
                     <!-- 左侧：题目描述 -->
                     <div class="coding-left">
-                      <div class="coding-section">
-                        <h4 class="section-title">编程要求：</h4>
-                        <div class="section-content" v-html="formatQuestionContent(currentQuestion.requirements || currentQuestion.content)"></div>
+                      <!-- 问题描述 -->
+                      <div v-if="currentQuestion.content" class="coding-section">
+                        <h4 class="section-title">问题描述</h4>
+                        <div class="section-content" v-html="formatQuestionContent(currentQuestion.content)"></div>
                       </div>
                       
+                      <!-- 编程要求 -->
+                      <div class="coding-section">
+                        <h4 class="section-title">编程要求</h4>
+                        <div class="section-content" v-html="formatQuestionContent(currentQuestion.requirements || currentQuestion.content || '请实现题目要求的功能')"></div>
+                      </div>
+                      
+                      <!-- 输入格式 -->
+                      <div v-if="currentQuestion.inputFormat" class="coding-section">
+                        <h4 class="section-title">输入格式</h4>
+                        <div class="section-content">{{ currentQuestion.inputFormat }}</div>
+                      </div>
+                      
+                      <!-- 输出格式 -->
+                      <div v-if="currentQuestion.outputFormat" class="coding-section">
+                        <h4 class="section-title">输出格式</h4>
+                        <div class="section-content">{{ currentQuestion.outputFormat }}</div>
+                      </div>
+                      
+                      <!-- 示例 -->
                       <div v-if="currentQuestion.examples && currentQuestion.examples.length > 0" class="coding-section">
-                        <h4 class="section-title">示例：</h4>
+                        <h4 class="section-title">示例</h4>
                         <div v-for="(example, exIndex) in currentQuestion.examples" :key="exIndex" class="example-box">
                           <div class="example-label">示例 {{ exIndex + 1 }}：</div>
                           <div class="example-io">
@@ -355,13 +378,24 @@
                               <span class="io-label">输出：</span>
                               <code class="io-value output">{{ example.output }}</code>
                             </div>
+                            <div v-if="example.explanation" class="io-item">
+                              <span class="io-label">说明：</span>
+                              <span class="io-explanation">{{ example.explanation }}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
                       
+                      <!-- 提示 -->
                       <div v-if="currentQuestion.hints" class="coding-section">
-                        <h4 class="section-title">提示：</h4>
+                        <h4 class="section-title">提示</h4>
                         <div class="section-content">{{ currentQuestion.hints }}</div>
+                      </div>
+                      
+                      <!-- 数据范围（如果有） -->
+                      <div v-if="currentQuestion.constraints" class="coding-section">
+                        <h4 class="section-title">数据范围</h4>
+                        <div class="section-content">{{ currentQuestion.constraints }}</div>
                       </div>
                     </div>
                     
@@ -378,7 +412,7 @@
                       <CodeEditor
                         title="代码编辑"
                         :question-id="currentQuestion.id"
-                        :default-language="'50'"
+                        :default-language="currentQuestion.defaultLanguage || '50'"
                         :default-code="userAnswers[currentQuestionIndex]"
                         :test-cases="currentQuestion.testCases || []"
                         @code-change="(code) => userAnswers[currentQuestionIndex] = code"
@@ -435,6 +469,61 @@
       </el-card>
     </div>
     
+    <!-- 学科选择弹窗 -->
+    <el-dialog 
+      v-model="showSubjectDialog" 
+      title="选择学科类型" 
+      width="70%"
+      :close-on-click-modal="false"
+    >
+      <div class="subject-dialog">
+        <el-input 
+          v-model="subjectSearchKeyword" 
+          placeholder="搜索学科..." 
+          prefix-icon="el-icon-search"
+          clearable
+          style="margin-bottom: 20px;"
+        />
+        
+        <div class="subject-categories">
+          <div 
+            v-for="category in filteredSubjectCategories" 
+            :key="category.name" 
+            class="subject-category"
+          >
+            <h4 class="category-title">{{ category.name }}</h4>
+            <div class="subject-items">
+              <div 
+                v-for="subject in category.subjects" 
+                :key="subject.value"
+                class="subject-item"
+                :class="{ active: practiceForm.subject === subject.value }"
+                @click="selectSubject(subject)"
+              >
+                <i :class="subject.icon"></i>
+                <span>{{ subject.label }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showSubjectDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmSubject">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- AI生成进度条弹窗 -->
+    <AIGenerationProgress
+      :visible="generating"
+      title="AI 正在生成练习题目"
+      :progress="generatingProgress"
+      :current-step="currentGeneratingStep"
+      :steps="generatingSteps"
+      :message="generatingStatus"
+      tip="💡 提示：生成时间取决于题目数量和复杂度，通常需要30秒-2分钟"
+    />
+
     <!-- 结果页面 -->
     <div v-if="currentPage === 'result'" class="result-page">
       <el-card class="result-card">
@@ -556,6 +645,7 @@ import { getPublishedExamsByCourseId, getExamById } from '@/api/exam'
 import { batchRecordErrorQuestions } from '@/api/errorQuestions'
 import axios from 'axios'
 import CodeEditor from '@/components/CodeEditor.vue'
+import AIGenerationProgress from '@/components/AIGenerationProgress.vue'
 
 export default {
   name: 'PracticeEvaluation',
@@ -563,7 +653,8 @@ export default {
     Edit,
     Loading,
     CaretRight,
-    CodeEditor
+    CodeEditor,
+    AIGenerationProgress
   },
   setup() {
     // 获取路由信息
@@ -595,6 +686,15 @@ export default {
     })
     
     const generating = ref(false)
+    const generatingProgress = ref(0)
+    const generatingStatus = ref('')
+    const currentGeneratingStep = ref(0)
+    const generatingSteps = ref([
+      { title: '准备数据', desc: '正在准备题目生成所需的数据...' },
+      { title: '连接AI服务', desc: '正在连接AI服务并发送请求...' },
+      { title: '生成题目', desc: 'AI正在生成题目，请耐心等待...' },
+      { title: '完成', desc: '题目生成完成！' }
+    ])
     const practiceQuestions = ref([])
     const practiceStarted = ref(false)
     const currentQuestionIndex = ref(0)
@@ -605,6 +705,142 @@ export default {
     const codeResults = ref({})
     const reportDialogVisible = ref(false)
     const currentReport = ref(null)
+    
+    // 学科选择弹窗相关
+    const showSubjectDialog = ref(false)
+    const subjectSearchKeyword = ref('')
+    const selectedSubjectLabel = ref('')
+    const tempSelectedSubject = ref(null)
+    
+    // 学科分类数据
+    const subjectCategories = [
+      {
+        name: '编程语言',
+        subjects: [
+          { label: 'Java编程', value: 'java', icon: 'el-icon-coffee-cup' },
+          { label: 'Python编程', value: 'python', icon: 'el-icon-magic-stick' },
+          { label: 'C/C++编程', value: 'cpp', icon: 'el-icon-cpu' },
+          { label: 'JavaScript编程', value: 'javascript', icon: 'el-icon-monitor' },
+          { label: 'Go语言', value: 'golang', icon: 'el-icon-ship' },
+          { label: 'Rust编程', value: 'rust', icon: 'el-icon-medal' }
+        ]
+      },
+      {
+        name: '前端开发',
+        subjects: [
+          { label: 'HTML/CSS基础', value: 'html-css', icon: 'el-icon-picture' },
+          { label: 'Vue.js开发', value: 'vue', icon: 'el-icon-view' },
+          { label: 'React开发', value: 'react', icon: 'el-icon-refresh' },
+          { label: 'Angular开发', value: 'angular', icon: 'el-icon-aim' },
+          { label: '前端工程化', value: 'frontend-engineering', icon: 'el-icon-setting' }
+        ]
+      },
+      {
+        name: '后端开发',
+        subjects: [
+          { label: 'Spring框架', value: 'spring', icon: 'el-icon-connection' },
+          { label: 'Node.js开发', value: 'nodejs', icon: 'el-icon-box' },
+          { label: 'Django框架', value: 'django', icon: 'el-icon-files' },
+          { label: '微服务架构', value: 'microservices', icon: 'el-icon-share' },
+          { label: 'RESTful API', value: 'restful-api', icon: 'el-icon-link' }
+        ]
+      },
+      {
+        name: '数据库',
+        subjects: [
+          { label: 'MySQL数据库', value: 'mysql', icon: 'el-icon-coin' },
+          { label: 'PostgreSQL', value: 'postgresql', icon: 'el-icon-data-analysis' },
+          { label: 'MongoDB', value: 'mongodb', icon: 'el-icon-document-copy' },
+          { label: 'Redis缓存', value: 'redis', icon: 'el-icon-lightning' },
+          { label: '数据库设计', value: 'database-design', icon: 'el-icon-data-board' }
+        ]
+      },
+      {
+        name: '算法与数据结构',
+        subjects: [
+          { label: '数据结构基础', value: 'data-structures', icon: 'el-icon-menu' },
+          { label: '算法设计', value: 'algorithms', icon: 'el-icon-guide' },
+          { label: '排序与查找', value: 'sorting-searching', icon: 'el-icon-sort' },
+          { label: '动态规划', value: 'dynamic-programming', icon: 'el-icon-coordinate' },
+          { label: '图论算法', value: 'graph-algorithms', icon: 'el-icon-share' }
+        ]
+      },
+      {
+        name: '计算机基础',
+        subjects: [
+          { label: '操作系统', value: 'operating-system', icon: 'el-icon-platform' },
+          { label: '计算机网络', value: 'computer-network', icon: 'el-icon-connection' },
+          { label: '计算机组成原理', value: 'computer-organization', icon: 'el-icon-cpu' },
+          { label: '编译原理', value: 'compiler', icon: 'el-icon-document' },
+          { label: 'Linux系统', value: 'linux', icon: 'el-icon-monitor' }
+        ]
+      },
+      {
+        name: '人工智能',
+        subjects: [
+          { label: '机器学习基础', value: 'machine-learning', icon: 'el-icon-data-line' },
+          { label: '深度学习', value: 'deep-learning', icon: 'el-icon-data-analysis' },
+          { label: '自然语言处理', value: 'nlp', icon: 'el-icon-chat-line-square' },
+          { label: '计算机视觉', value: 'computer-vision', icon: 'el-icon-camera' },
+          { label: 'TensorFlow', value: 'tensorflow', icon: 'el-icon-magic-stick' },
+          { label: 'PyTorch', value: 'pytorch', icon: 'el-icon-lightning' }
+        ]
+      },
+      {
+        name: '软件工程',
+        subjects: [
+          { label: '软件设计模式', value: 'design-patterns', icon: 'el-icon-grid' },
+          { label: '软件测试', value: 'software-testing', icon: 'el-icon-finished' },
+          { label: '敏捷开发', value: 'agile', icon: 'el-icon-timer' },
+          { label: 'DevOps', value: 'devops', icon: 'el-icon-setting' },
+          { label: 'Git版本控制', value: 'git', icon: 'el-icon-folder-opened' }
+        ]
+      },
+      {
+        name: '其他',
+        subjects: [
+          { label: '数学基础', value: 'mathematics', icon: 'el-icon-edit' },
+          { label: '离散数学', value: 'discrete-math', icon: 'el-icon-pie-chart' },
+          { label: '概率统计', value: 'probability-statistics', icon: 'el-icon-data-line' },
+          { label: '信息安全', value: 'information-security', icon: 'el-icon-lock' },
+          { label: '区块链技术', value: 'blockchain', icon: 'el-icon-link' }
+        ]
+      }
+    ]
+    
+    // 过滤后的学科分类
+    const filteredSubjectCategories = computed(() => {
+      if (!subjectSearchKeyword.value) {
+        return subjectCategories
+      }
+      
+      const keyword = subjectSearchKeyword.value.toLowerCase()
+      return subjectCategories
+        .map(category => ({
+          ...category,
+          subjects: category.subjects.filter(subject => 
+            subject.label.toLowerCase().includes(keyword) ||
+            subject.value.toLowerCase().includes(keyword)
+          )
+        }))
+        .filter(category => category.subjects.length > 0)
+    })
+    
+    // 选择学科
+    const selectSubject = (subject) => {
+      tempSelectedSubject.value = subject
+      practiceForm.subject = subject.value
+    }
+    
+    // 确认选择
+    const confirmSubject = () => {
+      if (tempSelectedSubject.value) {
+        selectedSubjectLabel.value = tempSelectedSubject.value.label
+        showSubjectDialog.value = false
+      } else {
+        ElMessage.warning('请选择一个学科')
+      }
+    }
     
     // 计算总题目数量（各题型数量之和）
     const totalQuestionCount = computed(() => {
@@ -640,14 +876,12 @@ export default {
       }
       
       generating.value = true
+      generatingProgress.value = 0
+      currentGeneratingStep.value = 0
+      generatingStatus.value = '正在准备生成题目...'
       
-      // 显示详细的加载提示
-      ElMessage({
-        message: 'AI正在生成练习题目，预计需要1-3分钟，请耐心等待...',
-        type: 'info',
-        duration: 0, // 不自动关闭
-        showClose: true
-      })
+      // 启动进度条动画
+      let progressInterval = null
       
       try {
         const requestData = {
@@ -661,14 +895,67 @@ export default {
         }
         
         console.log('发送生成练习题目请求:', requestData)
+        console.log('学科类型:', practiceForm.subject, '显示名称:', selectedSubjectLabel.value)
+        
+        // 步骤1: 准备数据 (0-10%)
+        currentGeneratingStep.value = 0
+        generatingProgress.value = 0
+        generatingStatus.value = '正在准备题目生成所需的数据...'
+        await new Promise(resolve => setTimeout(resolve, 300))
+        generatingProgress.value = 10
+        
+        // 步骤2: 连接AI服务 (10-25%)
+        currentGeneratingStep.value = 1
+        generatingProgress.value = 15
+        generatingStatus.value = '正在连接AI服务并发送请求...'
+        await new Promise(resolve => setTimeout(resolve, 500))
+        generatingProgress.value = 25
+        
+        // 步骤3: 生成题目 (25-90%)
+        currentGeneratingStep.value = 2
+        generatingProgress.value = 30
+        generatingStatus.value = `AI正在生成题目 (共${totalQuestionCount.value}题)...`
+        
+        // 模拟进度增长
+        progressInterval = setInterval(() => {
+          if (generatingProgress.value < 85) {
+            generatingProgress.value += Math.random() * 3
+            const estimatedGenerated = Math.floor((generatingProgress.value - 30) / 60 * totalQuestionCount.value)
+            generatingStatus.value = `AI正在生成题目 (${Math.min(estimatedGenerated, totalQuestionCount.value)}/${totalQuestionCount.value})...`
+          }
+        }, 500)
+        
         const response = await aiAPI.generatePractice(requestData)
+        
+        // 清除进度条定时器
+        if (progressInterval) {
+          clearInterval(progressInterval)
+          progressInterval = null
+        }
+        
+        // 步骤4: 完成 (90-100%)
+        generatingProgress.value = 90
+        generatingStatus.value = '正在处理题目数据...'
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
+        currentGeneratingStep.value = 3
+        generatingProgress.value = 100
+        generatingStatus.value = '题目生成完成！'
+        
         console.log('收到生成练习题目响应:', response)
+        
+        // 确保清除进度条定时器
+        if (progressInterval) {
+          clearInterval(progressInterval)
+          progressInterval = null
+        }
         
         if (response.success === true && response.data && response.data.questions) {
           // 处理题目数据：将 examples 转换为 testCases
           practiceQuestions.value = response.data.questions.map(q => {
-            // 处理编程题的测试用例
+            // 处理编程题的测试用例和语言
             if (q.type === 'coding') {
+              // 自动生成测试用例（如果AI没有生成）
               let testCases = q.testCases || []
               if (testCases.length === 0 && q.examples && Array.isArray(q.examples)) {
                 console.log(`AI生成的编程题 "${q.title}" 从 examples 转换测试用例:`, q.examples)
@@ -677,14 +964,28 @@ export default {
                   output: ex.output
                 }))
               }
+              
+              // 如果还是没有测试用例，生成默认测试用例
+              if (testCases.length === 0) {
+                console.log(`编程题 "${q.title}" 没有测试用例，生成默认测试用例`)
+                testCases = [
+                  { input: '示例输入', output: '示例输出' }
+                ]
+              }
+              
               console.log(`编程题 "${q.title}" 测试用例数量:`, testCases.length)
+              
+              // 根据学科类型自动选择编程语言
+              const defaultLanguage = getDefaultLanguageBySubject(practiceForm.subject)
+              console.log(`编程题 "${q.title}" 默认语言ID:`, defaultLanguage)
               
               return {
                 ...q,
                 examples: q.examples || [], // 保留示例用于显示
                 testCases: testCases, // 用于评测
                 requirements: q.requirements || q.content || q.title, // 编程要求
-                hints: q.hints || '' // 提示
+                hints: q.hints || '', // 提示
+                defaultLanguage: defaultLanguage // 默认编程语言
               }
             }
             return q
@@ -701,12 +1002,21 @@ export default {
           // 保存到 LocalStorage
           savePracticeData()
           
-          // 关闭加载提示并显示成功消息
-          ElMessage.closeAll()
+          // 等待一小段时间让用户看到100%
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          // 显示成功消息
           ElMessage.success(`练习题目生成成功！共${practiceQuestions.value.length}道题目`)
           
-          // 切换到练习页面
+          // 切换到练习页面，并自动定位到第一题
           currentPage.value = 'practice'
+          currentQuestionIndex.value = 0 // 确保从第一题开始
+          
+          // 使用nextTick确保DOM更新后再滚动
+          nextTick(() => {
+            // 滚动到页面顶部
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          })
         } else {
           console.error('响应格式错误:', response)
           throw new Error(response.msg || '生成失败：响应格式错误')
@@ -714,8 +1024,11 @@ export default {
       } catch (error) {
         console.error('生成练习题目失败:', error)
         
-        // 关闭加载提示
-        ElMessage.closeAll()
+        // 确保清除进度条定时器
+        if (progressInterval) {
+          clearInterval(progressInterval)
+          progressInterval = null
+        }
         
         let errorMsg = '生成失败，请稍后重试'
         
@@ -746,6 +1059,8 @@ export default {
         })
       } finally {
         generating.value = false
+        generatingProgress.value = 0
+        generatingStatus.value = ''
       }
     }
     
@@ -1360,6 +1675,66 @@ export default {
         .split(/\s+/)
         .filter(word => word.length > 1 && !stopWords.includes(word))
         .slice(0, 10) // 取前10个关键词
+    }
+    
+    // 根据学科类型获取默认编程语言ID（Piston语言ID）
+    const getDefaultLanguageBySubject = (subjectCode) => {
+      const languageMap = {
+        // Java相关
+        'java': '62', // Java (Piston: java)
+        'spring': '62',
+        
+        // Python相关
+        'python': '71', // Python (Piston: python)
+        'machine-learning': '71',
+        'deep-learning': '71',
+        'nlp': '71',
+        'computer-vision': '71',
+        'tensorflow': '71',
+        'pytorch': '71',
+        'django': '71',
+        
+        // C/C++相关
+        'cpp': '54', // C++ (Piston: cpp)
+        'data-structures': '54',
+        'algorithms': '54',
+        'sorting-searching': '54',
+        'dynamic-programming': '54',
+        'graph-algorithms': '54',
+        'operating-system': '54',
+        'computer-organization': '54',
+        
+        // JavaScript相关
+        'javascript': '63', // JavaScript (Piston: javascript)
+        'nodejs': '63',
+        'vue': '63',
+        'react': '63',
+        'angular': '63',
+        'frontend-engineering': '63',
+        
+        // Go相关
+        'golang': '60', // Go (Piston: go)
+        'microservices': '60',
+        
+        // Rust相关
+        'rust': '73', // Rust (Piston: rust)
+        
+        // 数据库相关 - 默认使用SQL
+        'mysql': '82', // SQL (Piston: sql)
+        'postgresql': '82',
+        'mongodb': '71', // MongoDB通常用Python操作
+        'redis': '71',
+        'database-design': '82',
+        
+        // 其他 - 默认使用C++
+        'compiler': '54',
+        'linux': '50', // C (Piston: c)
+        'computer-network': '54',
+        'information-security': '71',
+        'blockchain': '63'
+      }
+      
+      return languageMap[subjectCode] || '54' // 默认C++
     }
     
     // 暂停练习
@@ -2039,6 +2414,10 @@ export default {
       // 原有的练习相关
       practiceForm,
       generating,
+      generatingProgress,
+      currentGeneratingStep,
+      generatingSteps,
+      generatingStatus,
       practiceQuestions,
       practiceStarted,
       currentQuestionIndex,
@@ -2078,7 +2457,14 @@ export default {
       // 新增：数据持久化相关
       savePracticeData,
       restorePracticeData,
-      clearPracticeData
+      clearPracticeData,
+      // 学科选择弹窗相关
+      showSubjectDialog,
+      subjectSearchKeyword,
+      selectedSubjectLabel,
+      filteredSubjectCategories,
+      selectSubject,
+      confirmSubject
     }
   }
 }
@@ -2559,6 +2945,89 @@ export default {
   font-weight: 500;
 }
 
+/* 学科选择弹窗样式 */
+.subject-dialog {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.subject-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.subject-category {
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 20px;
+  background: #fafafa;
+}
+
+.category-title {
+  margin: 0 0 15px 0;
+  color: #409eff;
+  font-size: 16px;
+  font-weight: 600;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #409eff;
+}
+
+.subject-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.subject-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: white;
+  border: 2px solid #e4e7ed;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 14px;
+  color: #606266;
+}
+
+.subject-item:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
+  color: #409eff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
+}
+
+.subject-item.active {
+  border-color: #409eff;
+  background: #409eff;
+  color: white;
+  font-weight: 600;
+}
+
+.subject-item i {
+  font-size: 18px;
+}
+
+.subject-item.active i {
+  color: white;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .subject-items {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  
+  .subject-item {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+}
+
 .fill-blanks {
   display: flex;
   flex-direction: column;
@@ -2735,6 +3204,17 @@ export default {
 .io-value.output {
   color: #67c23a;
   font-weight: 500;
+}
+
+.io-explanation {
+  flex: 1;
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.6;
 }
 
 /* 右侧代码编辑器 */

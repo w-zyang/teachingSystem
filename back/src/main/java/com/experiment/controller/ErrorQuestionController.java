@@ -113,10 +113,16 @@ public class ErrorQuestionController {
         Long studentId = ((Number) request.get("studentId")).longValue();
         Integer questionCount = (Integer) request.getOrDefault("questionCount", 10);
         
-        log.info("为学生 {} 生成综合错题训练，数量: {}", studentId, questionCount);
+        // 获取选中的错题信息
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> selectedErrorQuestions = (List<Map<String, Object>>) request.get("selectedErrorQuestions");
+        
+        log.info("为学生 {} 生成综合错题训练，数量: {}，基于 {} 道选中错题", 
+                 studentId, questionCount, selectedErrorQuestions != null ? selectedErrorQuestions.size() : 0);
         
         try {
-            ErrorQuestionTrainingDTO training = errorQuestionAnalysisService.generateComprehensiveTraining(studentId, questionCount);
+            ErrorQuestionTrainingDTO training = errorQuestionAnalysisService.generateComprehensiveTraining(
+                studentId, questionCount, selectedErrorQuestions);
             return Result.success("生成综合训练成功", training);
         } catch (Exception e) {
             log.error("生成综合训练失败", e);

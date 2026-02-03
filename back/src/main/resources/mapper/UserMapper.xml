@@ -37,22 +37,24 @@
 
     <!-- 更新用户信息 -->
     <update id="update" parameterType="com.experiment.pojo.User">
-        UPDATE user SET
-            username = #{username},
-            password = #{password},
-            email = #{email},
-            phone = #{phone},
-            role = #{role},
-            status = #{status},
-            avatar = #{avatar},
-            real_name = #{realName},
-            user_id = #{userId},
-            college = #{college},
-            major = #{major},
-            grade = #{grade},
-            class_name = #{className},
-            subject = #{subject},
-            update_time = #{updateTime}
+        UPDATE user
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="password != null">password = #{password},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="role != null">role = #{role},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="realName != null">real_name = #{realName},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="college != null">college = #{college},</if>
+            <if test="major != null">major = #{major},</if>
+            <if test="grade != null">grade = #{grade},</if>
+            <if test="className != null">class_name = #{className},</if>
+            <if test="subject != null">subject = #{subject},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </set>
         WHERE id = #{id}
     </update>
 

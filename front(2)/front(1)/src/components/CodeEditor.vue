@@ -1,26 +1,40 @@
 <template>
   <div class="code-editor">
     <div class="editor-header">
-      <h3>{{ title }}</h3>
-      <div class="editor-controls">
+      <div class="header-left">
+        <h3>{{ title }}</h3>
         <!-- 语言选择下拉列表 -->
         <select v-model="selectedLanguage" class="language-select">
+          <option value="62">Java</option>
           <option value="71">Python</option>
           <option value="50">C</option>
+          <option value="54">C++</option>
+          <option value="63">JavaScript</option>
+          <option value="60">Go</option>
+          <option value="51">C#</option>
+          <option value="73">Rust</option>
+          <option value="68">PHP</option>
+          <option value="72">Ruby</option>
         </select>
-        <button @click="resetCode" class="btn btn-reset">
-          <i class="fas fa-redo"></i>
-          重置
+      </div>
+      <div class="editor-controls">
+        <button @click="saveCode" class="btn btn-save" title="保存代码到本地">
+          <i class="fas fa-save"></i>
+          <span class="btn-text">保存代码</span>
         </button>
-        <button @click="runCode" :disabled="isRunning" class="btn btn-run">
+        <button @click="resetCode" class="btn btn-reset" title="重置为初始代码">
+          <i class="fas fa-redo"></i>
+          <span class="btn-text">重置</span>
+        </button>
+        <button @click="runCode" :disabled="isRunning" class="btn btn-run" title="运行代码查看输出">
           <i v-if="isRunning" class="fas fa-spinner fa-spin"></i>
           <i v-else class="fas fa-play"></i>
-          {{ isRunning ? '运行中...' : '运行代码' }}
+          <span class="btn-text">{{ isRunning ? '运行中...' : '运行代码' }}</span>
         </button>
-        <button v-if="testCases.length > 0" @click="submitCode" :disabled="isSubmitting" class="btn btn-submit">
+        <button v-if="testCases.length > 0" @click="submitCode" :disabled="isSubmitting" class="btn btn-submit" title="提交代码进行评测">
           <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
           <i v-else class="fas fa-check"></i>
-          {{ isSubmitting ? '评测中...' : '提交代码' }}
+          <span class="btn-text">{{ isSubmitting ? '评测中...' : '提交代码' }}</span>
         </button>
       </div>
     </div>
@@ -151,6 +165,14 @@ const emit = defineEmits(['submit-success', 'code-change'])
 
 // 默认代码模板
 const codeTemplates = {
+  '62': `// Java 代码
+public class Main {
+    public static void main(String[] args) {
+        // 在这里编写你的代码
+        
+    }
+}
+`,
   '71': `# Python 代码
 # 在这里编写你的代码
 
@@ -163,11 +185,61 @@ int main() {
     
     return 0;
 }
+`,
+  '54': `// C++ 代码
+#include <iostream>
+using namespace std;
+
+int main() {
+    // 在这里编写你的代码
+    
+    return 0;
+}
+`,
+  '63': `// JavaScript 代码
+// 在这里编写你的代码
+
+`,
+  '60': `// Go 代码
+package main
+
+import "fmt"
+
+func main() {
+    // 在这里编写你的代码
+    
+}
+`,
+  '51': `// C# 代码
+using System;
+
+class Program {
+    static void Main() {
+        // 在这里编写你的代码
+        
+    }
+}
+`,
+  '73': `// Rust 代码
+fn main() {
+    // 在这里编写你的代码
+    
+}
+`,
+  '68': `<?php
+// PHP 代码
+// 在这里编写你的代码
+
+?>
+`,
+  '72': `# Ruby 代码
+# 在这里编写你的代码
+
 `
 }
 
 // 响应式数据
-const code = ref(props.defaultCode || codeTemplates[props.defaultLanguage])
+const code = ref('')
 const stdin = ref('')
 const selectedLanguage = ref(props.defaultLanguage)
 const output = ref(null)
@@ -175,10 +247,51 @@ const isRunning = ref(false)
 const isSubmitting = ref(false)
 const testResults = ref([])
 
+// 初始化代码：优先从localStorage恢复，否则使用默认代码或模板
+const initCode = () => {
+  const saveKey = `code_${props.questionId || 'default'}_${selectedLanguage.value}`
+  const savedData = localStorage.getItem(saveKey)
+  
+  if (savedData) {
+    try {
+      const data = JSON.parse(savedData)
+      code.value = data.code
+      console.log('从本地恢复代码:', saveKey)
+      return
+    } catch (e) {
+      console.error('恢复代码失败:', e)
+    }
+  }
+  
+  // 如果没有保存的代码，使用默认代码或模板
+  code.value = props.defaultCode || codeTemplates[props.defaultLanguage]
+}
+
+// 初始化代码
+initCode()
+
 // 监听语言切换，更新代码模板
 watch(selectedLanguage, (newLang) => {
-  if (!code.value.trim() || code.value === codeTemplates['71'] || code.value === codeTemplates['50']) {
-    code.value = codeTemplates[newLang]
+  // 尝试恢复该语言的保存代码
+  const saveKey = `code_${props.questionId || 'default'}_${newLang}`
+  const savedData = localStorage.getItem(saveKey)
+  
+  if (savedData) {
+    try {
+      const data = JSON.parse(savedData)
+      code.value = data.code
+      console.log('切换语言，恢复保存的代码:', saveKey)
+      return
+    } catch (e) {
+      console.error('恢复代码失败:', e)
+    }
+  }
+  
+  // 检查当前代码是否是某个模板
+  const isTemplate = Object.values(codeTemplates).some(template => code.value.trim() === template.trim())
+  
+  if (!code.value.trim() || isTemplate) {
+    code.value = codeTemplates[newLang] || codeTemplates['71']
   }
 })
 
@@ -233,6 +346,25 @@ const statusClass = computed(() => {
 })
 
 // 方法
+const saveCode = () => {
+  if (!code.value.trim()) {
+    ElMessage.warning('代码为空，无需保存')
+    return
+  }
+  
+  // 保存到 localStorage
+  const saveKey = `code_${props.questionId || 'default'}_${selectedLanguage.value}`
+  const saveData = {
+    code: code.value,
+    language: selectedLanguage.value,
+    timestamp: Date.now(),
+    questionId: props.questionId
+  }
+  
+  localStorage.setItem(saveKey, JSON.stringify(saveData))
+  ElMessage.success('代码已保存到本地')
+}
+
 const resetCode = () => {
   code.value = codeTemplates[selectedLanguage.value]
   output.value = null
@@ -460,30 +592,36 @@ const processResults = (pistonResults) => {
 .editor-header {
   background: #2c3e50;
   color: white;
-  padding: 16px 20px;
+  padding: 12px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .editor-header h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
 .editor-controls {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
 }
 
 .language-select {
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: 1px solid #34495e;
   border-radius: 4px;
   background: #34495e;
   color: white;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -492,22 +630,48 @@ const processResults = (pistonResults) => {
   border-color: #3498db;
 }
 
+.language-select option {
+  background: #2c3e50;
+  color: white;
+}
+
 .btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   transition: all 0.3s ease;
+}
+
+.btn:hover:not(:disabled) {
+  opacity: 0.9;
 }
 
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn i {
+  font-size: 13px;
+}
+
+.btn-text {
+  font-size: 13px;
+}
+
+.btn-save {
+  background: #9b59b6;
+  color: white;
+}
+
+.btn-save:hover:not(:disabled) {
+  background: #8e44ad;
 }
 
 .btn-reset {
@@ -537,6 +701,17 @@ const processResults = (pistonResults) => {
   background: #2980b9;
 }
 
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .btn-text {
+    display: none;
+  }
+  
+  .btn {
+    padding: 6px 10px;
+  }
+}
+
 .editor-body {
   background: white;
   padding: 20px;
@@ -548,7 +723,7 @@ const processResults = (pistonResults) => {
 
 .code-textarea {
   width: 100%;
-  height: 600px;
+  height: 700px;
   padding: 16px;
   border: 2px solid #ddd;
   border-radius: 8px;

@@ -1,44 +1,39 @@
 package com.experiment.utils;
 
 import javax.crypto.Mac;
-import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-
-import org.apache.commons.codec.binary.Base64; // Assuming Apache Commons Codec is used
+import java.util.Base64;
 
 public class ApiAuthAlgorithm {
 
     /**
-     * Gets the signature for the given appId and secret.
+     * 获取签名
      *
-     * @param appId  The appId used as a key for the signature.
-     * @param apiSecret The secret key used for the signature.
-     * @param ts     The timestamp.
-     * @return The generated signature.
+     * @param appId     应用ID
+     * @param apiSecret API密钥
+     * @param ts        时间戳
+     * @return 生成的签名
      */
     public String getSignature(String appId, String apiSecret, long ts) {
         try {
             String auth = md5(appId + ts);
             return hmacSHA1Encrypt(auth, apiSecret);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            // Log the exception for debugging
             e.printStackTrace();
             return null;
         }
     }
 
     /**
-     * HMAC SHA1 encryption.
+     * HMAC SHA1 加密
      *
-     * @param encryptText The text to be encrypted.
-     * @param encryptKey  The encryption key.
-     * @return The encrypted string.
-     * @throws NoSuchAlgorithmException If the algorithm is not available.
-     * @throws InvalidKeyException      If the key is invalid.
+     * @param encryptText 要加密的文本
+     * @param encryptKey  加密密钥
+     * @return 加密后的字符串
      */
     private String hmacSHA1Encrypt(String encryptText, String encryptKey)
             throws NoSuchAlgorithmException, InvalidKeyException {
@@ -49,15 +44,14 @@ public class ApiAuthAlgorithm {
         mac.init(keySpec);
         byte[] result = mac.doFinal(encryptText.getBytes(StandardCharsets.UTF_8));
 
-        return Base64.encodeBase64String(result);
+        return Base64.getEncoder().encodeToString(result);
     }
 
     /**
-     * Generates MD5 hash of the given text.
+     * 生成MD5哈希
      *
-     * @param text The text to be hashed.
-     * @return The MD5 hash of the text.
-     * @throws NoSuchAlgorithmException If the MD5 algorithm is not available.
+     * @param text 要哈希的文本
+     * @return MD5哈希值
      */
     private String md5(String text) throws NoSuchAlgorithmException {
         MessageDigest md = MessageDigest.getInstance("MD5");
@@ -69,4 +63,4 @@ public class ApiAuthAlgorithm {
         }
         return sb.toString();
     }
-} 
+}

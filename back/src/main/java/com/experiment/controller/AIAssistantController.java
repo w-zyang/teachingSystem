@@ -2,6 +2,7 @@ package com.experiment.controller;
 
 import com.experiment.result.Result;
 import com.experiment.service.AIAssistantService;
+import com.experiment.service.XunfeiPPTService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +21,9 @@ public class AIAssistantController {
     
     @Autowired
     private AIAssistantService assistantService;
+    
+    @Autowired
+    private XunfeiPPTService xunfeiPPTService;
     
     /**
      * 学习助手
@@ -109,6 +113,26 @@ public class AIAssistantController {
         } catch (Exception e) {
             log.error("思维导图生成失败", e);
             return Result.error("思维导图生成失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 查询PPT生成状态
+     */
+    @PostMapping("/check-ppt-status")
+    public Result<Object> checkPPTStatus(@RequestBody Map<String, String> data) {
+        log.info("收到查询PPT状态请求");
+        try {
+            String taskId = data.get("taskId");
+            if (taskId == null || taskId.isEmpty()) {
+                return Result.error("任务ID不能为空");
+            }
+            
+            Map<String, Object> status = xunfeiPPTService.checkPPTStatus(taskId);
+            return Result.success("查询成功", status);
+        } catch (Exception e) {
+            log.error("查询PPT状态失败", e);
+            return Result.error("查询PPT状态失败: " + e.getMessage());
         }
     }
 }

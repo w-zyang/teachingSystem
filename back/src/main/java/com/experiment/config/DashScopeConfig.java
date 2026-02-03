@@ -31,4 +31,14 @@ public class DashScopeConfig {
      * 应用ID
      */
     private String appId;
+    
+    /**
+     * 知识库ID（可选，用于加速生成和提高准确性）
+     */
+    private String knowledgeBaseId;
+    
+    /**
+     * 是否启用知识库
+     */
+    private boolean enableKnowledgeBase = false;
 } 

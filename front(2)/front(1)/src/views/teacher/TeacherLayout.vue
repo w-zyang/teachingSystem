@@ -130,9 +130,14 @@ const menuItems = ref([
     iconSrc: '/src/assets/author.png' 
   },
   { 
-    name: 'AI备课助手', 
+    name: 'AI课件生成', 
     path: '/teacher/ai-course-design', 
     iconSrc: '/src/assets/author.png' 
+  },
+  { 
+    name: '教学工具箱', 
+    path: '/teacher/smart-teaching', 
+    iconSrc: '/src/assets/balance.png' 
   },
   { 
     name: '考核生成', 

@@ -169,16 +169,32 @@ public class AIServiceImpl implements AIService {
 
                 String url = "https://dashscope.aliyuncs.com/api/v1/apps/" + appId + "/completion";
                 org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
-                factory.setConnectTimeout(15000);  // 连接超时：15秒
-                factory.setReadTimeout(120000);    // 读取超时：120秒（2分钟）
+                factory.setConnectTimeout(30000);  // 连接超时：30秒
+                factory.setReadTimeout(300000);    // 读取超时：300秒（5分钟）
                 org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate(factory);
 
                 java.util.Map<String, Object> input = new java.util.HashMap<>();
                 input.put("prompt", systemPrompt + "\n\n" + userMessage);
                 
+                // 如果启用了知识库，添加知识库配置
+                if (dashScopeConfig.isEnableKnowledgeBase() && 
+                    dashScopeConfig.getKnowledgeBaseId() != null && 
+                    !dashScopeConfig.getKnowledgeBaseId().isEmpty()) {
+                    input.put("biz_params", java.util.Collections.singletonMap(
+                        "knowledge_base_id", dashScopeConfig.getKnowledgeBaseId()
+                    ));
+                    log.info("已启用知识库，ID: {}", dashScopeConfig.getKnowledgeBaseId());
+                }
+                
+                java.util.Map<String, Object> parameters = new java.util.HashMap<>();
+                // 优化参数以提高响应速度
+                parameters.put("temperature", 0.7);  // 降低随机性，提高稳定性
+                parameters.put("top_p", 0.8);
+                parameters.put("max_tokens", 2000);  // 限制输出长度，加快响应
+                
                 java.util.Map<String, Object> body = new java.util.HashMap<>();
                 body.put("input", input);
-                body.put("parameters", new java.util.HashMap<>());
+                body.put("parameters", parameters);
 
                 org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
                 headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
@@ -210,12 +226,14 @@ public class AIServiceImpl implements AIService {
                 return content;
                 
             } catch (Exception e) {
-                log.error("百炼应用API调用异常 (第{}次尝试): {}", attempt, e.getMessage(), e);
+                log.error("百炼应用API调用异常 (第{}次尝试): {}", attempt, e.getMessage());
                 if (attempt == maxRetries) {
-                    return "AI服务调用异常：" + e.getMessage();
+                    log.error("已达到最大重试次数，返回错误信息");
+                    return "AI服务调用异常：" + e.getMessage() + "。请检查网络连接或稍后重试。";
                 } else {
+                    log.info("等待{}秒后进行第{}次重试...", 3 * attempt, attempt + 1);
                     try {
-                        Thread.sleep(2000 * attempt);
+                        Thread.sleep(3000 * attempt);  // 增加重试间隔：3秒、6秒、9秒
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         return "AI服务调用被中断";

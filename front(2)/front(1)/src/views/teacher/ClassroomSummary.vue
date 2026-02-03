@@ -65,7 +65,7 @@
             <template #header>
               <div class="card-header">
                 <span>我的课堂总结</span>
-                <el-button type="primary" @click="showCreateDialog = true">
+                <el-button type="primary" @click="openCreateDialog">
                   新建课堂总结
                 </el-button>
               </div>
@@ -115,7 +115,7 @@
               
               <div v-if="summaryList.length === 0" class="empty-state">
                 <p>暂无课堂总结</p>
-                <el-button type="primary" @click="showCreateDialog = true">
+                <el-button type="primary" @click="openCreateDialog">
                   创建第一个课堂总结
                 </el-button>
               </div>
@@ -388,10 +388,18 @@
       v-model="showCreateDialog"
       title="创建课堂总结"
       width="500px"
+      :append-to-body="true"
     >
       <el-form :model="createForm" :rules="createRules" ref="createFormRef" label-width="100px">
         <el-form-item label="课程" prop="courseId">
-          <el-select v-model="createForm.courseId" placeholder="选择课程" style="width: 100%">
+          <el-select 
+            v-model="createForm.courseId" 
+            placeholder="选择课程" 
+            style="width: 100%"
+            filterable
+            clearable
+            :teleported="false"
+          >
             <el-option
               v-for="course in courseList"
               :key="course.id"
@@ -431,7 +439,7 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, computed, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, computed, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading, MoreFilled, Download, VideoPlay, Delete, Upload } from '@element-plus/icons-vue'
 import classSummaryApi from '@/api/classSummary'
@@ -585,15 +593,27 @@ export default {
 
     const loadCourseList = async () => {
       try {
+        console.log('正在加载教师课程列表，教师ID:', teacherId.value)
         const response = await getCoursesByTeacherId(teacherId.value)
+        console.log('课程列表响应:', response)
         if (response.success) {
           courseList.value = response.data
+          console.log('成功加载课程列表，共', response.data.length, '门课程')
         } else {
           console.error('API返回错误:', response.msg)
+          ElMessage.error('加载课程列表失败: ' + response.msg)
         }
       } catch (error) {
         console.error('加载课程列表失败:', error)
+        ElMessage.error('加载课程列表失败')
       }
+    }
+
+    // 打开创建对话框
+    const openCreateDialog = async () => {
+      showCreateDialog.value = true
+      // 每次打开对话框时重新加载课程列表，确保数据是最新的
+      await loadCourseList()
     }
 
     // 核心业务方法
@@ -1283,6 +1303,18 @@ export default {
       }
     }
 
+    // 监听 courseList 变化
+    watch(courseList, (newVal) => {
+      console.log('courseList 已更新:', newVal)
+      console.log('courseList 长度:', newVal.length)
+    }, { deep: true })
+
+    // 监听 showCreateDialog 变化
+    watch(showCreateDialog, (newVal) => {
+      console.log('对话框状态:', newVal ? '打开' : '关闭')
+      console.log('当前 courseList:', courseList.value)
+    })
+
     // 生命周期
     onMounted(() => {
       loadStatistics()
@@ -1350,6 +1382,7 @@ export default {
       editSummary,
       viewPublished,
       confirmDelete,
+      openCreateDialog,
       
       // 音频播放器（已上传的录音）
       audioPlayerRef,

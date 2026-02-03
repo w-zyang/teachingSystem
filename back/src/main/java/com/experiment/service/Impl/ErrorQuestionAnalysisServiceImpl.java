@@ -222,31 +222,62 @@ public class ErrorQuestionAnalysisServiceImpl implements ErrorQuestionAnalysisSe
     }
 
     @Override
-    public ErrorQuestionTrainingDTO generateComprehensiveTraining(Long studentId, Integer questionCount) {
-        log.info("为学生 {} 生成综合错题训练，数量: {}", studentId, questionCount);
+    public ErrorQuestionTrainingDTO generateComprehensiveTraining(Long studentId, Integer questionCount, List<Map<String, Object>> selectedErrorQuestions) {
+        log.info("为学生 {} 生成综合错题训练，数量: {}，基于 {} 道选中错题", 
+                 studentId, questionCount, selectedErrorQuestions != null ? selectedErrorQuestions.size() : 0);
         
         try {
-            // 获取学生所有错题
-            List<ErrorQuestionAnalysisDTO> allErrors = analyzeStudentErrorQuestions(studentId);
+            List<ErrorQuestionAnalysisDTO> targetErrors;
             
-            if (allErrors.isEmpty()) {
+            // 如果有选中的错题，使用选中的错题；否则使用所有错题
+            if (selectedErrorQuestions != null && !selectedErrorQuestions.isEmpty()) {
+                // 获取学生所有错题
+                List<ErrorQuestionAnalysisDTO> allErrors = analyzeStudentErrorQuestions(studentId);
+                
+                // 筛选出选中的错题
+                targetErrors = allErrors.stream()
+                    .filter(error -> selectedErrorQuestions.stream()
+                        .anyMatch(selected -> {
+                            Object selectedId = selected.get("questionId");
+                            if (selectedId instanceof Number) {
+                                return error.getQuestionId().equals(((Number) selectedId).longValue());
+                            }
+                            return false;
+                        }))
+                    .collect(Collectors.toList());
+                
+                log.info("筛选出 {} 道选中的错题", targetErrors.size());
+            } else {
+                // 获取学生所有错题
+                targetErrors = analyzeStudentErrorQuestions(studentId);
+            }
+            
+            if (targetErrors.isEmpty()) {
                 throw new RuntimeException("未发现错题记录");
             }
             
-            // 按错误率排序，选择最需要练习的知识点
-            List<String> priorityKnowledgePoints = allErrors.stream()
-                .sorted((e1, e2) -> Double.compare(e2.getErrorRate(), e1.getErrorRate()))
+            // 提取知识点和错误类型
+            List<String> knowledgePoints = targetErrors.stream()
                 .map(ErrorQuestionAnalysisDTO::getKnowledgePoint)
                 .distinct()
-                .limit(3)
                 .collect(Collectors.toList());
             
-            // 构建综合训练提示词
-            String prompt = buildComprehensivePrompt(allErrors, priorityKnowledgePoints, questionCount);
+            List<String> errorTypes = targetErrors.stream()
+                .map(ErrorQuestionAnalysisDTO::getErrorType)
+                .distinct()
+                .collect(Collectors.toList());
+            
+            // 构建优化的提示词，强调相似性
+            String prompt = buildEnhancedComprehensivePrompt(targetErrors, knowledgePoints, errorTypes, questionCount);
+            
+            log.info("发送给AI的提示词: {}", prompt);
+            
             String aiResponse = aiService.chatWithSystem(
-                "你是一个专业的教育题目生成专家，擅长根据学生的整体错题情况生成综合性的练习题目。",
+                "你是一个专业的教育题目生成专家。你的任务是根据学生的错题，生成高度相似的训练题目。要求：1) 保持相同的知识点和题型 2) 题目难度和考查方式要相似 3) 只改变具体的数据、场景或表述，核心考点必须一致。4) 必须严格返回JSON数组格式，不要添加任何解释文字。",
                 prompt
             );
+            
+            log.info("收到AI响应，长度: {} 字符", aiResponse != null ? aiResponse.length() : 0);
             
             List<Map<String, Object>> questions = parseQuestionsFromAI(aiResponse);
             
@@ -256,11 +287,8 @@ public class ErrorQuestionAnalysisServiceImpl implements ErrorQuestionAnalysisSe
             training.setTrainingType("comprehensive");
             training.setQuestionCount(questionCount);
             training.setQuestions(questions);
-            training.setAnalysisReport(generateComprehensiveReport(allErrors, priorityKnowledgePoints));
-            training.setTargetErrorTypes(allErrors.stream()
-                .map(ErrorQuestionAnalysisDTO::getErrorType)
-                .distinct()
-                .collect(Collectors.toList()));
+            training.setAnalysisReport(generateEnhancedComprehensiveReport(targetErrors, knowledgePoints));
+            training.setTargetErrorTypes(errorTypes);
             training.setExpectedImprovement(85.0);
             training.setCreateTime(LocalDateTime.now());
             
@@ -510,42 +538,109 @@ public class ErrorQuestionAnalysisServiceImpl implements ErrorQuestionAnalysisSe
         return prompt.toString();
     }
 
-    private String buildComprehensivePrompt(List<ErrorQuestionAnalysisDTO> allErrors, List<String> priorityKnowledgePoints, Integer questionCount) {
+    private String buildEnhancedComprehensivePrompt(List<ErrorQuestionAnalysisDTO> targetErrors, 
+                                                     List<String> knowledgePoints, 
+                                                     List<String> errorTypes, 
+                                                     Integer questionCount) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("请根据学生的整体错题情况生成").append(questionCount).append("道综合练习题目：\n\n");
+        prompt.append("【重要】必须生成恰好 ").append(questionCount).append(" 道题目，不能多也不能少！\n\n");
         
-        prompt.append("重点知识点：\n");
-        for (String kp : priorityKnowledgePoints) {
-            prompt.append("- ").append(kp).append("\n");
+        prompt.append("【学生的错题详情】\n");
+        for (int i = 0; i < Math.min(targetErrors.size(), 5); i++) {
+            ErrorQuestionAnalysisDTO error = targetErrors.get(i);
+            prompt.append((i + 1)).append(". 原题：").append(error.getQuestionContent()).append("\n");
+            
+            // 如果有选项，也展示出来
+            if (error.getOptions() != null && !error.getOptions().isEmpty()) {
+                prompt.append("   选项：\n");
+                for (Map<String, String> option : error.getOptions()) {
+                    prompt.append("   ").append(option.get("key")).append(". ").append(option.get("content")).append("\n");
+                }
+            }
+            
+            prompt.append("   知识点：").append(error.getKnowledgePoint()).append("\n");
+            prompt.append("   题型：").append(getQuestionTypeText(error.getQuestionType())).append("\n");
+            prompt.append("   学生答案：").append(error.getStudentAnswer()).append("（错误）\n");
+            prompt.append("   正确答案：").append(error.getCorrectAnswer()).append("\n");
+            prompt.append("   错误原因：").append(error.getErrorReason()).append("\n\n");
         }
-        prompt.append("\n");
         
-        prompt.append("主要错误类型：\n");
-        Set<String> errorTypes = allErrors.stream()
-            .map(ErrorQuestionAnalysisDTO::getErrorType)
-            .collect(Collectors.toSet());
-        for (String errorType : errorTypes) {
-            prompt.append("- ").append(errorType).append("\n");
-        }
-        prompt.append("\n");
+        prompt.append("【生成要求】\n");
+        prompt.append("1. **题目数量**：必须生成恰好 ").append(questionCount).append(" 道题目\n");
+        prompt.append("2. **高度相似**：每道题都要与上面某道原题在知识点、题型、考查方式上完全一致\n");
+        prompt.append("3. **只改表面**：只改变具体命令名、函数名、变量名、数据等，核心考点必须相同\n");
+        prompt.append("4. **题型匹配**：原题是选择题就生成选择题，是填空题就生成填空题\n");
+        prompt.append("5. **选项设计**：选择题的错误选项要设计成学生容易混淆的内容\n\n");
         
-        prompt.append("要求：\n");
-        prompt.append("1. 覆盖重点知识点\n");
-        prompt.append("2. 针对主要错误类型\n");
-        prompt.append("3. 题目类型多样化\n");
-        prompt.append("4. 返回JSON格式的题目数组\n\n");
-        prompt.append("返回格式：\n");
+        prompt.append("【示例】\n");
+        prompt.append("原题：\"Linux系统中，下列哪个命令用于查看当前目录下的文件？\"\n");
+        prompt.append("相似题：\"Linux系统中，下列哪个命令用于显示当前工作目录的路径？\"\n\n");
+        
+        prompt.append("【返回格式】\n");
+        prompt.append("直接返回包含 ").append(questionCount).append(" 个题目的JSON数组：\n");
         prompt.append("[{\"title\":\"题目内容\",\"type\":\"choice\",\"options\":[\"A. 选项1\",\"B. 选项2\",\"C. 选项3\",\"D. 选项4\"],\"answer\":\"A\",\"explanation\":\"解析\"}]");
         
         return prompt.toString();
     }
+    
+    private String getQuestionTypeText(String type) {
+        switch (type) {
+            case "choice": return "选择题";
+            case "fill": return "填空题";
+            case "short": return "简答题";
+            case "coding": return "编程题";
+            default: return type;
+        }
+    }
+    
+    private String generateEnhancedComprehensiveReport(List<ErrorQuestionAnalysisDTO> targetErrors, List<String> knowledgePoints) {
+        StringBuilder report = new StringBuilder();
+        report.append("**个性化错题训练报告**\n\n");
+        report.append("基于您选中的 ").append(targetErrors.size()).append(" 道错题生成\n");
+        report.append("涉及知识点：").append(String.join("、", knowledgePoints)).append("\n\n");
+        
+        report.append("**错题分析**\n");
+        Map<String, Long> errorTypeCount = targetErrors.stream()
+            .collect(Collectors.groupingBy(ErrorQuestionAnalysisDTO::getErrorType, Collectors.counting()));
+        
+        for (Map.Entry<String, Long> entry : errorTypeCount.entrySet()) {
+            report.append("- ").append(entry.getKey()).append("：").append(entry.getValue()).append("次\n");
+        }
+        
+        report.append("\n**训练目标**\n");
+        report.append("1. 针对性强化选中错题涉及的知识点\n");
+        report.append("2. 通过相似题目练习，巩固薄弱环节\n");
+        report.append("3. 纠正错误理解，建立正确的知识体系\n");
+        
+        return report.toString();
+    }
 
     private List<Map<String, Object>> parseQuestionsFromAI(String aiResponse) {
+        log.info("AI原始响应内容: {}", aiResponse);
+        
         try {
+            // 清理AI响应，移除可能的markdown代码块标记
+            String cleanedResponse = aiResponse.trim();
+            if (cleanedResponse.startsWith("```json")) {
+                cleanedResponse = cleanedResponse.substring(7);
+            }
+            if (cleanedResponse.startsWith("```")) {
+                cleanedResponse = cleanedResponse.substring(3);
+            }
+            if (cleanedResponse.endsWith("```")) {
+                cleanedResponse = cleanedResponse.substring(0, cleanedResponse.length() - 3);
+            }
+            cleanedResponse = cleanedResponse.trim();
+            
+            log.info("清理后的响应内容: {}", cleanedResponse);
+            
             // 尝试解析AI返回的JSON
-            return objectMapper.readValue(aiResponse, new TypeReference<List<Map<String, Object>>>() {});
+            List<Map<String, Object>> questions = objectMapper.readValue(cleanedResponse, new TypeReference<List<Map<String, Object>>>() {});
+            log.info("成功解析 {} 道题目", questions.size());
+            return questions;
         } catch (JsonProcessingException e) {
-            log.warn("AI返回格式解析失败，使用备用题目: {}", e.getMessage());
+            log.error("AI返回格式解析失败: {}", e.getMessage());
+            log.error("原始响应: {}", aiResponse);
             // 返回备用题目
             return generateFallbackQuestions();
         }

@@ -22,11 +22,20 @@ public class PistonService {
     @Value("${piston.url:https://emkc.org/api/v2/piston}")
     private String pistonUrl;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    
+    // 构造函数：初始化支持UTF-8的RestTemplate
+    public PistonService() {
+        this.restTemplate = new RestTemplate();
+        // 添加UTF-8编码的消息转换器
+        this.restTemplate.getMessageConverters().add(0, 
+            new org.springframework.http.converter.StringHttpMessageConverter(java.nio.charset.StandardCharsets.UTF_8));
+    }
 
     /**
-     * 语言映射表: Judge0 语言ID -> Piston 语言名称
+     * 语言映射表: 前端语言ID -> Piston 语言名称
+     * 为了兼容性，前端使用数字ID，后端转换为Piston语言名称
      */
     private static final Map<Integer, String> LANGUAGE_MAP = new HashMap<>();
     
@@ -86,10 +95,11 @@ public class PistonService {
                 requestBody.put("stdin", stdin);
             }
 
-            // 设置请求头
+            // 设置请求头，明确指定UTF-8编码
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setContentType(new MediaType("application", "json", java.nio.charset.StandardCharsets.UTF_8));
             headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+            headers.set("Accept-Charset", "UTF-8");
 
             String jsonBody = objectMapper.writeValueAsString(requestBody);
             HttpEntity<String> entity = new HttpEntity<>(jsonBody, headers);
@@ -117,11 +127,17 @@ public class PistonService {
             // 获取运行结果
             JsonNode runNode = jsonNode.get("run");
             if (runNode != null) {
-                // 标准输出
+                // 标准输出 - 确保UTF-8编码正确处理
                 if (runNode.has("stdout")) {
                     String stdout = runNode.get("stdout").asText();
+                    
+                    // 调试：输出原始字节和字符串
+                    byte[] stdoutBytes = stdout.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                    log.info("标准输出原始字节数: {}", stdoutBytes.length);
+                    log.info("标准输出内容: {}", stdout);
+                    log.info("标准输出字节(hex): {}", bytesToHex(stdoutBytes));
+                    
                     result.put("stdout", stdout);
-                    log.info("标准输出: {}", stdout);
                 }
                 
                 // 标准错误
@@ -263,5 +279,16 @@ public class PistonService {
             case 14: return "执行错误";
             default: return "未知状态";
         }
+    }
+    
+    /**
+     * 将字节数组转换为十六进制字符串（用于调试）
+     */
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02X ", b));
+        }
+        return sb.toString().trim();
     }
 }

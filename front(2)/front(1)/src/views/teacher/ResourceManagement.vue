@@ -12,20 +12,6 @@
             <p>上传、管理和分享你的教学资源</p>
       </div>
         </div>
-        <div class="header-stats">
-          <div class="stat-item">
-            <div class="stat-number">{{ totalResources }}</div>
-            <div class="stat-label">总资源</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">{{ formatFileSize(totalSize) }}</div>
-            <div class="stat-label">存储空间</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-number">{{ totalDownloads }}</div>
-            <div class="stat-label">下载次数</div>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -138,13 +124,6 @@
             <div class="resource-info">
               <h4 class="resource-title" :title="resource.title">{{ resource.title }}</h4>
               <p class="resource-filename">{{ resource.fileName }}</p>
-              <div class="resource-meta">
-                <span class="file-size">{{ formatFileSize(resource.fileSize) }}</span>
-                <span class="download-count">
-                  <i class="fas fa-download"></i>
-                  {{ resource.downloadCount || 0 }}
-                </span>
-              </div>
               <p v-if="resource.description" class="resource-description">
                 {{ resource.description }}
               </p>

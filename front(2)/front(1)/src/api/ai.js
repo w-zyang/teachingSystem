@@ -201,6 +201,19 @@ export const aiAPI = {
       method: 'get',
       responseType: 'blob'
     })
+  },
+
+  /**
+   * 查询PPT生成状态
+   * @param {string} taskId - 任务ID
+   * @returns {Promise}
+   */
+  checkPPTStatus(taskId) {
+    return aiService({
+      url: '/api/ai/check-ppt-status',
+      method: 'post',
+      data: { taskId }
+    })
   }
 }
 

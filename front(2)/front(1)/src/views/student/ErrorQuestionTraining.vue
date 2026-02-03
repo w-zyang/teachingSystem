@@ -8,7 +8,7 @@
 
     <!-- 错题统计看板 -->
     <el-row :gutter="20" class="stats-cards">
-      <el-col :span="6">
+      <el-col :span="8">
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
             <div class="stats-number">{{ statistics.totalErrorQuestions || 0 }}</div>
@@ -17,16 +17,7 @@
           <i class="el-icon-document stats-icon error-icon"></i>
         </el-card>
       </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stats-card">
-          <div class="stats-content">
-            <div class="stats-number">{{ (statistics.averageErrorRate || 0).toFixed(1) }}%</div>
-            <div class="stats-label">平均错误率</div>
-          </div>
-          <i class="el-icon-warning stats-icon warning-icon"></i>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
+      <el-col :span="8">
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
             <div class="stats-number">{{ Object.keys(statistics.knowledgePointDistribution || {}).length }}</div>
@@ -35,7 +26,7 @@
           <i class="el-icon-collection stats-icon knowledge-icon"></i>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="8">
         <el-card shadow="hover" class="stats-card">
           <div class="stats-content">
             <div class="stats-number">{{ completedTrainings }}</div>
@@ -219,10 +210,25 @@
       <el-col :span="24">
         <el-card shadow="always" class="content-card">
           <div slot="header" class="card-header">
-            <span><i class="el-icon-data-analysis"></i> 错题分析</span>
-            <el-button type="primary" size="small" @click="refreshErrorAnalysis">
-              <i class="el-icon-refresh"></i> 刷新
-            </el-button>
+            <div class="header-left">
+              <span><i class="el-icon-data-analysis"></i> 错题分析</span>
+              <el-tag v-if="selectedErrors.length > 0" type="success" style="margin-left: 12px;">
+                已选择 {{ selectedErrors.length }} 道错题
+              </el-tag>
+            </div>
+            <div class="header-right">
+              <el-button 
+                v-if="selectedErrors.length > 0" 
+                type="warning" 
+                size="small" 
+                @click="clearSelection"
+              >
+                <i class="el-icon-close"></i> 清除选择
+              </el-button>
+              <el-button type="primary" size="small" @click="refreshErrorAnalysis">
+                <i class="el-icon-refresh"></i> 刷新
+              </el-button>
+            </div>
           </div>
           
           <div v-loading="loadingAnalysis" class="error-list">
@@ -235,15 +241,20 @@
               v-for="error in errorAnalysisList" 
               :key="error.questionId"
               class="error-item"
-              :class="{ active: selectedError && selectedError.questionId === error.questionId }"
+              :class="{ 
+                active: selectedError && selectedError.questionId === error.questionId,
+                selected: isErrorSelected(error.questionId)
+              }"
             >
               <div class="error-header">
                 <div class="header-left">
+                  <el-checkbox 
+                    :value="isErrorSelected(error.questionId)"
+                    @change="toggleErrorSelection(error)"
+                    class="error-checkbox"
+                  ></el-checkbox>
                   <span class="question-type" :class="error.questionType">
                     {{ getQuestionTypeText(error.questionType) }}
-                  </span>
-                  <span class="error-rate" :class="getErrorRateClass(error.errorRate)">
-                    错误率: {{ error.errorRate }}%
                   </span>
                 </div>
                 <div class="header-right">
@@ -251,6 +262,15 @@
                     <i class="el-icon-collection-tag"></i>
                     {{ error.knowledgePoint }}
                   </span>
+                  <el-button 
+                    type="danger" 
+                    size="mini" 
+                    icon="el-icon-delete"
+                    @click="deleteError(error)"
+                    class="delete-btn"
+                  >
+                    删除
+                  </el-button>
                 </div>
               </div>
               
@@ -320,13 +340,55 @@
           
           <!-- 底部操作按钮 -->
           <div class="error-list-footer">
-            <el-button type="primary" size="default" @click="generateComprehensiveTraining" :loading="generatingTraining">
-              <i class="el-icon-magic-stick"></i> 生成综合训练
-            </el-button>
+            <div class="generation-config">
+              <div class="config-label">
+                <i class="el-icon-magic-stick"></i>
+                <span>AI智能生成相似题目</span>
+                <el-tooltip content="AI会分析选中错题的知识点和错误类型，生成相似的训练题目" placement="top">
+                  <i class="el-icon-question" style="color: #909399; cursor: help; margin-left: 8px;"></i>
+                </el-tooltip>
+              </div>
+              <div class="config-controls">
+                <div class="quantity-selector">
+                  <span class="selector-label">生成题目数量：</span>
+                  <el-input-number 
+                    v-model="generateQuestionCount" 
+                    :min="1" 
+                    :max="20" 
+                    :step="1"
+                    size="small"
+                    :disabled="selectedErrors.length === 0"
+                  ></el-input-number>
+                  <span class="selector-hint">（建议 5-10 题）</span>
+                </div>
+                <el-button 
+                  type="primary" 
+                  size="default" 
+                  @click="generateComprehensiveTraining" 
+                  :loading="generatingTraining"
+                  :disabled="selectedErrors.length === 0"
+                  class="generate-btn"
+                >
+                  <i class="el-icon-magic-stick"></i> 
+                  {{ selectedErrors.length > 0 ? `基于 ${selectedErrors.length} 道错题生成 ${generateQuestionCount} 道训练题` : '请先选择错题' }}
+                </el-button>
+              </div>
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
+    
+    <!-- AI生成进度条 -->
+    <AIGenerationProgress
+      :visible="showProgress"
+      title="AI 正在生成错题训练"
+      :progress="progressValue"
+      :current-step="currentStep"
+      :steps="progressSteps"
+      :message="progressMessage"
+      tip="💡 提示：AI会根据您的错题记录生成个性化训练题目"
+    />
   </div>
 </template>
 
@@ -339,14 +401,19 @@ import {
   generateComprehensiveTraining,
   evaluateTrainingEffect
 } from '@/api/errorQuestions'
+import AIGenerationProgress from '@/components/AIGenerationProgress.vue'
 
 export default {
   name: 'ErrorQuestionTraining',
+  components: {
+    AIGenerationProgress
+  },
   data() {
     return {
       studentId: 17,
       errorAnalysisList: [],
       selectedError: null,
+      selectedErrors: [], // 新增：选中的错题列表
       loadingAnalysis: false,
       statistics: {},
       completedTrainings: 0,
@@ -363,7 +430,19 @@ export default {
       trainingDialogVisible: false,
       trainingDialogTitle: '智能训练',
       timeLimit: 30, // 训练时间限制（分钟）
-      remainingTime: 0 // 剩余时间（秒）
+      remainingTime: 0, // 剩余时间（秒）
+      generateQuestionCount: 5, // 新增：生成题目数量，默认5题
+      // 进度条相关
+      showProgress: false,
+      progressValue: 0,
+      currentStep: 0,
+      progressMessage: '',
+      progressSteps: [
+        { title: '分析错题', desc: '正在分析您的错题记录...' },
+        { title: '调用AI服务', desc: '正在连接AI服务...' },
+        { title: '生成训练题目', desc: 'AI正在生成个性化训练题目...' },
+        { title: '完成', desc: '训练题目生成完成！' }
+      ]
     }
   },
   
@@ -638,13 +717,63 @@ export default {
     },
     
     async generateComprehensiveTraining() {
+      if (this.selectedErrors.length === 0) {
+        this.$message.warning('请先选择要训练的错题')
+        return
+      }
+      
       this.generatingTraining = true
+      
+      // 显示进度条
+      this.showProgress = true
+      this.progressValue = 0
+      this.currentStep = 0
+      this.progressMessage = '正在分析选中的错题...'
+      
       try {
+        // 步骤1: 分析错题
+        this.progressValue = 10
+        await new Promise(resolve => setTimeout(resolve, 300))
+        
         console.log('开始生成综合训练，学生ID:', this.studentId)
-        const response = await generateComprehensiveTraining({
+        console.log('选中的错题:', this.selectedErrors)
+        
+        // 步骤2: 调用AI服务
+        this.currentStep = 1
+        this.progressValue = 25
+        this.progressMessage = '正在连接AI服务...'
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // 步骤3: 生成训练题目
+        this.currentStep = 2
+        this.progressValue = 40
+        this.progressMessage = 'AI正在根据您选中的错题生成个性化训练...'
+        
+        // 模拟进度增长
+        const progressInterval = setInterval(() => {
+          if (this.progressValue < 85) {
+            this.progressValue += Math.random() * 5
+          }
+        }, 800)
+        
+        // 构建请求参数，包含选中的错题信息和用户指定的题目数量
+        const requestParams = {
           studentId: this.studentId,
-          questionCount: 10
-        })
+          questionCount: this.generateQuestionCount, // 使用用户指定的题目数量
+          selectedErrorQuestions: this.selectedErrors.map(error => ({
+            questionId: error.questionId,
+            questionType: error.questionType,
+            knowledgePoint: error.knowledgePoint,
+            errorType: error.errorType
+          }))
+        }
+        
+        console.log('请求参数:', requestParams)
+        
+        const response = await generateComprehensiveTraining(requestParams)
+        
+        clearInterval(progressInterval)
+        this.progressValue = 90
         
         console.log('综合训练API响应:', response)
         console.log('响应数据:', response.data)
@@ -652,13 +781,24 @@ export default {
         if (response.success) {
           console.log('训练数据:', response.data)
           console.log('题目列表:', response.data.questions)
+          
+          // 步骤4: 完成
+          this.currentStep = 3
+          this.progressValue = 100
+          this.progressMessage = '生成完成！'
+          
+          await new Promise(resolve => setTimeout(resolve, 800))
+          this.showProgress = false
+          
           this.startTraining(response.data)
-          this.$message.success('综合训练生成成功')
+          this.$message.success(`已根据选中的 ${this.selectedErrors.length} 道错题生成 ${this.generateQuestionCount} 道训练题`)
         } else {
+          this.showProgress = false
           console.error('生成训练失败:', response.msg)
           this.$message.error(response.msg || '生成训练失败')
         }
       } catch (error) {
+        this.showProgress = false
         console.error('生成训练异常:', error)
         this.$message.error('生成训练失败')
       } finally {
@@ -1023,6 +1163,61 @@ export default {
       localStorage.removeItem('errorTrainingData')
       localStorage.removeItem('errorTrainingStartTime')
       console.log('训练数据已清除')
+    },
+    
+    // 切换错题选择状态
+    toggleErrorSelection(error) {
+      const index = this.selectedErrors.findIndex(e => e.questionId === error.questionId)
+      if (index > -1) {
+        // 已选中，取消选择
+        this.selectedErrors.splice(index, 1)
+      } else {
+        // 未选中，添加到选中列表
+        this.selectedErrors.push(error)
+      }
+      console.log('当前选中的错题:', this.selectedErrors)
+    },
+    
+    // 判断错题是否被选中
+    isErrorSelected(questionId) {
+      return this.selectedErrors.some(e => e.questionId === questionId)
+    },
+    
+    // 清除所有选择
+    clearSelection() {
+      this.selectedErrors = []
+      this.$message.success('已清除所有选择')
+    },
+    
+    // 删除错题
+    deleteError(error) {
+      this.$confirm(`确定要删除这道错题吗？`, '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        // 从列表中移除
+        const index = this.errorAnalysisList.findIndex(e => e.questionId === error.questionId)
+        if (index > -1) {
+          this.errorAnalysisList.splice(index, 1)
+        }
+        
+        // 从选中列表中移除
+        const selectedIndex = this.selectedErrors.findIndex(e => e.questionId === error.questionId)
+        if (selectedIndex > -1) {
+          this.selectedErrors.splice(selectedIndex, 1)
+        }
+        
+        // 重新计算统计数据
+        this.calculateStatistics()
+        
+        this.$message.success('删除成功')
+        
+        // TODO: 调用后端API删除错题
+        // await deleteErrorQuestion(error.questionId)
+      }).catch(() => {
+        // 取消删除
+      })
     }
   }
 }
@@ -1103,20 +1298,103 @@ export default {
   align-items: center;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .error-list {
   height: 600px;
   overflow-y: auto;
 }
 
 .error-list-footer {
-  padding: 20px;
+  padding: 24px;
   text-align: center;
-  border-top: 1px solid #ebeef5;
-  background: #f5f7fa;
+  border-top: 2px solid #ebeef5;
+  background: linear-gradient(to bottom, #fafbfc, #f5f7fa);
 }
 
-.error-list-footer .el-button {
-  min-width: 200px;
+.generation-config {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+.config-label {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  gap: 8px;
+}
+
+.config-label i.el-icon-magic-stick {
+  color: #409eff;
+  font-size: 20px;
+}
+
+.config-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  width: 100%;
+}
+
+.quantity-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: white;
+  border: 2px solid #e4e7ed;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.quantity-selector:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.15);
+}
+
+.selector-label {
+  font-size: 14px;
+  color: #606266;
+  font-weight: 500;
+}
+
+.selector-hint {
+  font-size: 12px;
+  color: #909399;
+  margin-left: 8px;
+}
+
+.generate-btn {
+  min-width: 300px;
+  height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+  transition: all 0.3s;
+}
+
+.generate-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.4);
+}
+
+.generate-btn:active {
+  transform: translateY(0);
 }
 
 .no-data {
@@ -1141,6 +1419,12 @@ export default {
   transform: translateY(-2px);
 }
 
+.error-item.selected {
+  border-color: #67c23a;
+  background: #f0f9ff;
+  box-shadow: 0 4px 20px rgba(103, 194, 58, 0.15);
+}
+
 .error-header {
   display: flex;
   justify-content: space-between;
@@ -1154,6 +1438,24 @@ export default {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.error-checkbox {
+  margin-right: 8px;
+}
+
+.error-checkbox >>> .el-checkbox__inner {
+  width: 18px;
+  height: 18px;
+}
+
+.error-checkbox >>> .el-checkbox__inner::after {
+  width: 5px;
+  height: 9px;
+}
+
+.delete-btn {
+  margin-left: 12px;
 }
 
 .header-right {

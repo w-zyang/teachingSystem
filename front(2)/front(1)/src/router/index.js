@@ -20,6 +20,7 @@ import ResourceManagement from '@/views/teacher/ResourceManagement.vue'
 import ClassroomSummary from '@/views/teacher/ClassroomSummary.vue'
 import TProfile from '@/views/teacher/TProfile.vue'
 import TeacherStudentDashboard from '@/views/teacher/StudentDashboard.vue'
+import SmartTeachingAssistant from '@/views/teacher/SmartTeachingAssistant.vue'
 
 // 学生侧页面
 import StudentLayout from '@/views/student/StudentLayout.vue'
@@ -69,6 +70,7 @@ const routes = [
             { path: 'student-dashboard', name: 'teacher-student-dashboard', component: TeacherStudentDashboard },
             { path: 'resource-management', name: 'teacher-resource', component: ResourceManagement },
             { path: 'classroom-summary', name: 'classroom-summary', component: ClassroomSummary },
+            { path: 'smart-teaching', name: 'smart-teaching', component: SmartTeachingAssistant },
             { path: 'tprofile',name: 'TProfile',component: TProfile}
         ]
     },
