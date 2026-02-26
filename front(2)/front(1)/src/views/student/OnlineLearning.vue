@@ -174,7 +174,7 @@
               <span>学习资源</span>
             </button>
             <button @click.stop="viewCourseExams(course)" class="action-btn secondary">
-              <img src="@/assets/edit.png" alt="考试练习" class="btn-icon">
+              <img src="@/assets/edit.png" alt="练习测试" class="btn-icon">
               <span>练习测试</span>
             </button>
           </div>
@@ -275,6 +275,86 @@
       </div>
     </div>
 
+    <!-- 练习测试弹框：教师发布的题目 -->
+    <div v-if="showExamModal" class="resource-modal" @click="closeExamModal">
+      <div class="modal-content exam-modal-content" @click.stop>
+        <div class="modal-header">
+          <div class="modal-title">
+            <img src="@/assets/edit.png" alt="练习测试" class="modal-icon">
+            <h3>{{ selectedCourse?.title }} — 练习测试</h3>
+          </div>
+          <button @click="closeExamModal" class="close-btn">
+            <img src="@/assets/delete.png" alt="关闭" class="close-icon">
+          </button>
+        </div>
+        <div class="modal-body">
+          <!-- 加载中 -->
+          <div v-if="loadingCourseExams" class="loading" style="padding:40px;text-align:center;color:#6b7280;">
+            <div style="font-size:2rem;margin-bottom:12px;">⏳</div>
+            <p>正在加载教师发布的题目...</p>
+          </div>
+          <!-- 暂无考试 -->
+          <div v-else-if="courseExams.length === 0" class="empty-resources">
+            <img src="@/assets/category.png" alt="暂无题目" class="empty-icon">
+            <p>该课程暂未发布练习测试</p>
+          </div>
+          <!-- 考试列表 -->
+          <div v-else class="exam-list">
+            <div
+              v-for="exam in courseExams"
+              :key="exam.id"
+              class="exam-item"
+            >
+              <!-- 考试头部，点击展开/收起 -->
+              <div class="exam-item-header">
+                <div class="exam-item-info" @click="toggleExamExpand(exam.id)" style="flex:1;cursor:pointer;">
+                  <div class="exam-item-name">
+                    <span class="exam-expand-icon">{{ expandedExamId === exam.id ? '▼' : '▶' }}</span>
+                    {{ exam.name }}
+                  </div>
+                  <div class="exam-item-tags">
+                    <span class="exam-tag exam-tag-type">{{ getExamTypeName(exam.type) }}</span>
+                    <span class="exam-tag exam-tag-score">总分 {{ exam.totalScore || 100 }} 分</span>
+                    <span class="exam-tag exam-tag-duration">⏱ {{ exam.duration || '--' }} 分钟</span>
+                    <span class="exam-tag exam-tag-count">{{ exam.questions ? exam.questions.length : 0 }} 题</span>
+                  </div>
+                  <p v-if="exam.description" class="exam-item-desc">{{ exam.description }}</p>
+                </div>
+                <button class="start-exam-btn" @click="startExamFromPopup(exam)">
+                  ▶ 开始测试
+                </button>
+              </div>
+              <!-- 题目列表（展开后显示） -->
+              <div v-if="expandedExamId === exam.id" class="exam-questions-list">
+                <div v-if="!exam.questions || exam.questions.length === 0" style="color:#9ca3af;padding:12px 16px;">
+                  暂无题目详情
+                </div>
+                <div
+                  v-for="(q, qi) in exam.questions"
+                  :key="q.id || qi"
+                  class="exam-question-item"
+                >
+                  <div class="q-header">
+                    <span class="q-num">第 {{ qi + 1 }} 题</span>
+                    <span class="q-type-badge">{{ getExamQuestionTypeName(q.type) }}</span>
+                    <span class="q-score">{{ q.score }} 分</span>
+                    <span class="q-difficulty" :class="'diff-' + q.difficulty">{{ { easy:'简单', medium:'中等', hard:'困难' }[q.difficulty] || q.difficulty }}</span>
+                  </div>
+                  <p class="q-content">{{ q.content || q.title }}</p>
+                  <!-- 选择题选项 -->
+                  <div v-if="q.type === 'choice' && q.options" class="q-options">
+                    <div v-for="opt in q.options" :key="opt.key" class="q-option">
+                      <span class="opt-key">{{ opt.key }}.</span> {{ opt.content }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 文档预览与标注模态框 -->
     <div v-if="showDocumentViewer" class="document-viewer-modal" @click.self="closeDocumentViewer">
       <div class="document-viewer-container">
@@ -308,6 +388,7 @@ import { ElMessage } from 'element-plus'
 import { getCourseResources } from '@/api/courseResource'
 import { getCoursesByStudentId } from '@/api/course'
 import { getCourseProgress } from '@/api/progress'
+import { getPublishedExamsByCourseId, getExamById } from '@/api/exam'
 import StudyNotes from './StudyNotes.vue'
 import DocumentViewer from './DocumentViewer.vue'
 import axios from 'axios'
@@ -331,6 +412,12 @@ const selectedCourse = ref(null)
 const enrolledCourses = ref([])
 const courseResources = ref([])
 const resourceCountMap = ref({})
+
+// 练习测试弹框相关
+const showExamModal = ref(false)
+const courseExams = ref([])
+const loadingCourseExams = ref(false)
+const expandedExamId = ref(null)
 
 // 获取当前登录学生ID
 const studentId = ref(localStorage.getItem('userId') || 17)
@@ -378,18 +465,80 @@ const viewCourseResources = async (course) => {
   }
 }
 
-// 查看课程考试
-const viewCourseExams = (course) => {
-  console.log('准备查看课程考试:', course)
-  // 跳转到练习评估页面，传递课程信息
+// 查看课程考试（弹出教师发布的题目对话框）
+const viewCourseExams = async (course) => {
+  selectedCourse.value = course
+  showExamModal.value = true
+  loadingCourseExams.value = true
+  courseExams.value = []
+  expandedExamId.value = null
+
+  try {
+    const res = await getPublishedExamsByCourseId(course.id)
+    if (res && res.success && res.data && res.data.length > 0) {
+      const examsWithDetails = []
+      for (const exam of res.data) {
+        try {
+          const detail = await getExamById(exam.id)
+          examsWithDetails.push(detail?.data || exam)
+        } catch {
+          examsWithDetails.push(exam)
+        }
+      }
+      courseExams.value = examsWithDetails
+    } else {
+      courseExams.value = []
+    }
+  } catch (error) {
+    console.error('获取课程考试失败:', error)
+    courseExams.value = []
+  } finally {
+    loadingCourseExams.value = false
+  }
+}
+
+// 从弹框跳转到练习页面，携带 examId 直接开始
+const startExamFromPopup = (exam) => {
+  closeExamModal()
   router.push({
     path: '/student/practice-evaluation',
     query: {
-      courseId: course.id,
-      courseName: course.title,
-      teacherName: course.teacherName
+      courseId: selectedCourse.value?.id,
+      courseName: selectedCourse.value?.title,
+      teacherName: selectedCourse.value?.teacherName,
+      examId: exam.id
     }
   })
+}
+
+// 关闭练习测试弹框
+const closeExamModal = () => {
+  showExamModal.value = false
+  courseExams.value = []
+  expandedExamId.value = null
+}
+
+// 展开/收起某场考试的题目
+const toggleExamExpand = (examId) => {
+  expandedExamId.value = expandedExamId.value === examId ? null : examId
+}
+
+// 辅助函数：考试类型名称
+const getExamTypeName = (type) => {
+  const map = { quiz: '小测验', midterm: '期中考试', final: '期末考试', homework: '作业', practice: '练习题' }
+  return map[type] || '练习'
+}
+
+// 辅助函数：考试类型标签颜色
+const getExamTypeTag = (type) => {
+  const map = { quiz: 'primary', midterm: 'warning', final: 'danger', homework: 'success', practice: 'info' }
+  return map[type] || 'primary'
+}
+
+// 辅助函数：题目类型名称
+const getExamQuestionTypeName = (type) => {
+  const map = { choice: '选择题', fill: '填空题', short: '简答题', coding: '编程题', essay: '论述题' }
+  return map[type] || '题目'
 }
 
 // 关闭资源模态框
@@ -1776,6 +1925,185 @@ onMounted(() => {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
   background: linear-gradient(135deg, #1e7e34, #17a2b8);
+}
+
+/* 练习测试弹框 */
+.exam-modal-content {
+  max-width: 860px !important;
+}
+
+.exam-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.exam-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fafafa;
+  transition: box-shadow 0.2s;
+}
+
+.exam-item:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.exam-item-header {
+  padding: 16px 20px;
+  background: white;
+  border-radius: 14px;
+  user-select: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.start-exam-btn {
+  flex-shrink: 0;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+}
+
+.start-exam-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(102, 126, 234, 0.45);
+}
+
+.exam-item-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exam-expand-icon {
+  color: #667eea;
+  font-size: 12px;
+}
+
+.exam-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.exam-tag {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.exam-tag-type { background: #e0e7ff; color: #3730a3; }
+.exam-tag-score { background: #dcfce7; color: #166534; }
+.exam-tag-duration { background: #fef3c7; color: #92400e; }
+.exam-tag-count { background: #f3f4f6; color: #374151; }
+
+.exam-item-desc {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.exam-questions-list {
+  padding: 12px 20px 16px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.exam-question-item {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.q-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.q-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.q-type-badge {
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.q-score {
+  font-size: 12px;
+  color: #059669;
+  font-weight: 600;
+}
+
+.q-difficulty {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.diff-easy { background: #dcfce7; color: #166534; }
+.diff-medium { background: #fef3c7; color: #92400e; }
+.diff-hard { background: #fee2e2; color: #991b1b; }
+
+.q-content {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.q-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.q-option {
+  font-size: 13px;
+  color: #4b5563;
+  display: flex;
+  gap: 6px;
+}
+
+.opt-key {
+  font-weight: 700;
+  color: #667eea;
+  min-width: 20px;
 }
 
 /* 文档预览模态框样式 */

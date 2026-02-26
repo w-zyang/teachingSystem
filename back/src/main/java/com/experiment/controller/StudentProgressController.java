@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -30,12 +32,16 @@ public class StudentProgressController {
             @RequestBody Map<String, Object> progressData) {
         
         try {
-            // 获取当前进度
-            String sql = "SELECT progress, study_duration FROM student_progress WHERE student_id = ? AND course_id = ?";
-            Map<String, Object> current = jdbcTemplate.queryForMap(sql, studentId, courseId);
+            // 获取当前进度（使用 LIMIT 1 避免多条记录报错）
+            String sql = "SELECT progress, study_duration FROM student_progress WHERE student_id = ? AND course_id = ? LIMIT 1";
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, studentId, courseId);
+            if (rows.isEmpty()) {
+                return Result.error("未找到该学生的课程进度记录");
+            }
+            Map<String, Object> current = rows.get(0);
             
-            int currentProgress = (Integer) current.get("progress");
-            int currentDuration = (Integer) current.get("study_duration");
+            int currentProgress = current.get("progress") != null ? ((Number) current.get("progress")).intValue() : 0;
+            int currentDuration = current.get("study_duration") != null ? ((Number) current.get("study_duration")).intValue() : 0;
             
             // 计算新进度
             Integer increment = (Integer) progressData.get("increment");
@@ -91,8 +97,8 @@ public class StudentProgressController {
                 String updateSql = "UPDATE student_progress SET progress = LEAST(100, progress + ?), study_duration = study_duration + 5, update_time = NOW() WHERE student_id = ? AND course_id = ?";
                 jdbcTemplate.update(updateSql, progressIncrement, studentId, courseId);
                 
-                // 获取更新后的进度信息
-                String getProgressSql = "SELECT progress FROM student_progress WHERE student_id = ? AND course_id = ?";
+                // 获取更新后的进度信息（LIMIT 1 避免多条记录报错）
+                String getProgressSql = "SELECT progress FROM student_progress WHERE student_id = ? AND course_id = ? LIMIT 1";
                 Integer currentProgress = jdbcTemplate.queryForObject(getProgressSql, Integer.class, studentId, courseId);
                 log.info("查询到的当前进度: {}", currentProgress);
                 
@@ -147,8 +153,8 @@ public class StudentProgressController {
                             studentId, resourceId, viewCount + 1, minutesSinceLastView);
                 }
                 
-                // 无论是否更新，都返回当前进度信息
-                String getProgressSql = "SELECT progress FROM student_progress WHERE student_id = ? AND course_id = ?";
+                // 无论是否更新，都返回当前进度信息（LIMIT 1 避免多条记录报错）
+                String getProgressSql = "SELECT progress FROM student_progress WHERE student_id = ? AND course_id = ? LIMIT 1";
                 Integer currentProgress = jdbcTemplate.queryForObject(getProgressSql, Integer.class, studentId, courseId);
                 
                 String countResourcesSql = "SELECT COUNT(*) FROM course_resource WHERE course_id = ? AND status = 'published'";
@@ -212,9 +218,20 @@ public class StudentProgressController {
             @PathVariable Long courseId) {
         
         try {
-            String sql = "SELECT * FROM student_progress WHERE student_id = ? AND course_id = ?";
-            Map<String, Object> progress = jdbcTemplate.queryForMap(sql, studentId, courseId);
-            return Result.success("获取进度成功", progress);
+            // 使用 queryForList + LIMIT 1，避免 0 条或多条记录时抛出异常
+            String sql = "SELECT * FROM student_progress WHERE student_id = ? AND course_id = ? LIMIT 1";
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, studentId, courseId);
+            if (rows.isEmpty()) {
+                // 没有进度记录，返回默认值而非报错
+                Map<String, Object> defaultProgress = new HashMap<>();
+                defaultProgress.put("student_id", studentId);
+                defaultProgress.put("course_id", courseId);
+                defaultProgress.put("progress", 0);
+                defaultProgress.put("study_duration", 0);
+                defaultProgress.put("status", "not_started");
+                return Result.success("获取进度成功", defaultProgress);
+            }
+            return Result.success("获取进度成功", rows.get(0));
         } catch (Exception e) {
             log.error("获取进度失败", e);
             return Result.error("获取进度失败: " + e.getMessage());

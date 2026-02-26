@@ -16,188 +16,102 @@
         </div>
       </el-card>
 
-      <!-- 教师发布的考试列表 -->
-      <el-card v-if="teacherExams.length > 0" class="exams-card">
+      <!-- 自主练习：章节选择 + AI 生成 -->
+      <el-card class="self-practice-card">
         <template #header>
           <div class="card-header">
-            <h3>教师发布的练习测试</h3>
-            <el-tag type="success">{{ teacherExams.length }} 个可用测试</el-tag>
+            <h3>📖 自主练习</h3>
+            <el-tag type="success">AI 智能出题</el-tag>
           </div>
         </template>
-        
-        <div class="exams-grid">
-          <div 
-            v-for="exam in teacherExams" 
-            :key="exam.id"
-            class="exam-card"
-            @click="selectExam(exam)"
-          >
-            <div class="exam-header">
-              <h4>{{ exam.name }}</h4>
-              <div class="exam-tags">
-                <el-tag :type="getExamTypeTag(exam.type)">{{ getExamTypeName(exam.type) }}</el-tag>
-                <el-tag type="info" size="small">教师出题</el-tag>
-              </div>
-            </div>
-            <div class="exam-info">
-              <div class="info-item">
-                <i class="el-icon-time"></i>
-                <span>{{ exam.duration }}分钟</span>
-              </div>
-              <div class="info-item">
-                <i class="el-icon-trophy"></i>
-                <span>{{ exam.totalScore }}分</span>
-              </div>
-              <div class="info-item">
-                <i class="el-icon-document"></i>
-                <span>{{ exam.questions ? exam.questions.length : '未知' }}题</span>
-              </div>
-            </div>
-            <div class="exam-description">
-              <p>{{ exam.description || '暂无描述' }}</p>
-            </div>
-            <div class="exam-actions">
-              <el-button type="primary" @click.stop="startExam(exam)">
-                开始测试
-              </el-button>
-              <el-button @click.stop="previewExam(exam)">
-                预览题目
-              </el-button>
-            </div>
-          </div>
-        </div>
-      </el-card>
 
-      <!-- AI智能练习（备选方案） -->
-      <el-card class="practice-card">
-        <template #header>
-          <div class="card-header">
-            <h3>AI练习评测助手</h3>
-            <el-tag type="warning">智能练习</el-tag>
-          </div>
-        </template>
-        
-        <!-- 练习设置 -->
-        <div class="practice-settings">
-          <h3>练习设置</h3>
-          <el-form :model="practiceForm" label-width="120px" class="practice-form">
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="学科类型">
-                  <el-input 
-                    v-model="selectedSubjectLabel" 
-                    placeholder="点击选择学科类型" 
-                    readonly
-                    @click="showSubjectDialog = true"
-                    style="cursor: pointer;"
-                  >
-                    <template #suffix>
-                      <i class="el-icon-arrow-down"></i>
-                    </template>
-                  </el-input>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="难度等级">
-                  <el-select v-model="practiceForm.difficulty" placeholder="请选择难度">
-                    <el-option label="初级" value="beginner" />
-                    <el-option label="中级" value="intermediate" />
-                    <el-option label="高级" value="advanced" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-            </el-row>
-            
-            <!-- 新增：题目类型选择 -->
-            <el-row :gutter="20">
-              <el-col :span="24">
-                <el-form-item label="题目类型">
-                  <el-checkbox-group v-model="practiceForm.questionTypes">
-                    <el-checkbox label="choice">选择题</el-checkbox>
-                    <el-checkbox label="fill">填空题</el-checkbox>
-                    <el-checkbox label="short">简答题</el-checkbox>
-                    <el-checkbox label="coding">编程题</el-checkbox>
-                    <el-checkbox label="essay">论述题</el-checkbox>
-                  </el-checkbox-group>
-                </el-form-item>
-              </el-col>
-            </el-row>
-            
-            <!-- 新增：各类型题目数量设置 -->
-            <el-row :gutter="20" v-if="practiceForm.questionTypes.length > 0">
-              <el-col :span="24">
-                <el-form-item label="题目数量分配">
-                  <div class="question-type-config">
-                    <div v-for="type in practiceForm.questionTypes" :key="type" class="type-config-item">
-                      <span class="type-name">{{ getQuestionTypeName(type) }}</span>
-                      <el-input-number 
-                        v-model="practiceForm.typeConfig[type]" 
-                        :min="1" 
-                        :max="10"
-                        size="small"
-                      />
-                    </div>
-                  </div>
-                </el-form-item>
-              </el-col>
-            </el-row>
-            
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="总题目数量">
-                  <el-input-number v-model="totalQuestionCount" :min="1" :max="50" disabled />
-                  <div class="question-count-tips">
-                    <el-tag size="small" type="success">自动计算：各题型数量之和</el-tag>
-                    <el-tag size="small" type="info">建议：5-20题适合单次练习</el-tag>
-                  </div>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="练习时长">
-                  <el-input-number v-model="practiceForm.timeLimit" :min="5" :max="120" />
-                  <span class="unit">分钟</span>
-                </el-form-item>
-              </el-col>
-            </el-row>
-            
-            <el-form-item label="知识点">
+        <div class="self-practice-body">
+          <p class="self-practice-tips">选择你想练习的章节或主题，AI 将为你自动生成对应的练习题目。</p>
+
+          <el-form label-width="120px" class="chapter-form">
+            <!-- 章节/主题选择 -->
+            <el-form-item label="练习章节/主题">
+              <el-input
+                v-model="selectedSubjectLabel"
+                placeholder="点击选择章节或学科主题"
+                readonly
+                @click="showSubjectDialog = true"
+                style="cursor: pointer; max-width: 400px;"
+              >
+                <template #suffix>
+                  <el-icon style="cursor:pointer"><ArrowDown /></el-icon>
+                </template>
+              </el-input>
+            </el-form-item>
+
+            <!-- 具体知识点（可选） -->
+            <el-form-item label="具体知识点">
               <el-input
                 v-model="practiceForm.topics"
-                placeholder="请输入想要练习的知识点，用逗号分隔..."
+                placeholder="（可选）例如：递归、二叉树遍历…"
+                clearable
+                style="max-width: 400px;"
               />
             </el-form-item>
-            
-            <el-form-item label="特殊要求">
-              <el-input
-                v-model="practiceForm.requirements"
-                type="textarea"
-                :rows="3"
-                placeholder="请输入特殊练习要求..."
-              />
+
+            <!-- 难度 -->
+            <el-form-item label="难度等级">
+              <el-radio-group v-model="practiceForm.difficulty">
+                <el-radio-button label="beginner">初级</el-radio-button>
+                <el-radio-button label="intermediate">中级</el-radio-button>
+                <el-radio-button label="advanced">高级</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+
+            <!-- 题目类型 -->
+            <el-form-item label="题目类型">
+              <el-checkbox-group v-model="practiceForm.questionTypes">
+                <el-checkbox label="choice">选择题</el-checkbox>
+                <el-checkbox label="fill">填空题</el-checkbox>
+                <el-checkbox label="short">简答题</el-checkbox>
+                <el-checkbox label="coding">编程题</el-checkbox>
+                <el-checkbox label="essay">论述题</el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+
+            <!-- 各类型题数 -->
+            <el-form-item v-if="practiceForm.questionTypes.length > 0" label="题目数量分配">
+              <div class="type-count-row">
+                <div
+                  v-for="type in practiceForm.questionTypes"
+                  :key="type"
+                  class="type-count-item"
+                >
+                  <span>{{ getQuestionTypeName(type) }}</span>
+                  <el-input-number
+                    v-model="practiceForm.typeConfig[type]"
+                    :min="1"
+                    :max="10"
+                    size="small"
+                    style="width:110px"
+                  />
+                </div>
+              </div>
             </el-form-item>
           </el-form>
-        </div>
-        
-        <!-- 生成练习按钮 -->
-        <div class="generate-actions">
-          <el-button 
-            type="primary" 
-            size="large"
-            @click="generatePractice"
-            :loading="generating"
-            :disabled="!canGenerate"
-          >
-            <el-icon v-if="!generating"><Edit /></el-icon>
-            <el-icon v-else><Loading /></el-icon>
-            {{ generating ? 'AI正在生成题目，请耐心等待...' : '生成练习题目' }}
-          </el-button>
-          <el-button @click="resetForm">重置设置</el-button>
-          <el-button type="info" @click="testBackend">测试后端连接</el-button>
-          <el-button type="warning" @click="healthCheck">健康检查</el-button>
-        </div>
-        
 
+          <div class="chapter-actions">
+            <el-button
+              type="primary"
+              size="large"
+              :loading="generating"
+              :disabled="!canGenerate"
+              @click="generatePractice"
+            >
+              <el-icon v-if="!generating"><Edit /></el-icon>
+              <el-icon v-else><Loading /></el-icon>
+              {{ generating ? 'AI 正在生成题目…' : '生成练习题目' }}
+            </el-button>
+            <span v-if="!canGenerate" class="generate-hint">请先选择练习章节/主题</span>
+          </div>
+        </div>
       </el-card>
+
     </div>
     
     <!-- 练习页面 -->
@@ -469,10 +383,10 @@
       </el-card>
     </div>
     
-    <!-- 学科选择弹窗 -->
+    <!-- 章节/主题选择弹窗 -->
     <el-dialog 
       v-model="showSubjectDialog" 
-      title="选择学科类型" 
+      title="选择练习章节 / 主题" 
       width="70%"
       :close-on-click-modal="false"
     >
@@ -522,6 +436,17 @@
       :steps="generatingSteps"
       :message="generatingStatus"
       tip="💡 提示：生成时间取决于题目数量和复杂度，通常需要30秒-2分钟"
+    />
+
+    <!-- AI批改进度条弹窗 -->
+    <AIGenerationProgress
+      :visible="grading"
+      title="AI 正在批改练习"
+      :progress="gradingProgress"
+      :current-step="currentGradingStep"
+      :steps="gradingSteps"
+      :message="gradingStatus"
+      tip="💡 提示：AI正在逐题分析你的答案，请稍候..."
     />
 
     <!-- 结果页面 -->
@@ -639,7 +564,7 @@
 import { ref, reactive, computed, onUnmounted, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit, Loading, CaretRight } from '@element-plus/icons-vue'
+import { Edit, Loading, CaretRight, ArrowDown } from '@element-plus/icons-vue'
 import { aiAPI } from '@/api/ai'
 import { getPublishedExamsByCourseId, getExamById } from '@/api/exam'
 import { batchRecordErrorQuestions } from '@/api/errorQuestions'
@@ -653,6 +578,7 @@ export default {
     Edit,
     Loading,
     CaretRight,
+    ArrowDown,
     CodeEditor,
     AIGenerationProgress
   },
@@ -694,6 +620,18 @@ export default {
       { title: '连接AI服务', desc: '正在连接AI服务并发送请求...' },
       { title: '生成题目', desc: 'AI正在生成题目，请耐心等待...' },
       { title: '完成', desc: '题目生成完成！' }
+    ])
+
+    // AI批改进度相关
+    const grading = ref(false)
+    const gradingProgress = ref(0)
+    const gradingStatus = ref('')
+    const currentGradingStep = ref(0)
+    const gradingSteps = ref([
+      { title: '整理答案', desc: '正在整理您的作答数据...' },
+      { title: '连接AI服务', desc: '正在连接AI批改服务...' },
+      { title: 'AI批改中', desc: 'AI正在逐题分析您的答案，请耐心等待...' },
+      { title: '完成', desc: '批改完成，正在生成报告！' }
     ])
     const practiceQuestions = ref([])
     const practiceStarted = ref(false)
@@ -1250,7 +1188,17 @@ export default {
     
     // 执行提交练习
     const doSubmitPractice = async () => {
+      // 显示批改进度弹框
+      grading.value = true
+      gradingProgress.value = 0
+      currentGradingStep.value = 0
+      gradingStatus.value = '正在整理您的作答数据...'
+
       try {
+        // 步骤1：整理答案
+        gradingProgress.value = 10
+        await new Promise(resolve => setTimeout(resolve, 300))
+
         // 处理多题型答案
         const answers = practiceQuestions.value.map((q, idx) => {
           if (q.type === 'fill' && Array.isArray(userAnswers.value[idx])) {
@@ -1264,8 +1212,26 @@ export default {
           topic: practiceForm.subject,
           timeUsed: Math.round((practiceForm.timeLimit * 60 - remainingTime.value) / 60)
         }
+
+        // 步骤2：连接AI服务
+        currentGradingStep.value = 1
+        gradingProgress.value = 25
+        gradingStatus.value = '正在连接AI批改服务...'
+        await new Promise(resolve => setTimeout(resolve, 400))
+
+        // 步骤3：AI批改中（模拟进度增长）
+        currentGradingStep.value = 2
+        gradingProgress.value = 40
+        gradingStatus.value = 'AI正在逐题分析您的答案，请耐心等待...'
+        const progressInterval = setInterval(() => {
+          if (gradingProgress.value < 85) {
+            gradingProgress.value += Math.random() * 4
+          }
+        }, 600)
+
         console.log('发送练习评测请求:', requestData)
         const response = await aiAPI.practiceEvaluation(requestData)
+        clearInterval(progressInterval)
         console.log('收到练习评测响应:', response)
         if (response.success === true && response.data) {
           practiceResult.value = response.data
@@ -1316,6 +1282,13 @@ export default {
           savePracticeData() // 保存结果
           ElMessage.success('练习评测完成！')
           
+          // 步骤4：完成
+          currentGradingStep.value = 3
+          gradingProgress.value = 100
+          gradingStatus.value = '批改完成，正在生成报告！'
+          await new Promise(resolve => setTimeout(resolve, 600))
+          grading.value = false
+
           // 切换到结果页面
           currentPage.value = 'result'
           
@@ -1325,6 +1298,7 @@ export default {
           throw new Error(response.msg || '评测失败：响应格式错误')
         }
       } catch (error) {
+        grading.value = false
         console.error('练习评测失败:', error)
         
         // 如果后端评测失败，使用前端简单评测作为备选
@@ -1439,6 +1413,14 @@ export default {
         await recordErrorQuestions(analysis)
         
         savePracticeData() // 保存结果
+
+        // 关闭批改进度框（兜底评测也走完整进度）
+        currentGradingStep.value = 3
+        gradingProgress.value = 100
+        gradingStatus.value = '批改完成，正在生成报告！'
+        await new Promise(resolve => setTimeout(resolve, 600))
+        grading.value = false
+
         ElMessage.success('练习提交成功！')
         
         // 切换到结果页面
@@ -2312,18 +2294,26 @@ export default {
         currentIndex: currentQuestionIndex.value,
         remainingTime: remainingTime.value,
         selectedExam: selectedExam.value,
+        // 标记本次练习来源：teacher = 老师布置，self = 自主练习
+        isTeacherExam: !!selectedExam.value,
         timestamp: Date.now()
       }
       localStorage.setItem('practiceData', JSON.stringify(practiceData))
       console.log('练习数据已保存到 LocalStorage')
     }
     
-    // 从 LocalStorage 恢复练习数据
+    // 从 LocalStorage 恢复练习数据（仅恢复自主练习数据，不恢复老师考试数据）
     const restorePracticeData = () => {
       try {
         const savedData = localStorage.getItem('practiceData')
         if (savedData) {
           const practiceData = JSON.parse(savedData)
+
+          // 若保存的是老师布置的考试数据，跳过恢复（老师考试通过 examId 重新加载）
+          if (practiceData.isTeacherExam) {
+            console.log('检测到老师考试缓存，自主练习模式下跳过恢复')
+            return
+          }
           
           // 恢复数据
           if (practiceData.questions && practiceData.questions.length > 0) {
@@ -2379,14 +2369,27 @@ export default {
     }
     
     // 页面挂载时获取数据
-    onMounted(() => {
+    onMounted(async () => {
       console.log('页面挂载，课程信息:', courseInfo)
-      
-      // 恢复之前的练习数据
-      restorePracticeData()
-      
-      if (courseInfo.courseId) {
-        fetchTeacherExams()
+
+      const examId = route.query.examId
+
+      if (examId) {
+        // ── 老师布置的考试模式 ──
+        // 清除任何旧缓存（无论来源），全新加载本场考试
+        clearPracticeData()
+        try {
+          const resp = await getExamById(examId)
+          if (resp && resp.success && resp.data) {
+            startExam(resp.data)
+          }
+        } catch (e) {
+          console.error('加载指定考试失败:', e)
+        }
+      } else {
+        // ── 自主练习模式 ──
+        // 只恢复"自主练习"的缓存，老师考试缓存会被 restorePracticeData 内部过滤掉
+        restorePracticeData()
       }
     })
     
@@ -2418,6 +2421,12 @@ export default {
       currentGeneratingStep,
       generatingSteps,
       generatingStatus,
+      // 批改进度相关
+      grading,
+      gradingProgress,
+      currentGradingStep,
+      gradingSteps,
+      gradingStatus,
       practiceQuestions,
       practiceStarted,
       currentQuestionIndex,
@@ -2524,6 +2533,56 @@ export default {
   padding: 10px 0;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.9);
+}
+
+/* 自主练习卡片 */
+.self-practice-card {
+  margin-bottom: 20px;
+}
+
+.self-practice-body {
+  padding: 4px 0;
+}
+
+.self-practice-tips {
+  margin: 0 0 20px 0;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 12px 16px;
+  background: #f0f4ff;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.chapter-form {
+  margin-bottom: 16px;
+}
+
+.type-count-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.type-count-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.chapter-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.generate-hint {
+  font-size: 13px;
+  color: #9ca3af;
 }
 
 /* 考试列表样式 */
