@@ -414,7 +414,7 @@
  
       
         
-        <el-col :xs="24" :sm="24" :md="24">
+        <el-col v-if="!showHistoryView" :xs="24" :sm="24" :md="24">
           <el-card class="config-card" v-if="currentQuestion">
             <template #header>
               <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -2321,6 +2321,7 @@ const formatQuestionContent = (content) => {
   const lines = content.split('\n')
   let currentSection = ''
   let sectionContent = []
+  let hasNamedSection = false // 标记是否识别出带标题的分段
   
   const sectionIcons = {
     '【题目】': '📝',
@@ -2345,10 +2346,12 @@ const formatQuestionContent = (content) => {
   }
   
   const flushSection = () => {
-    if (currentSection && sectionContent.length > 0) {
-      const icon = sectionIcons[currentSection] || '▪️'
+    if (sectionContent.length > 0) {
+      // 如果没有显式的章节标题（例如只有一行简短题干），使用“题目”作为默认标题
+      const title = currentSection || '题目'
+      const icon = sectionIcons[title] || '▪️'
       html += `<div class="section">
-        <h4 class="section-title">${icon} ${currentSection}</h4>
+        <h4 class="section-title">${icon} ${title}</h4>
         <div class="section-content">${sectionContent.join('<br>')}</div>
       </div>`
       sectionContent = []
@@ -2368,12 +2371,13 @@ const formatQuestionContent = (content) => {
       if (line.includes(sectionName + '：') || line.includes(sectionName + ':') || line === sectionName || line.startsWith(sectionName)) {
         flushSection()
         currentSection = sectionName.replace(/[【】]/g, '')
-        isSection = true
+        hasNamedSection = true
         // 如果标题后面还有内容，添加到section中
         const afterColon = line.split(/[：:]/)[1]
         if (afterColon && afterColon.trim()) {
           sectionContent.push(escapeHtml(afterColon.trim()))
         }
+        isSection = true
         break
       }
     }
@@ -2393,7 +2397,20 @@ const formatQuestionContent = (content) => {
     }
   }
   
-  flushSection()
+  // 如果完全没有识别出任何带标题的分段，而只是一些普通文本，
+  // 前面的逻辑会把这些文本都放在 sectionContent 中，此时统一作为“题目”段落输出。
+  if (sectionContent.length > 0) {
+    flushSection()
+  } else if (!hasNamedSection) {
+    // 兜底：万一上面的逻辑没有生效，至少按原始文本逐行展示，避免出现空白
+    const plain = lines
+      .map((line) => line.trim())
+      .filter((line) => !!line)
+      .map((line) => escapeHtml(line))
+      .join('<br>')
+    html += plain
+  }
+  
   html += '</div>'
   
   return html
@@ -2467,6 +2484,11 @@ const editExam = (exam) => {
     totalScore: exam.totalScore
   }
   selectedCourseId.value = exam.courseId
+  
+  // 从历史考核编辑时，切换回生成/编辑界面第三步
+  showHistoryView.value = false
+  wizardStep.value = 3
+  currentQuestionIndex.value = 0
   
   // 获取考试详情并转换为生成格式
   fetchExamById(exam.id).then(examDetails => {

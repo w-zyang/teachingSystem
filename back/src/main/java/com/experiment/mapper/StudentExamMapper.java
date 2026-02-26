@@ -29,6 +29,9 @@ public interface StudentExamMapper {
     // 删除学生考试记录
     int deleteById(@Param("id") Long id);
     
+    // 根据考试ID删除该考试下所有学生考试记录
+    int deleteByExamId(@Param("examId") Long examId);
+    
     // 统计学生考试平均分
     Double selectAverageScoreByStudent(@Param("studentId") Long studentId);
     
