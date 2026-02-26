@@ -2592,7 +2592,7 @@ onMounted(async () => {
   if (!hasCachedExam) {
     // 没有缓存，正常加载数据
     await fetchTeacherCourses()
-    await fetchExamList()
+    await fetchTeacherExams()
   }
   
   // 🔧 启动缓存过期检查（每分钟检查一次）
