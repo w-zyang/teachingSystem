@@ -12,6 +12,7 @@ import com.experiment.mapper.ExamMapper;
 import com.experiment.mapper.QuestionMapper;
 import com.experiment.mapper.QuestionOptionMapper;
 import com.experiment.mapper.StudentExamMapper;
+import com.experiment.mapper.StudentAnswerMapper;
 import com.experiment.mapper.UserMapper;
 import com.experiment.pojo.Exam;
 import com.experiment.pojo.Question;
@@ -35,6 +36,9 @@ public class ExamServiceImpl implements ExamService {
     
     @Autowired
     private StudentExamMapper studentExamMapper;
+    
+    @Autowired
+    private StudentAnswerMapper studentAnswerMapper;
     
     @Autowired
     private UserMapper userMapper;
@@ -112,9 +116,30 @@ public class ExamServiceImpl implements ExamService {
     @Override
     @Transactional
     public boolean deleteExam(Long id) {
-        // 先删除题目
+        // 先删除与该考试关联的学生作答记录（学生答案 -> 学生考试 -> 题目 -> 考试）
+        // 1) 查询该考试下的所有学生考试记录
+        List<StudentExam> studentExams = studentExamMapper.selectByExamId(id);
+        if (studentExams != null && !studentExams.isEmpty()) {
+            for (StudentExam se : studentExams) {
+                // 先删学生答案（外键依赖 student_exam）
+                studentAnswerMapper.deleteByStudentExamId(se.getId());
+            }
+            // 再删学生考试记录
+            studentExamMapper.deleteByExamId(id);
+        }
+        
+        // 2) 删除该考试下题目的选项，再删除题目本身
+        List<Question> questions = questionMapper.selectByExamId(id);
+        if (questions != null && !questions.isEmpty()) {
+            for (Question q : questions) {
+                // 先删该题目的所有选项（外键依赖 question）
+                questionOptionMapper.deleteByQuestionId(q.getId());
+            }
+        }
+        // 再删题目
         questionMapper.deleteByExamId(id);
-        // 再删除考试
+        
+        // 3) 最后删除考试本身
         return examMapper.deleteById(id) > 0;
     }
     

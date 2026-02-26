@@ -50,6 +50,11 @@
         DELETE FROM student_exam WHERE id = #{id}
     </delete>
     
+    <!-- 根据考试ID删除学生考试记录 -->
+    <delete id="deleteByExamId">
+        DELETE FROM student_exam WHERE exam_id = #{examId}
+    </delete>
+    
     <select id="selectAverageScoreByStudent" resultType="java.lang.Double">
         SELECT AVG(score) FROM student_exam WHERE student_id = #{studentId} AND score IS NOT NULL
     </select>
