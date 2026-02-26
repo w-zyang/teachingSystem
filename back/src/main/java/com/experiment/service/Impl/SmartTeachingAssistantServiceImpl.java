@@ -17,11 +17,9 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.Arrays;
 
 /**
  * 智能备课助手服务实现类（精简版 - 避免功能冲突）
@@ -134,64 +132,7 @@ public class SmartTeachingAssistantServiceImpl implements SmartTeachingAssistant
         result.put("updateRequirements", record.getUpdateRequirements());
         result.put("suggestions", record.getAiSuggestions());
 
-        // 将原始PPT每页渲染为图片，供前端直接展示
-        if (record.getOriginalFileUrl() != null && !record.getOriginalFileUrl().isEmpty()) {
-            try {
-                // 图片保存目录：{projectRoot}/uploads/ppt-slides/{updateId}/
-                String projectRoot = System.getProperty("user.dir");
-                String slideDir = projectRoot + File.separator + "uploads"
-                        + File.separator + "ppt-slides"
-                        + File.separator + updateId;
-
-                File slideFolder = new File(slideDir);
-                List<String> imageUrls = new ArrayList<>();
-
-                // 若图片已生成则直接复用，否则重新渲染
-                if (slideFolder.exists()) {
-                    File[] pngs = slideFolder.listFiles((d, n) -> n.startsWith("slide_") && n.endsWith(".png"));
-                    if (pngs != null && pngs.length > 0) {
-                        // 按 slide_N.png 顺序排序
-                        Arrays.sort(pngs, (a, b) -> {
-                            int na = extractSlideNum(a.getName());
-                            int nb = extractSlideNum(b.getName());
-                            return Integer.compare(na, nb);
-                        });
-                        for (File f : pngs) {
-                            imageUrls.add("/uploads/ppt-slides/" + updateId + "/" + f.getName());
-                        }
-                        log.info("复用已有幻灯片图片，共 {} 张", imageUrls.size());
-                    }
-                }
-
-                if (imageUrls.isEmpty()) {
-                    log.info("开始渲染PPT幻灯片图片，updateId={}", updateId);
-                    List<String> fileNames = PPTDocumentReader.renderSlidesToImages(
-                            record.getOriginalFileUrl(), slideDir, 1.5f);
-                    for (String name : fileNames) {
-                        imageUrls.add("/uploads/ppt-slides/" + updateId + "/" + name);
-                    }
-                }
-
-                result.put("slideImages", imageUrls);
-            } catch (Exception e) {
-                log.warn("渲染PPT幻灯片图片失败，降级为文本: {}", e.getMessage());
-                result.put("slideImages", Collections.emptyList());
-            }
-        } else {
-            result.put("slideImages", Collections.emptyList());
-        }
-
         return result;
-    }
-
-    /** 从 slide_N.png 文件名中提取页码数字 */
-    private int extractSlideNum(String name) {
-        try {
-            String num = name.replace("slide_", "").replace(".png", "");
-            return Integer.parseInt(num);
-        } catch (Exception e) {
-            return 0;
-        }
     }
 
     @Override
