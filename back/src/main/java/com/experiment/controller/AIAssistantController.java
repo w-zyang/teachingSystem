@@ -135,4 +135,19 @@ public class AIAssistantController {
             return Result.error("查询PPT状态失败: " + e.getMessage());
         }
     }
+    
+    /**
+     * 带系统提示的AI对话（用于VR教室等场景）
+     */
+    @PostMapping("/chat-with-system")
+    public Result<String> chatWithSystem(@RequestParam String systemPrompt, @RequestParam String userMessage) {
+        log.info("收到带系统提示的AI对话请求");
+        try {
+            String response = assistantService.chatWithSystemPrompt(systemPrompt, userMessage);
+            return Result.success("AI回复成功", response);
+        } catch (Exception e) {
+            log.error("AI对话处理失败", e);
+            return Result.error("AI对话处理失败: " + e.getMessage());
+        }
+    }
 }

@@ -48,4 +48,12 @@ public interface AIAssistantService {
      * @return 思维导图结果
      */
     Map<String, Object> generateMindmap(Map<String, Object> data);
+    
+    /**
+     * 带系统提示的AI对话
+     * @param systemPrompt 系统提示
+     * @param userMessage 用户消息
+     * @return AI回复
+     */
+    String chatWithSystemPrompt(String systemPrompt, String userMessage);
 }
