@@ -19,7 +19,6 @@ import StudentAnalysis from '@/views/teacher/StudentAnalysis.vue'
 import ResourceManagement from '@/views/teacher/ResourceManagement.vue'
 import ClassroomSummary from '@/views/teacher/ClassroomSummary.vue'
 import TProfile from '@/views/teacher/TProfile.vue'
-import TeacherStudentDashboard from '@/views/teacher/StudentDashboard.vue'
 import SmartTeachingAssistant from '@/views/teacher/SmartTeachingAssistant.vue'
 
 // 学生侧页面
@@ -67,7 +66,7 @@ const routes = [
             { path: 'ai-course-design', name: 'ai-course-design', component: AICourseDesign },
             { path: 'exam-generation', name: 'exam-generation', component: ExamGeneration },
             { path: 'student-analysis', name: 'student-analysis', component: StudentAnalysis },
-            { path: 'student-dashboard', name: 'teacher-student-dashboard', component: TeacherStudentDashboard },
+            // 学生个人驾驶舱路由已移除: /teacher/student-dashboard
             { path: 'resource-management', name: 'teacher-resource', component: ResourceManagement },
             { path: 'classroom-summary', name: 'classroom-summary', component: ClassroomSummary },
             { path: 'smart-teaching', name: 'smart-teaching', component: SmartTeachingAssistant },

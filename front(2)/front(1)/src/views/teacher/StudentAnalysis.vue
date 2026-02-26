@@ -41,45 +41,95 @@
               </div>
             </div>
             <div class="stats-grid">
+              <!-- 平均分：靶心图标 + 趋势对比 -->
               <div class="stat-item">
-                <div class="stat-icon">
-                  <img src="@/assets/balance.png" alt="平均分" class="icon-img">
+                <div class="stat-icon kpi-icon target-icon">
+                  <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" class="ring-outer" />
+                    <circle cx="12" cy="12" r="5" class="ring-inner" />
+                    <circle cx="12" cy="12" r="2" class="ring-center" />
+                    <line x1="12" y1="3" x2="12" y2="0.5" class="target-arrow" />
+                    <line x1="16.5" y1="7.5" x2="19" y2="5" class="target-arrow" />
+                  </svg>
                 </div>
                 <div class="stat-content">
-                  <div class="stat-value">{{ classStats.averageScore }}</div>
-                  <div class="stat-label">平均分</div>
+                  <div class="stat-main">
+                    <div class="stat-value">{{ classStats.averageScore }}</div>
+                    <div class="stat-label">平均分</div>
+                  </div>
+                  <div class="stat-trend" :class="getKpiTrendClass('averageScore')">
+                    <span class="trend-arrow">{{ getKpiTrendArrow('averageScore') }}</span>
+                    <span class="trend-text">较上次 {{ getKpiTrendText('averageScore') }}</span>
+                  </div>
                 </div>
               </div>
+
+              <!-- 及格率 -->
               <div class="stat-item">
-                <div class="stat-icon">
-                  <img src="@/assets/author.png" alt="及格率" class="icon-img">
+                <div class="stat-icon kpi-icon pass-icon">
+                  <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" class="ring-outer" />
+                    <polyline points="8,12 11,15 16,9" class="check-path" />
+                  </svg>
                 </div>
                 <div class="stat-content">
-                  <div class="stat-value">{{ classStats.passRate }}%</div>
-                  <div class="stat-label">及格率</div>
+                  <div class="stat-main">
+                    <div class="stat-value">{{ classStats.passRate }}%</div>
+                    <div class="stat-label">及格率</div>
+                  </div>
+                  <div class="stat-trend" :class="getKpiTrendClass('passRate')">
+                    <span class="trend-arrow">{{ getKpiTrendArrow('passRate') }}</span>
+                    <span class="trend-text">较上次 {{ getKpiTrendText('passRate') }}</span>
+                  </div>
                 </div>
               </div>
+
+              <!-- 优秀率 -->
               <div class="stat-item">
-                <div class="stat-icon">
-                  <img src="@/assets/category.png" alt="优秀率" class="icon-img">
+                <div class="stat-icon kpi-icon excellent-icon">
+                  <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+                    <path d="M12 3l2.4 4.86 5.36.78-3.88 3.78.92 5.34L12 15.9 7.2 17.76l.92-5.34L4.24 8.64l5.36-.78z" class="star-path" />
+                  </svg>
                 </div>
                 <div class="stat-content">
-                  <div class="stat-value">{{ classStats.excellentRate }}%</div>
-                  <div class="stat-label">优秀率</div>
+                  <div class="stat-main">
+                    <div class="stat-value">{{ classStats.excellentRate }}%</div>
+                    <div class="stat-label">优秀率</div>
+                  </div>
+                  <div class="stat-trend" :class="getKpiTrendClass('excellentRate')">
+                    <span class="trend-arrow">{{ getKpiTrendArrow('excellentRate') }}</span>
+                    <span class="trend-text">较上次 {{ getKpiTrendText('excellentRate') }}</span>
+                  </div>
                 </div>
               </div>
+
+              <!-- 参与率：多用户图标 + 趋势对比 -->
               <div class="stat-item">
-                <div class="stat-icon">
-                  <img src="@/assets/time.png" alt="参与率" class="icon-img">
+                <div class="stat-icon kpi-icon users-icon">
+                  <svg viewBox="0 0 24 24" class="icon-svg" aria-hidden="true">
+                    <!-- 前排用户 -->
+                    <circle cx="9" cy="9" r="3" class="user-head" />
+                    <path d="M5.5 15c0-2.2 1.6-4 3.5-4s3.5 1.8 3.5 4" class="user-body" />
+                    <!-- 后排用户 -->
+                    <circle cx="16" cy="8" r="2.6" class="user-head secondary" />
+                    <path d="M13.5 14c0-2 1.3-3.6 3-3.6s3 1.6 3 3.6" class="user-body secondary" />
+                  </svg>
                 </div>
                 <div class="stat-content">
-                  <div class="stat-value">{{ classStats.participationRate }}%</div>
-                  <div class="stat-label">参与率</div>
+                  <div class="stat-main">
+                    <div class="stat-value">{{ classStats.participationRate }}%</div>
+                    <div class="stat-label">参与率</div>
+                  </div>
+                  <div class="stat-trend" :class="getKpiTrendClass('participationRate')">
+                    <span class="trend-arrow">{{ getKpiTrendArrow('participationRate') }}</span>
+                    <span class="trend-text">较上次 {{ getKpiTrendText('participationRate') }}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
+          <!-- 成绩分布：直方图 + 正态分布曲线 -->
           <div class="analysis-card">
             <div class="card-header">
               <div class="header-left">
@@ -87,36 +137,78 @@
                 <h3>成绩分布</h3>
               </div>
             </div>
-            <div class="score-distribution">
-              <div v-for="range in scoreRanges" :key="range.label" class="score-range">
-                <div class="range-info">
-                  <span class="range-label">{{ range.label }}</span>
-                  <span class="range-count">{{ range.count }}人</span>
-                </div>
-                <div class="range-bar">
-                  <div class="range-fill" :style="{ width: range.percentage + '%' }"></div>
-                </div>
-                <div class="range-percentage">{{ range.percentage }}%</div>
+            <div class="score-chart-wrapper">
+              <div class="score-chart-legend">
+                <span class="legend-item">
+                  <span class="legend-bar"></span> 分数段人数直方图
+                </span>
+                <span class="legend-item">
+                  <span class="legend-line"></span> 拟合正态分布曲线
+                </span>
               </div>
+              <div ref="scoreChartRef" class="score-chart-container"></div>
             </div>
           </div>
 
-          <div class="analysis-card">
+          <!-- 全局知识图谱：信息安全体系（横向铺满一行） -->
+          <div class="analysis-card knowledge-graph-card">
             <div class="card-header">
               <div class="header-left">
                 <img src="@/assets/balance.png" alt="知识点掌握" class="card-icon">
-                <h3>知识点掌握情况</h3>
+                <h3>知识点掌握情况 · 全局知识图谱</h3>
               </div>
+              <button class="action-btn secondary">
+                <img src="@/assets/add.png" alt="智能生成" class="btn-icon">
+                ✨ 针对薄弱图谱节点，一键生成补救课件/练习卷
+              </button>
             </div>
-            <div class="knowledge-mastery">
-              <div v-for="point in knowledgeMastery" :key="point.name" class="mastery-item">
-                <div class="mastery-header">
-                  <img src="@/assets/category.png" alt="知识点" class="mastery-icon">
-                  <span class="mastery-name">{{ point.name }}</span>
-                  <span class="mastery-rate">{{ point.masteryRate }}%</span>
+            <div class="knowledge-graph-section">
+              <div ref="knowledgeGraphRef" class="knowledge-graph-container"></div>
+
+              <!-- 右侧抽屉：薄弱知识点详情 -->
+              <div class="knowledge-drawer" :class="{ open: Boolean(activeKnowledgeNode) }">
+                <div class="drawer-header">
+                  <div class="drawer-title">
+                    <span class="drawer-tag">薄弱知识点聚焦</span>
+                    <h4>{{ activeKnowledgeNode ? activeKnowledgeNode.name : '请选择图谱中的红色节点' }}</h4>
+                  </div>
+                  <button class="drawer-close" @click="activeKnowledgeNode = null">×</button>
                 </div>
-                <div class="mastery-bar">
-                  <div class="mastery-fill" :style="{ width: point.masteryRate + '%' }"></div>
+                <div v-if="activeKnowledgeNode" class="drawer-body">
+                  <div class="drawer-metric">
+                    <div class="metric-label">班级得分率</div>
+                    <div class="metric-value" :class="getNodeScoreClass(activeKnowledgeNode.scoreRate)">
+                      {{ activeKnowledgeNode.scoreRate }}%
+                    </div>
+                    <div class="metric-desc">
+                      节点大小代表考试权重，目前权重约 {{ activeKnowledgeNode.weight * 100 }}%，颜色越红表示风险越高。
+                    </div>
+                  </div>
+
+                  <div class="drawer-section">
+                    <div class="section-title">高频错题</div>
+                    <ul class="question-list">
+                      <li v-for="q in activeKnowledgeNode.highErrorQuestions" :key="q">
+                        第 {{ q }} 题
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div class="drawer-section">
+                    <div class="section-title">教学建议</div>
+                    <p class="section-text">
+                      建议围绕该知识点组织一次针对性讲评课，重点拆解易错步骤与概念混淆点，
+                      并结合真实错题展开板书推演。
+                    </p>
+                  </div>
+
+                  <button class="action-btn primary full-width">
+                    <img src="@/assets/add.png" alt="一键生成" class="btn-icon">
+                    ✨ 针对该知识点一键生成补救课件/练习卷
+                  </button>
+                </div>
+                <div v-else class="drawer-empty">
+                  点击图谱中的<span class="danger-text">红色节点</span>，查看班级共性错题与智能补救方案。
                 </div>
               </div>
             </div>
@@ -431,9 +523,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { getStudentStats, getGradeDistribution, getErrorTopics, getLearningTrend, getTeacherClassStats } from '@/api/stats'
 import { getCoursesByTeacherId } from '@/api/course'
+import * as echarts from 'echarts'
 
 // 响应式变量
 const activeTab = ref('overview')
@@ -455,8 +548,26 @@ const classStats = ref({
   participationRate: 0
 })
 
+// 上一次考试/上一周期的对比数据（当前阶段使用轻量 Mock，后续可接真实接口）
+const previousClassStats = ref({
+  averageScore: 72.1,
+  passRate: 83.2,
+  excellentRate: 18.4,
+  participationRate: 91.5
+})
+
 // 成绩分布
 const scoreRanges = ref([])
+
+// ECharts 实例引用
+const scoreChartRef = ref(null)
+const scoreChartInstance = ref(null)
+
+const knowledgeGraphRef = ref(null)
+const knowledgeGraphInstance = ref(null)
+
+// 当前选中的知识图谱节点（用于右侧抽屉）
+const activeKnowledgeNode = ref(null)
 
 // 知识点掌握情况
 const knowledgeMastery = ref([])
@@ -492,37 +603,50 @@ const fetchGradeDistribution = async () => {
     const res = await getGradeDistribution()
     if (res && res.data) {
       console.log('成绩分布:', res.data)
-      
-      // 定义分数段映射，按分数从高到低排序
+
+      // 定义分数段映射（按分数从高到低）
       const scoreRangeMap = {
-        'excellent': { label: '90-100分', order: 1 },
-        'good': { label: '80-89分', order: 2 },
-        'average': { label: '70-79分', order: 3 },
-        'below': { label: '60-69分', order: 4 },
-        'poor': { label: '60分以下', order: 5 }
+        excellent: { label: '90-100分', order: 1 },
+        good: { label: '80-89分', order: 2 },
+        average: { label: '70-79分', order: 3 },
+        below: { label: '60-69分', order: 4 },
+        poor: { label: '60分以下', order: 5 }
       }
-      
-      // 转换数据格式并排序
-      scoreRanges.value = Object.entries(res.data)
-        .filter(([key]) => scoreRangeMap[key]) // 只处理已定义的分数段
-        .map(([key, percentage]) => ({
-          label: scoreRangeMap[key].label,
-          percentage: Math.round(percentage * 10) / 10, // 保留一位小数
-          count: Math.round(percentage * 31 / 100), // 根据实际考试人数计算，估算为31人
-          order: scoreRangeMap[key].order
-        }))
-        .sort((a, b) => a.order - b.order) // 按分数从高到低排序
+
+      // 后端返回的是各分数段“人数”，在前端统一按真实总人数计算百分比
+      const entries = Object.entries(res.data).filter(([key]) => scoreRangeMap[key])
+      const total = entries.reduce((sum, [, count]) => sum + (Number(count) || 0), 0)
+
+      scoreRanges.value = entries
+        .map(([key, count]) => {
+          const numericCount = Number(count) || 0
+          const percent = total === 0 ? 0 : (numericCount / total) * 100
+          return {
+            key,
+            label: scoreRangeMap[key].label,
+            percentage: Math.round(percent * 10) / 10, // 百分比保留一位小数
+            count: numericCount,
+            order: scoreRangeMap[key].order
+          }
+        })
+        .sort((a, b) => a.order - b.order)
     }
   } catch (error) {
     console.error('获取成绩分布失败:', error)
     // 使用默认数据
-    scoreRanges.value = [
-      { label: '90-100分', percentage: 15, count: 5, order: 1 },
-      { label: '80-89分', percentage: 25, count: 8, order: 2 },
-      { label: '70-79分', percentage: 30, count: 9, order: 3 },
-      { label: '60-69分', percentage: 20, count: 6, order: 4 },
-      { label: '60分以下', percentage: 10, count: 3, order: 5 }
+    // 兜底 Mock：仍然保证“人数 -> 百分比”的数学一致性
+    const mockCounts = [
+      { label: '90-100分', count: 5, order: 1 },
+      { label: '80-89分', count: 8, order: 2 },
+      { label: '70-79分', count: 9, order: 3 },
+      { label: '60-69分', count: 6, order: 4 },
+      { label: '60分以下', count: 3, order: 5 }
     ]
+    const total = mockCounts.reduce((sum, item) => sum + item.count, 0)
+    scoreRanges.value = mockCounts.map(item => ({
+      ...item,
+      percentage: total === 0 ? 0 : Math.round((item.count / total) * 1000) / 10
+    }))
   }
 }
 
@@ -547,6 +671,349 @@ const fetchErrorTopics = async () => {
       { name: '综合运用', masteryRate: 55 }
     ]
   }
+}
+
+// ========== 成绩分布直方图 + 正态分布曲线 ==========
+
+// 计算并渲染成绩分布图
+const renderScoreChart = () => {
+  if (!scoreChartRef.value) return
+
+  if (!scoreChartInstance.value) {
+    scoreChartInstance.value = echarts.init(scoreChartRef.value)
+  }
+
+  const chart = scoreChartInstance.value
+
+  // 固定的 X 轴顺序
+  const xLabels = ['60分以下', '60-69分', '70-79分', '80-89分', '90-100分']
+  const midPoints = [50, 65, 75, 85, 95]
+
+  // 按标签对齐成绩分布数据
+  const counts = []
+  const percents = []
+  xLabels.forEach(label => {
+    const item = scoreRanges.value.find(r => r.label === label)
+    counts.push(item ? item.count : 0)
+    percents.push(item ? item.percentage : 0)
+  })
+
+  const totalCount = counts.reduce((s, v) => s + v, 0)
+  const maxCount = Math.max(...counts, 0)
+
+  // 计算均值和标准差，用于拟合“钟形曲线”
+  let mean = 0
+  let variance = 0
+  if (totalCount > 0) {
+    const weightedSum = midPoints.reduce((s, x, i) => s + x * counts[i], 0)
+    mean = weightedSum / totalCount
+    const weightedVar = midPoints.reduce((s, x, i) => s + counts[i] * Math.pow(x - mean, 2), 0)
+    variance = weightedVar / totalCount
+  }
+  const std = variance > 0 ? Math.sqrt(variance) : 10
+
+  // 生成拟合正态分布曲线，使其峰值与直方图高度在同一量纲
+  const normalValues = midPoints.map(x => {
+    const exponent = -Math.pow(x - mean, 2) / (2 * Math.pow(std, 2))
+    const pdf = (1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(exponent)
+    return pdf
+  })
+  const maxPdf = Math.max(...normalValues, 0.0001)
+  const scale = maxCount > 0 ? maxCount / maxPdf : 1
+  const normalScaled = normalValues.map(v => Math.round(v * scale * 10) / 10)
+
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params) => {
+        const bar = params.find(p => p.seriesName === '人数')
+        const line = params.find(p => p.seriesName === '拟合曲线')
+        const idx = bar ? bar.dataIndex : 0
+        const label = xLabels[idx]
+        const count = counts[idx] || 0
+        const percent = percents[idx] || 0
+        return [
+          `${label}`,
+          `人数：${count} 人`,
+          `占比：${percent}%`,
+          line ? `趋势：${line.value.toFixed(1)}（相对高度）` : ''
+        ].filter(Boolean).join('<br/>')
+      }
+    },
+    grid: {
+      left: '6%',
+      right: '4%',
+      bottom: '10%',
+      top: '8%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: xLabels,
+      axisLine: { lineStyle: { color: '#cbd5e1' } },
+      axisLabel: { color: '#64748b' }
+    },
+    yAxis: {
+      type: 'value',
+      name: '人数',
+      nameTextStyle: { color: '#64748b' },
+      axisLine: { lineStyle: { color: '#cbd5e1' } },
+      splitLine: { lineStyle: { color: '#e2e8f0' } },
+      axisLabel: { color: '#64748b' }
+    },
+    series: [
+      {
+        name: '人数',
+        type: 'bar',
+        data: counts,
+        barWidth: '45%',
+        itemStyle: {
+          borderRadius: [4, 4, 0, 0],
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#6366f1' },
+            { offset: 1, color: '#a855f7' }
+          ])
+        }
+      },
+      {
+        name: '拟合曲线',
+        type: 'line',
+        data: normalScaled,
+        smooth: true,
+        yAxisIndex: 0,
+        lineStyle: {
+          color: '#0ea5e9',
+          width: 2
+        },
+        symbol: 'circle',
+        symbolSize: 6,
+        itemStyle: {
+          color: '#0ea5e9',
+          borderColor: '#e0f2fe',
+          borderWidth: 2
+        }
+      }
+    ]
+  }
+
+  chart.setOption(option)
+}
+
+// 当成绩分布数据变化时重新渲染图表
+watch(scoreRanges, async (val) => {
+  if (!val || !val.length) return
+  await nextTick()
+  renderScoreChart()
+})
+
+// ========== 全局知识图谱（graph） ==========
+
+// 根据得分率返回颜色
+const getNodeColor = (scoreRate) => {
+  if (scoreRate > 85) return '#22c55e' // 绿
+  if (scoreRate >= 60) return '#eab308' // 黄
+  return '#ef4444' // 红
+}
+
+// Drawer 中分数颜色
+const getNodeScoreClass = (scoreRate) => {
+  if (scoreRate > 85) return 'score-good'
+  if (scoreRate >= 60) return 'score-warning'
+  return 'score-danger'
+}
+
+// 构造信息安全体系知识图谱数据
+const buildKnowledgeGraphData = () => {
+  // Level 0: 中心节点
+  const center = {
+    id: 'center',
+    name: '信息安全体系',
+    category: 0,
+    symbolSize: 70,
+    scoreRate: 78,
+    weight: 0.0,
+    highErrorQuestions: [],
+    draggable: true
+  }
+
+  // Level 1 & 2: 大章和知识点（根据需求文案）
+  const chapters = [
+    {
+      id: 'chap1',
+      name: '密码学基础（权重高）',
+      weight: 0.2,
+      children: [
+        { id: 'c1-1', name: '对称加密 (AES/DES)', scoreRate: 85, weight: 0.05, highErrorQuestions: [] },
+        { id: 'c1-2', name: '非对称加密与 RSA 算法', scoreRate: 65, weight: 0.05, highErrorQuestions: [5, 12] },
+        { id: 'c1-3', name: '哈希函数与数字签名', scoreRate: 45, weight: 0.05, highErrorQuestions: [5, 12] },
+        { id: 'c1-4', name: 'PKI 与数字证书体系', scoreRate: 60, weight: 0.03, highErrorQuestions: [8] },
+        { id: 'c1-5', name: '椭圆曲线密码学 (ECC)', scoreRate: 38, weight: 0.02, highErrorQuestions: [16, 18] }
+      ]
+    },
+    {
+      id: 'chap2',
+      name: '网络与通信安全（权重极高）',
+      weight: 0.25,
+      children: [
+        { id: 'c2-1', name: '防火墙原理与 ACL', scoreRate: 90, weight: 0.06, highErrorQuestions: [] },
+        { id: 'c2-2', name: '入侵检测/防御系统 (IDS/IPS)', scoreRate: 70, weight: 0.05, highErrorQuestions: [9] },
+        { id: 'c2-3', name: 'ARP 欺骗与局域网安全', scoreRate: 82, weight: 0.04, highErrorQuestions: [] },
+        { id: 'c2-4', name: 'VPN 与 IPSec 协议隧道', scoreRate: 62, weight: 0.05, highErrorQuestions: [10] },
+        { id: 'c2-5', name: 'DDoS 攻击原理与流量清洗', scoreRate: 55, weight: 0.06, highErrorQuestions: [11, 17] },
+        { id: 'c2-6', name: '零信任网络架构基础', scoreRate: 42, weight: 0.07, highErrorQuestions: [19, 20] }
+      ]
+    },
+    {
+      id: 'chap3',
+      name: '系统与应用安全（权重极高）',
+      weight: 0.25,
+      children: [
+        { id: 'c3-1', name: '访问控制模型 (RBAC/MAC/DAC)', scoreRate: 80, weight: 0.05, highErrorQuestions: [] },
+        { id: 'c3-2', name: 'Web 漏洞：SQL 注入攻防', scoreRate: 88, weight: 0.06, highErrorQuestions: [] },
+        { id: 'c3-3', name: 'Web 漏洞：XSS 与 CSRF', scoreRate: 68, weight: 0.05, highErrorQuestions: [6, 13] },
+        { id: 'c3-4', name: '缓冲区溢出漏洞分析', scoreRate: 35, weight: 0.06, highErrorQuestions: [7, 14] },
+        { id: 'c3-5', name: '恶意软件与勒索病毒识别', scoreRate: 78, weight: 0.04, highErrorQuestions: [] },
+        { id: 'c3-6', name: 'OAuth 2.0 与 JWT 身份认证', scoreRate: 64, weight: 0.04, highErrorQuestions: [15] }
+      ]
+    },
+    {
+      id: 'chap4',
+      name: '安全管理与合规（权重中等）',
+      weight: 0.15,
+      children: [
+        { id: 'c4-1', name: '网络安全等级保护 2.0', scoreRate: 88, weight: 0.04, highErrorQuestions: [] },
+        { id: 'c4-2', name: '风险评估模型 (STRIDE/DREAD)', scoreRate: 72, weight: 0.04, highErrorQuestions: [3] },
+        { id: 'c4-3', name: 'ISO 27001 信息安全管理体系', scoreRate: 85, weight: 0.03, highErrorQuestions: [] },
+        { id: 'c4-4', name: '应急响应与业务连续性 (BCP)', scoreRate: 66, weight: 0.04, highErrorQuestions: [4] }
+      ]
+    },
+    {
+      id: 'chap5',
+      name: '数据安全与隐私保护（前沿大章）',
+      weight: 0.15,
+      children: [
+        { id: 'c5-1', name: '《数据安全法》与 GDPR 基础', scoreRate: 80, weight: 0.04, highErrorQuestions: [] },
+        { id: 'c5-2', name: '数据脱敏与匿名化 (k-anonymity)', scoreRate: 75, weight: 0.04, highErrorQuestions: [2] },
+        { id: 'c5-3', name: '联邦学习与同态加密初步', scoreRate: 30, weight: 0.07, highErrorQuestions: [1, 9, 18] }
+      ]
+    }
+  ]
+
+  const nodes = [center]
+  const links = []
+
+  chapters.forEach(chap => {
+    const chapNode = {
+      id: chap.id,
+      name: chap.name,
+      category: 1,
+      symbolSize: 40 + chap.weight * 40,
+      scoreRate: 70,
+      weight: chap.weight,
+      highErrorQuestions: [],
+      draggable: true
+    }
+    nodes.push(chapNode)
+    links.push({ source: center.id, target: chap.id })
+
+    chap.children.forEach(item => {
+      const node = {
+        id: item.id,
+        name: item.name,
+        category: 2,
+        symbolSize: 20 + item.weight * 120,
+        scoreRate: item.scoreRate,
+        weight: item.weight,
+        highErrorQuestions: item.highErrorQuestions
+      }
+      nodes.push(node)
+      links.push({ source: chap.id, target: item.id })
+    })
+  })
+
+  return { nodes, links }
+}
+
+// 初始化知识图谱
+const renderKnowledgeGraph = () => {
+  if (!knowledgeGraphRef.value) return
+
+  if (!knowledgeGraphInstance.value) {
+    knowledgeGraphInstance.value = echarts.init(knowledgeGraphRef.value)
+  }
+
+  const graph = knowledgeGraphInstance.value
+  const { nodes, links } = buildKnowledgeGraphData()
+
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: (params) => {
+        const data = params.data
+        if (!data || !data.scoreRate) {
+          return data.name || ''
+        }
+        const list = (data.highErrorQuestions || []).map(q => `第${q}题`).join('、') || '暂无高频错题'
+        return [
+          `<strong>${data.name}</strong>`,
+          `得分率：${data.scoreRate}%`,
+          `高频错题：${list}`
+        ].join('<br/>')
+      }
+    },
+    series: [
+      {
+        type: 'graph',
+        layout: 'force',
+        roam: true,
+        focusNodeAdjacency: true,
+        symbol: 'circle',
+        label: {
+          show: true,
+          position: 'right',
+          formatter: '{b}',
+          color: '#0f172a',
+          fontSize: 11
+        },
+        force: {
+          repulsion: 140,
+          gravity: 0.05,
+          edgeLength: [80, 160]
+        },
+        lineStyle: {
+          color: '#cbd5e1',
+          width: 1,
+          curveness: 0.1
+        },
+        data: nodes.map(n => ({
+          ...n,
+          itemStyle: {
+            color: getNodeColor(n.scoreRate || 75),
+            borderColor: '#e5e7eb',
+            borderWidth: 1
+          }
+        })),
+        links
+      }
+    ]
+  }
+
+  graph.setOption(option)
+
+  // 点击红色节点时打开右侧抽屉
+  graph.off('click')
+  graph.on('click', (params) => {
+    const data = params.data || {}
+    if (data.scoreRate !== undefined && data.scoreRate < 60) {
+      activeKnowledgeNode.value = {
+        name: data.name,
+        scoreRate: data.scoreRate,
+        weight: data.weight,
+        highErrorQuestions: data.highErrorQuestions || []
+      }
+    }
+  })
 }
 
 // 获取学习趋势数据
@@ -745,6 +1212,40 @@ const getPriorityClass = (priority) => {
   return classMap[priority] || ''
 }
 
+// ========== 班级 KPI 趋势标签相关 ========== 
+
+// 计算指定 KPI 与上一期的差值（保留一位小数）
+const getKpiDelta = (key) => {
+  const current = Number(classStats.value[key] || 0)
+  const previous = Number(previousClassStats.value[key] || 0)
+  const delta = current - previous
+  return Math.round(delta * 10) / 10
+}
+
+// 获取趋势文本（如 +2.1 分 / -3%）
+const getKpiTrendText = (key) => {
+  const delta = getKpiDelta(key)
+  const unit = key === 'averageScore' ? '分' : '%'
+  const prefix = delta > 0 ? '+' : ''
+  return `${prefix}${delta}${unit}`
+}
+
+// 获取趋势方向箭头
+const getKpiTrendArrow = (key) => {
+  const delta = getKpiDelta(key)
+  if (delta > 0) return '↑'
+  if (delta < 0) return '↓'
+  return '→'
+}
+
+// 获取趋势样式类（控制颜色）
+const getKpiTrendClass = (key) => {
+  const delta = getKpiDelta(key)
+  if (delta > 0) return 'trend-positive'
+  if (delta < 0) return 'trend-negative'
+  return 'trend-neutral'
+}
+
 // ========== 趋势图表相关方法 ==========
 
 // 获取最高分
@@ -926,7 +1427,7 @@ const hideTooltip = () => {
   // 隐藏提示
 }
 
-// 页面加载时获取数据
+// 页面加载时获取数据 & 初始化图表
 onMounted(async () => {
   await Promise.all([
     fetchGradeDistribution(),
@@ -934,8 +1435,29 @@ onMounted(async () => {
     fetchStudents(),
     initClassStats()
   ])
-  
+
+  await nextTick()
+  renderScoreChart()
+  renderKnowledgeGraph()
+
   initExams()
+
+  // 窗口尺寸变化时自适应
+  window.addEventListener('resize', () => {
+    if (scoreChartInstance.value) scoreChartInstance.value.resize()
+    if (knowledgeGraphInstance.value) knowledgeGraphInstance.value.resize()
+  })
+})
+
+onBeforeUnmount(() => {
+  if (scoreChartInstance.value) {
+    scoreChartInstance.value.dispose()
+    scoreChartInstance.value = null
+  }
+  if (knowledgeGraphInstance.value) {
+    knowledgeGraphInstance.value.dispose()
+    knowledgeGraphInstance.value = null
+  }
 })
 </script>
 
@@ -1107,6 +1629,11 @@ onMounted(async () => {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
       gap: 24px;
+
+      /* 让全局知识图谱卡片横向占满一整行，并与上方卡片左右对齐 */
+      .knowledge-graph-card {
+        grid-column: 1 / -1;
+      }
     }
   }
 }
@@ -1183,15 +1710,89 @@ onMounted(async () => {
         opacity: 0.8;
       }
     }
+
+    /* KPI 定制图标样式 */
+    .kpi-icon {
+      background: radial-gradient(circle at 0 0, rgba(255,255,255,0.4), transparent 55%), 
+                  linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      
+      .icon-svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      .ring-outer {
+        fill: none;
+        stroke: rgba(255,255,255,0.5);
+        stroke-width: 1.2;
+      }
+
+      .ring-inner {
+        fill: none;
+        stroke: rgba(255,255,255,0.8);
+        stroke-width: 1.4;
+      }
+
+      .ring-center {
+        fill: #fbbf24;
+      }
+
+      .target-arrow {
+        stroke: #fbbf24;
+        stroke-width: 1.4;
+        stroke-linecap: round;
+      }
+
+      .check-path {
+        fill: none;
+        stroke: #22c55e;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .star-path {
+        fill: #facc15;
+        stroke: rgba(255,255,255,0.8);
+        stroke-width: 0.6;
+      }
+
+      .user-head {
+        fill: #e0f2fe;
+      }
+
+      .user-head.secondary {
+        fill: #c4b5fd;
+      }
+
+      .user-body {
+        fill: none;
+        stroke: #e0f2fe;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+      }
+
+      .user-body.secondary {
+        stroke: #c4b5fd;
+      }
+    }
     
     .stat-content {
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
       
+      .stat-main {
+        display: flex;
+        flex-direction: column;
+      }
+
       .stat-value {
         font-size: 1.5rem;
         font-weight: 700;
         color: #2d3748;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
       }
       
       .stat-label {
@@ -1199,98 +1800,224 @@ onMounted(async () => {
         color: #718096;
         font-weight: 600;
       }
+
+      .stat-trend {
+        align-self: flex-start;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+
+        .trend-arrow {
+          font-size: 12px;
+        }
+
+        &.trend-positive {
+          background: #dcfce7;
+          color: #16a34a;
+        }
+
+        &.trend-negative {
+          background: #fee2e2;
+          color: #dc2626;
+        }
+
+        &.trend-neutral {
+          background: #e5e7eb;
+          color: #4b5563;
+        }
+      }
     }
   }
 }
 
-/* 成绩分布 */
-.score-distribution {
-  .score-range {
-    margin-bottom: 16px;
-    
-    .range-info {
+/* 成绩分布：直方图 + 曲线 */
+.score-chart-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .score-chart-legend {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+    font-size: 12px;
+    color: #64748b;
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-bar {
+      width: 18px;
+      height: 6px;
+      border-radius: 4px;
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+    }
+
+    .legend-line {
+      width: 18px;
+      height: 0;
+      border-top: 2px solid #0ea5e9;
+    }
+  }
+
+  .score-chart-container {
+    width: 100%;
+    height: 260px;
+  }
+}
+
+/* 知识图谱 + 右侧抽屉 */
+.knowledge-graph-section {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+  position: relative;
+
+  .knowledge-graph-container {
+    flex: 1;
+    min-height: 320px;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    background: radial-gradient(circle at 0 0, #eff6ff, #ffffff);
+  }
+
+  .knowledge-drawer {
+    width: 0;
+    opacity: 0;
+    transform: translateX(8px);
+    transition: all 0.25s ease;
+    overflow: hidden;
+
+    &.open {
+      width: 280px;
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .drawer-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-      
-      .range-label {
-        font-size: 14px;
-        font-weight: 600;
-        color: #2d3748;
-      }
-      
-      .range-count {
-        font-size: 12px;
-        color: #718096;
-      }
-    }
-    
-    .range-bar {
-      height: 8px;
-      background: #e2e8f0;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 4px;
-      
-      .range-fill {
-        height: 100%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 4px;
-        transition: width 0.3s ease;
-      }
-    }
-    
-    .range-percentage {
-      font-size: 12px;
-      color: #718096;
-      text-align: right;
-    }
-  }
-}
+      align-items: flex-start;
+      margin-bottom: 12px;
 
-/* 知识点掌握 */
-.knowledge-mastery {
-  .mastery-item {
-    margin-bottom: 16px;
-    
-    .mastery-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-      
-      .mastery-icon {
-        width: 16px;
-        height: 16px;
-        opacity: 0.6;
+      .drawer-title {
+        h4 {
+          margin: 4px 0 0;
+          font-size: 14px;
+          color: #0f172a;
+        }
+
+        .drawer-tag {
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 8px;
+          border-radius: 999px;
+          font-size: 11px;
+          background: #fee2e2;
+          color: #b91c1c;
+          font-weight: 600;
+        }
       }
-      
-      .mastery-name {
-        flex: 1;
+
+      .drawer-close {
+        border: none;
+        background: #f3f4f6;
+        border-radius: 999px;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
         font-size: 14px;
-        font-weight: 600;
-        color: #2d3748;
-      }
-      
-      .mastery-rate {
-        font-size: 12px;
-        font-weight: 600;
-        color: #10b981;
+        color: #4b5563;
       }
     }
-    
-    .mastery-bar {
-      height: 6px;
-      background: #e2e8f0;
-      border-radius: 3px;
-      overflow: hidden;
-      
-      .mastery-fill {
-        height: 100%;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        border-radius: 3px;
-        transition: width 0.3s ease;
+
+    .drawer-body {
+      background: #f9fafb;
+      border-radius: 16px;
+      padding: 12px 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+
+      .drawer-metric {
+        .metric-label {
+          font-size: 12px;
+          color: #6b7280;
+          margin-bottom: 4px;
+        }
+        .metric-value {
+          font-size: 22px;
+          font-weight: 700;
+          margin-bottom: 4px;
+
+          &.score-good {
+            color: #16a34a;
+          }
+          &.score-warning {
+            color: #eab308;
+          }
+          &.score-danger {
+            color: #dc2626;
+          }
+        }
+        .metric-desc {
+          font-size: 11px;
+          color: #6b7280;
+          line-height: 1.4;
+        }
+      }
+
+      .drawer-section {
+        .section-title {
+          font-size: 12px;
+          font-weight: 600;
+          color: #111827;
+          margin-bottom: 4px;
+        }
+        .section-text {
+          font-size: 12px;
+          color: #4b5563;
+          line-height: 1.5;
+        }
+        .question-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+
+          li {
+            font-size: 12px;
+            color: #374151;
+            padding: 2px 0;
+          }
+        }
+      }
+
+      .full-width {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+    .drawer-empty {
+      font-size: 12px;
+      color: #6b7280;
+      padding: 8px;
+      border-radius: 12px;
+      background: #f9fafb;
+
+      .danger-text {
+        color: #dc2626;
+        font-weight: 600;
       }
     }
   }

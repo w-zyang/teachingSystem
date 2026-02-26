@@ -149,11 +149,7 @@ const menuItems = ref([
     path: '/teacher/student-analysis', 
     iconSrc: '/src/assets/category.png' 
   },
-  { 
-    name: '学生驾驶舱', 
-    path: '/teacher/student-dashboard', 
-    iconSrc: '/src/assets/balance.png' 
-  },
+  // 学生驾驶舱入口已下线
   { 
     name: '资源管理', 
     path: '/teacher/resource-management', 
