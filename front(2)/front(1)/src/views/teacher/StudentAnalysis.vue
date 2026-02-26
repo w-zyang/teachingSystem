@@ -567,26 +567,37 @@
           <div class="form-item">
             <label>
               <img src="@/assets/balance.png" alt="选择考核" class="label-icon">
-              选择考核
+              选择历史考核
             </label>
-            <select v-model="selectedExam">
+            <select v-model="selectedExam" @change="analyzeAnswers">
               <option value="">请选择考核</option>
               <option v-for="exam in exams" :key="exam.id" :value="exam.id">
-                {{ exam.name }}
+                {{ exam.name }} ({{ exam.date }})
               </option>
             </select>
           </div>
           <button @click="analyzeAnswers" class="action-btn primary" :disabled="!selectedExam">
-            <img src="@/assets/add.png" alt="分析" class="btn-icon">
-            开始分析
+            <img src="@/assets/add.png" alt="重新分析" class="btn-icon">
+            重新分析
           </button>
         </div>
 
         <div v-if="answerAnalysis" class="answer-analysis-content">
+          <!-- 顶部操作按钮 -->
+          <div class="analysis-actions">
+            <button @click="generateErrorBook" class="action-btn primary">
+              <img src="@/assets/add.png" alt="生成错题本" class="btn-icon">
+              ✨ 一键生成班级共性错题本
+            </button>
+          </div>
+
           <div class="analysis-summary">
             <div class="summary-header">
               <img src="@/assets/balance.png" alt="检测结果" class="summary-icon">
-              <h3>答案检测结果</h3>
+              <div class="summary-title-group">
+                <h3>{{ answerAnalysis.examName }} - 答案检测结果</h3>
+                <span class="exam-date">考核日期：{{ answerAnalysis.examDate }}</span>
+              </div>
             </div>
             <div class="summary-stats">
               <div class="summary-item">
@@ -599,15 +610,78 @@
               <div class="summary-item">
                 <img src="@/assets/delete.png" alt="错误率" class="item-icon">
                 <div class="item-content">
-                  <span class="summary-label">错误率：</span>
+                  <span class="summary-label">平均错误率：</span>
                   <span class="summary-value error">{{ answerAnalysis.errorRate }}%</span>
                 </div>
               </div>
               <div class="summary-item">
                 <img src="@/assets/author.png" alt="常见错误" class="item-icon">
                 <div class="item-content">
-                  <span class="summary-label">常见错误：</span>
+                  <span class="summary-label">常见错误类型：</span>
                   <span class="summary-value">{{ answerAnalysis.commonErrors.length }}种</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 历次错误率趋势图 -->
+          <div class="error-trend-card" v-if="answerAnalysis.trendData && answerAnalysis.trendData.length > 0">
+            <div class="trend-card-header">
+              <img src="@/assets/category.png" alt="趋势" class="card-icon">
+              <h4>历次同类考核错误率趋势</h4>
+              <span class="trend-tip">观察错误是"偶然失误"还是"长期顽疾"</span>
+            </div>
+            <div class="trend-mini-chart">
+              <div class="trend-chart-area">
+                <!-- Y轴刻度 -->
+                <div class="y-axis-labels">
+                  <span class="y-label">50%</span>
+                  <span class="y-label">40%</span>
+                  <span class="y-label">30%</span>
+                  <span class="y-label">20%</span>
+                  <span class="y-label">10%</span>
+                  <span class="y-label">0%</span>
+                </div>
+                <svg class="trend-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="errorTrendGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" style="stop-color:#ef4444;stop-opacity:0.3" />
+                      <stop offset="100%" style="stop-color:#ef4444;stop-opacity:0.05" />
+                    </linearGradient>
+                  </defs>
+                  <!-- 背景网格线 -->
+                  <line x1="0" y1="0" x2="100" y2="0" stroke="#e5e7eb" stroke-width="0.5" />
+                  <line x1="0" y1="20" x2="100" y2="20" stroke="#e5e7eb" stroke-width="0.5" />
+                  <line x1="0" y1="40" x2="100" y2="40" stroke="#e5e7eb" stroke-width="0.5" />
+                  <line x1="0" y1="60" x2="100" y2="60" stroke="#e5e7eb" stroke-width="0.5" />
+                  <line x1="0" y1="80" x2="100" y2="80" stroke="#e5e7eb" stroke-width="0.5" />
+                  <line x1="0" y1="100" x2="100" y2="100" stroke="#e5e7eb" stroke-width="0.5" />
+                  <!-- 面积填充 -->
+                  <path :d="getErrorTrendAreaPath()" fill="url(#errorTrendGradient)" />
+                  <!-- 趋势线 -->
+                  <path :d="getErrorTrendLinePath()" fill="none" stroke="#ef4444" stroke-width="2" />
+                  <!-- 数据点 -->
+                  <circle 
+                    v-for="(item, index) in answerAnalysis.trendData" 
+                    :key="index"
+                    :cx="answerAnalysis.trendData.length === 1 ? 50 : (index / (answerAnalysis.trendData.length - 1)) * 100"
+                    :cy="100 - (item.errorRate * 2)"
+                    r="3"
+                    fill="#ef4444"
+                    stroke="white"
+                    stroke-width="2"
+                  />
+                </svg>
+              </div>
+              <div class="trend-labels">
+                <div 
+                  v-for="(item, index) in answerAnalysis.trendData" 
+                  :key="index"
+                  class="trend-label"
+                >
+                  <div class="label-name">{{ item.name }}</div>
+                  <div class="label-value">{{ item.errorRate }}%</div>
+                  <div class="label-date">{{ item.date }}</div>
                 </div>
               </div>
             </div>
@@ -616,27 +690,131 @@
           <div class="error-analysis">
             <div class="error-header">
               <img src="@/assets/category.png" alt="错误分析" class="error-icon">
-              <h4>常见错误分析</h4>
+              <h4>常见错误分析（按错误率排序）</h4>
             </div>
             <div class="error-list">
-              <div v-for="error in answerAnalysis.commonErrors" :key="error.id" class="error-item">
-                <div class="error-header">
+              <div 
+                v-for="error in answerAnalysis.commonErrors" 
+                :key="error.id" 
+                class="error-item"
+                :class="getErrorRateClass(error.errorRate)"
+              >
+                <div class="error-item-header">
                   <div class="error-info">
                     <img src="@/assets/balance.png" alt="题目" class="error-icon">
                     <span class="error-question">第{{ error.questionNumber }}题</span>
+                    <span class="error-type-badge" v-if="error.isMultipleChoice">选择题</span>
+                    <span class="error-type-badge subjective" v-else>主观题</span>
+                    <!-- 顽固错题标记 -->
+                    <span class="recurring-badge" v-if="error.isRecurring">
+                      🔥 连续{{ error.recurringCount }}次未掌握
+                    </span>
                   </div>
-                  <span class="error-count">{{ error.count }}人错误</span>
+                  <div class="error-stats">
+                    <button 
+                      class="student-count-btn" 
+                      @click="toggleStudentList(error.id)"
+                      :title="'点击查看答错学生名单'"
+                    >
+                      {{ error.count }}人错误
+                    </button>
+                    <span class="error-rate-badge">{{ error.errorRate }}%</span>
+                  </div>
                 </div>
-                <div class="error-details">
-                  <div class="error-pattern">
-                    <strong>错误模式：</strong>{{ error.pattern }}
+
+                <!-- 异常提醒 -->
+                <div v-if="error.hasAbnormalError" class="abnormal-alert">
+                  ⚠️ 异常得分：{{ error.topStudentErrors }}名高分段学生失分，建议复核题目严谨性
+                </div>
+
+                <!-- 选项分布条形图 -->
+                <div v-if="error.optionDistribution" class="option-distribution">
+                  <div class="distribution-title">选项分布分析</div>
+                  <div class="distribution-bars">
+                    <div 
+                      v-for="(option, key) in error.optionDistribution.distribution" 
+                      :key="key"
+                      class="distribution-bar-item"
+                    >
+                      <div class="bar-label">
+                        <span class="option-key" :class="{ correct: key === error.optionDistribution.correctOption }">
+                          {{ key }}
+                        </span>
+                        <span class="option-count">{{ option.count }}人 ({{ option.percentage }}%)</span>
+                      </div>
+                      <div class="bar-container">
+                        <div 
+                          class="bar-fill" 
+                          :class="{ 
+                            correct: key === error.optionDistribution.correctOption,
+                            confusing: key === error.optionDistribution.mostConfusing && key !== error.optionDistribution.correctOption
+                          }"
+                          :style="{ width: option.percentage + '%' }"
+                        ></div>
+                      </div>
+                    </div>
                   </div>
-                  <div class="error-reason">
-                    <strong>错误原因：</strong>{{ error.reason }}
+                  <!-- AI陷阱溯源 -->
+                  <div v-if="error.aiAnalysis" class="ai-analysis">
+                    <div class="ai-icon">🤖</div>
+                    <div class="ai-text">{{ error.aiAnalysis }}</div>
                   </div>
-                  <div class="error-suggestion">
-                    <strong>教学建议：</strong>{{ error.suggestion }}
+                </div>
+
+                <!-- 错误详情 -->
+                <div class="error-details-compact">
+                  <div class="detail-row">
+                    <span class="detail-label">知识点</span>
+                    <span class="detail-value">{{ error.knowledgePoint }}</span>
                   </div>
+                  <div class="detail-row">
+                    <span class="detail-label">错误模式</span>
+                    <span class="detail-value">{{ error.pattern }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">错误原因</span>
+                    <span class="detail-value">{{ error.reason }}</span>
+                  </div>
+                  <div class="detail-row suggestion">
+                    <span class="detail-label">💡 教学建议</span>
+                    <span class="detail-value">{{ error.suggestion }}</span>
+                  </div>
+                </div>
+
+                <!-- 答错学生名单（可展开） -->
+                <div v-if="isStudentListExpanded(error.id)" class="student-list">
+                  <div class="student-list-header">
+                    <span>答错学生名单</span>
+                    <span class="list-count">共{{ error.wrongStudents.length }}人</span>
+                  </div>
+                  <div class="student-list-body">
+                    <div 
+                      v-for="student in error.wrongStudents" 
+                      :key="student.id"
+                      class="student-item"
+                      :class="{ 'top-student': student.isTopStudent }"
+                    >
+                      <div class="student-info">
+                        <span class="student-name">{{ student.name }}</span>
+                        <span class="student-id">{{ student.studentId }}</span>
+                        <span v-if="student.isTopStudent" class="top-badge">优等生</span>
+                      </div>
+                      <div class="student-stats">
+                        <span class="avg-score">平均分: {{ student.avgScore }}</span>
+                        <span v-if="student.selectedOption" class="selected-option">
+                          选择: {{ student.selectedOption }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="error-actions">
+                  <button class="action-btn secondary small" @click="pushLessonToStudents(error)">
+                    <img src="@/assets/add.png" alt="推送" class="btn-icon">
+                    推送微课解析给做错学生
+                  </button>
                 </div>
               </div>
             </div>
@@ -645,6 +823,159 @@
       </div>
     </div>
   </div>
+
+  <!-- 微课录制弹窗 -->
+  <el-dialog
+    v-model="lessonDialogVisible"
+    title="录制微课解析"
+    width="800px"
+    :close-on-click-modal="false"
+  >
+    <div class="lesson-dialog-content">
+      <div class="lesson-header">
+        <div class="lesson-info">
+          <span class="lesson-question">第{{ currentError?.questionNumber }}题</span>
+          <span class="lesson-knowledge">{{ currentError?.knowledgePoint }}</span>
+        </div>
+        <div class="lesson-stats">
+          <span class="stat-item">
+            <img src="@/assets/author.png" alt="学生" class="stat-icon">
+            {{ currentError?.count }}名学生需要
+          </span>
+          <span class="stat-item error-rate">
+            错误率: {{ currentError?.errorRate }}%
+          </span>
+        </div>
+      </div>
+
+      <el-form :model="lessonForm" label-width="100px">
+        <el-form-item label="讲解方式">
+          <el-radio-group v-model="lessonForm.type">
+            <el-radio label="video">📹 录制视频讲解</el-radio>
+            <el-radio label="whiteboard">✍️ 白板板书讲解</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
+        <el-form-item label="微课标题">
+          <el-input v-model="lessonForm.title" placeholder="请输入微课标题" />
+        </el-form-item>
+
+        <!-- 视频录制区域 -->
+        <div v-if="lessonForm.type === 'video'" class="video-record-area">
+          <div class="record-preview">
+            <video 
+              ref="videoPreview"
+              class="video-player" 
+              :class="{ recording: isRecording }"
+              controls
+              autoplay
+              muted
+            ></video>
+            <div v-if="!recordedVideoUrl && !isRecording" class="preview-overlay">
+              <img src="@/assets/category.png" alt="视频" class="placeholder-icon">
+              <p>点击"开始录制"启动摄像头</p>
+              <p class="hint">或点击"上传视频"选择本地文件</p>
+            </div>
+            <div v-if="isRecording" class="recording-indicator">
+              <span class="recording-dot"></span>
+              正在录制...
+            </div>
+          </div>
+          <div class="record-controls">
+            <button class="control-btn record" type="button" @click="startRecording" :disabled="isRecording">
+              <span class="btn-icon">⏺</span>
+              开始录制
+            </button>
+            <button class="control-btn stop" type="button" @click="stopRecording" :disabled="!isRecording">
+              <span class="btn-icon">⏹</span>
+              停止录制
+            </button>
+            <button class="control-btn upload" type="button" @click="uploadVideo" :disabled="isRecording">
+              <span class="btn-icon">📁</span>
+              上传视频
+            </button>
+          </div>
+          <div class="record-tips">
+            💡 提示：建议录制时长3-8分钟，重点讲解解题思路和易错点。录制时请确保光线充足，声音清晰。
+          </div>
+        </div>
+
+        <!-- 白板讲解区域 -->
+        <div v-if="lessonForm.type === 'whiteboard'" class="whiteboard-area">
+          <canvas 
+            ref="whiteboardCanvas"
+            class="whiteboard-canvas"
+            @mousedown="startDrawing"
+            @mousemove="draw"
+            @mouseup="stopDrawing"
+            @mouseleave="stopDrawing"
+          ></canvas>
+          <div class="whiteboard-tools">
+            <button 
+              class="tool-btn" 
+              :class="{ active: currentTool === 'pen' }"
+              type="button" 
+              title="画笔"
+              @click="selectTool('pen')"
+            >
+              🖊️
+            </button>
+            <button 
+              class="tool-btn" 
+              :class="{ active: currentTool === 'eraser' }"
+              type="button" 
+              title="橡皮擦"
+              @click="selectTool('eraser')"
+            >
+              🧹
+            </button>
+            <button 
+              class="tool-btn" 
+              type="button" 
+              title="清空"
+              @click="clearWhiteboard"
+            >
+              🗑️
+            </button>
+            <div class="tool-divider"></div>
+            <input 
+              type="color" 
+              v-model="drawColor" 
+              class="color-picker"
+              title="选择颜色"
+            />
+            <input 
+              type="range" 
+              v-model="drawWidth" 
+              min="1" 
+              max="10" 
+              class="width-slider"
+              title="画笔粗细"
+            />
+          </div>
+        </div>
+
+        <el-form-item label="补充说明">
+          <el-input
+            v-model="lessonForm.content"
+            type="textarea"
+            :rows="4"
+            placeholder="可以添加一些文字说明、注意事项或参考资料链接"
+          />
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <template #footer>
+      <div class="dialog-footer">
+        <button class="dialog-btn cancel" @click="closeLessonDialog">取消</button>
+        <button class="dialog-btn primary" @click="submitLesson">
+          <img src="@/assets/add.png" alt="推送" class="btn-icon">
+          推送给{{ currentError?.count }}名学生
+        </button>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -652,7 +983,7 @@ import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { getStudentStats, getGradeDistribution, getErrorTopics, getLearningTrend, getTeacherClassStats } from '@/api/stats'
 import { getCoursesByTeacherId } from '@/api/course'
 import * as echarts from 'echarts'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElDialog, ElForm, ElFormItem, ElInput, ElRadioGroup, ElRadio } from 'element-plus'
 
 // 响应式变量
 const activeTab = ref('overview')
@@ -1387,13 +1718,23 @@ const initDefaultStudents = () => {
 }
 
 // 初始化考试列表
-const initExams = () => {
+const initExams = async () => {
+  // TODO: 这里应该调用真实的 API 获取历史考核列表
+  // 暂时使用 Mock 数据
   exams.value = [
-    { id: 1, name: '期中考试' },
-    { id: 2, name: '期末考试' },
-    { id: 3, name: '单元测试1' },
-    { id: 4, name: '单元测试2' }
+    { id: 1, name: '期中考试', date: '2024-03-15', totalQuestions: 20 },
+    { id: 2, name: '期末考试', date: '2024-06-20', totalQuestions: 25 },
+    { id: 3, name: '单元测试1', date: '2024-02-10', totalQuestions: 15 },
+    { id: 4, name: '单元测试2', date: '2024-04-05', totalQuestions: 18 },
+    { id: 5, name: '月考测试', date: '2024-05-12', totalQuestions: 22 }
   ]
+  
+  // 默认选中第一个考核并自动分析
+  if (exams.value.length > 0) {
+    selectedExam.value = exams.value[0].id
+    console.log('默认选中第一个考核:', exams.value[0])
+    await analyzeAnswers()
+  }
 }
 
 // 根据统计数据生成一套业务自洽的 Mock 学情数据
@@ -1569,42 +1910,164 @@ const loadStudentAnalysis = async () => {
 
 // 分析答案
 const analyzeAnswers = async () => {
-  if (!selectedExam.value) return
+  if (!selectedExam.value) {
+    console.warn('未选择考核')
+    return
+  }
   
   try {
     // 这里可以调用答案分析API
     console.log('分析考试答案:', selectedExam.value)
     
-    // 模拟分析结果
-    answerAnalysis.value = {
-      totalQuestions: 20,
-      errorRate: 15,
-      commonErrors: [
-        {
-          id: 1,
-          questionNumber: 5,
-          count: 8,
-          pattern: '概念混淆',
-          suggestion: '加强基础概念的理解'
-        },
-        {
-          id: 2,
-          questionNumber: 12,
-          count: 6,
-          pattern: '计算错误',
-          suggestion: '注意计算过程，避免粗心错误'
-        },
-        {
-          id: 3,
-          questionNumber: 18,
-          count: 4,
-          pattern: '理解偏差',
-          suggestion: '仔细阅读题目，理解题意'
+    // 根据不同的考核ID生成不同的分析结果，使数据更真实
+    const examId = selectedExam.value
+    const exam = exams.value.find(e => e.id === examId)
+    
+    // 生成历次错误率趋势数据
+    const trendData = exams.value
+      .filter(e => e.id <= examId) // 只显示当前及之前的考核
+      .map((e, index) => ({
+        name: e.name,
+        date: e.date,
+        errorRate: Math.floor(Math.random() * 20) + 15 + index * 2 // 15-35%的错误率，略有上升趋势
+      }))
+    
+    console.log('生成的趋势数据:', trendData)
+    
+    // 生成动态的错误分析数据
+    const errorPatterns = [
+      { pattern: '概念混淆', reason: '对基础概念理解不够深入，容易将相似概念混淆', suggestion: '加强基础概念的理解，建立概念对比表', knowledgePoint: '对称加密与非对称加密' },
+      { pattern: '计算错误', reason: '计算过程中粗心大意，未进行验算', suggestion: '注意计算过程，养成验算习惯', knowledgePoint: 'RSA算法密钥计算' },
+      { pattern: '理解偏差', reason: '未能准确理解题目要求，答非所问', suggestion: '仔细阅读题目，标注关键信息', knowledgePoint: '数字签名验证流程' },
+      { pattern: '知识盲区', reason: '该知识点未掌握或遗忘', suggestion: '系统复习相关章节，做专项练习', knowledgePoint: 'PKI证书链验证' },
+      { pattern: '时间不足', reason: '答题速度慢，未能完成所有题目', suggestion: '加强练习，提高答题速度', knowledgePoint: '综合应用题' },
+      { pattern: '审题不清', reason: '未看清题目条件，导致解题方向错误', suggestion: '培养良好的审题习惯，圈画关键词', knowledgePoint: 'VPN隧道协议选择' }
+    ]
+    
+    // 随机生成3-5个常见错误
+    const errorCount = 3 + Math.floor(Math.random() * 3)
+    const selectedErrors = []
+    const usedQuestions = new Set()
+    
+    for (let i = 0; i < errorCount; i++) {
+      let questionNumber
+      do {
+        questionNumber = Math.floor(Math.random() * (exam?.totalQuestions || 20)) + 1
+      } while (usedQuestions.has(questionNumber))
+      usedQuestions.add(questionNumber)
+      
+      const errorPattern = errorPatterns[i % errorPatterns.length]
+      const errorCount = Math.floor(Math.random() * 12) + 3 // 3-15人错误
+      const totalStudents = 30
+      const errorRate = Math.round((errorCount / totalStudents) * 100)
+      
+      // 判断是否为顽固错题（历史高频）
+      const isRecurring = Math.random() > 0.6 // 40%概率是历史高频错题
+      const recurringCount = isRecurring ? Math.floor(Math.random() * 3) + 2 : 0 // 连续2-4次
+      
+      // 生成选项分布（选择题）
+      const isMultipleChoice = Math.random() > 0.3 // 70%是选择题
+      let optionDistribution = null
+      let aiAnalysis = null
+      
+      if (isMultipleChoice) {
+        const correctOption = ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)]
+        const options = ['A', 'B', 'C', 'D']
+        const distribution = {}
+        
+        let remaining = totalStudents
+        options.forEach((opt, idx) => {
+          if (idx === options.length - 1) {
+            distribution[opt] = { count: remaining, percentage: Math.round((remaining / totalStudents) * 100) }
+          } else {
+            const count = opt === correctOption 
+              ? totalStudents - errorCount // 正确答案的人数
+              : Math.floor(Math.random() * (errorCount / 2)) // 错误选项随机分配
+            distribution[opt] = { count, percentage: Math.round((count / totalStudents) * 100) }
+            remaining -= count
+          }
+        })
+        
+        // 找出最具迷惑性的选项
+        const wrongOptions = options.filter(o => o !== correctOption)
+        const mostConfusing = wrongOptions.reduce((max, opt) => 
+          distribution[opt].count > distribution[max].count ? opt : max
+        , wrongOptions[0])
+        
+        optionDistribution = {
+          correctOption,
+          distribution,
+          mostConfusing
         }
-      ]
+        
+        // AI陷阱溯源
+        aiAnalysis = `大量学生选择了错误选项 ${mostConfusing}（${distribution[mostConfusing].percentage}%），说明将"${errorPattern.knowledgePoint}"的核心概念与相似概念发生了混淆。建议通过对比表格和实际案例强化区分。`
+      }
+      
+      // 生成答错学生名单
+      const wrongStudents = []
+      for (let j = 0; j < errorCount; j++) {
+        const avgScore = Math.floor(Math.random() * 40) + 50 // 50-90分
+        const isTopStudent = avgScore >= 80
+        wrongStudents.push({
+          id: j + 1,
+          name: `学生${j + 1}`,
+          studentId: `S2024${String(j + 1).padStart(3, '0')}`,
+          avgScore,
+          isTopStudent,
+          selectedOption: isMultipleChoice ? ['A', 'B', 'C', 'D'][Math.floor(Math.random() * 4)] : null
+        })
+      }
+      
+      // 按平均分降序排序
+      wrongStudents.sort((a, b) => b.avgScore - a.avgScore)
+      
+      // 检查是否有高分段学生失分
+      const topStudentErrors = wrongStudents.filter(s => s.isTopStudent).length
+      const hasAbnormalError = topStudentErrors >= 3 && errorRate < 40
+      
+      selectedErrors.push({
+        id: i + 1,
+        questionNumber,
+        count: errorCount,
+        errorRate,
+        pattern: errorPattern.pattern,
+        reason: errorPattern.reason,
+        suggestion: errorPattern.suggestion,
+        knowledgePoint: errorPattern.knowledgePoint,
+        isRecurring,
+        recurringCount,
+        isMultipleChoice,
+        optionDistribution,
+        aiAnalysis,
+        wrongStudents,
+        hasAbnormalError,
+        topStudentErrors
+      })
     }
+    
+    // 按错误率降序排序
+    selectedErrors.sort((a, b) => b.errorRate - a.errorRate)
+    
+    // 计算总体错误率
+    const totalErrors = selectedErrors.reduce((sum, err) => sum + err.count, 0)
+    const totalQuestions = exam?.totalQuestions || 20
+    const avgStudents = 30
+    const overallErrorRate = Math.round((totalErrors / (totalQuestions * avgStudents)) * 100)
+    
+    answerAnalysis.value = {
+      examName: exam?.name || '未知考核',
+      examDate: exam?.date || '未知日期',
+      totalQuestions: totalQuestions,
+      errorRate: Math.min(overallErrorRate, 45),
+      trendData,
+      commonErrors: selectedErrors
+    }
+    
+    console.log('答案分析完成:', answerAnalysis.value)
   } catch (error) {
     console.error('分析答案失败:', error)
+    ElMessage.error('分析答案失败，请稍后重试')
   }
 }
 
@@ -1635,6 +2098,338 @@ const handlePushPractice = (point) => {
 const handleNotifyParent = (suggestion) => {
   const name = studentAnalysis.value?.name || '该学生'
   ElMessage.success(`已向${name}的家长发送提醒：「${suggestion.type} - ${suggestion.content}」`)
+}
+
+// ========== 答案检测相关方法 ==========
+
+// 显示/隐藏答错学生名单
+const expandedErrorIds = ref(new Set())
+
+const toggleStudentList = (errorId) => {
+  if (expandedErrorIds.value.has(errorId)) {
+    expandedErrorIds.value.delete(errorId)
+  } else {
+    expandedErrorIds.value.add(errorId)
+  }
+}
+
+const isStudentListExpanded = (errorId) => {
+  return expandedErrorIds.value.has(errorId)
+}
+
+// 生成班级共性错题本
+const generateErrorBook = () => {
+  const highErrorQuestions = answerAnalysis.value.commonErrors.filter(e => e.errorRate >= 30)
+  ElMessage.success(`正在生成包含 ${highErrorQuestions.length} 道高频错题的练习卷...`)
+  // TODO: 调用后端API生成PDF
+}
+
+// 微课录制弹窗相关
+const lessonDialogVisible = ref(false)
+const currentError = ref(null)
+const lessonForm = ref({
+  type: 'video', // video: 录制视频, whiteboard: 白板讲解
+  title: '',
+  content: '',
+  videoFile: null,
+  whiteboardData: null
+})
+
+// 白板相关状态
+const isRecording = ref(false)
+const recordedVideoUrl = ref('')
+const whiteboardCanvas = ref(null)
+const whiteboardContext = ref(null)
+const isDrawing = ref(false)
+const currentTool = ref('pen') // pen, eraser, text, shape
+const drawColor = ref('#000000')
+const drawWidth = ref(2)
+
+// 视频录制相关
+const mediaRecorder = ref(null)
+const recordedChunks = ref([])
+const videoStream = ref(null)
+const videoPreview = ref(null)
+
+// 打开微课录制弹窗
+const openLessonDialog = (error) => {
+  currentError.value = error
+  lessonForm.value = {
+    type: 'video',
+    title: `第${error.questionNumber}题 - ${error.knowledgePoint}`,
+    content: '',
+    videoFile: null,
+    whiteboardData: null
+  }
+  lessonDialogVisible.value = true
+  
+  // 如果是白板模式，初始化画布
+  if (lessonForm.value.type === 'whiteboard') {
+    nextTick(() => {
+      initWhiteboard()
+    })
+  }
+}
+
+// 关闭微课录制弹窗
+const closeLessonDialog = () => {
+  lessonDialogVisible.value = false
+  currentError.value = null
+  isRecording.value = false
+  recordedVideoUrl.value = ''
+}
+
+// 初始化白板
+const initWhiteboard = () => {
+  const canvas = whiteboardCanvas.value
+  if (!canvas) return
+  
+  const ctx = canvas.getContext('2d')
+  whiteboardContext.value = ctx
+  
+  // 设置画布大小
+  canvas.width = canvas.offsetWidth
+  canvas.height = canvas.offsetHeight
+  
+  // 设置白色背景
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+}
+
+// 白板绘制相关方法
+const startDrawing = (e) => {
+  if (!whiteboardContext.value) return
+  isDrawing.value = true
+  
+  const rect = whiteboardCanvas.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  
+  whiteboardContext.value.beginPath()
+  whiteboardContext.value.moveTo(x, y)
+}
+
+const draw = (e) => {
+  if (!isDrawing.value || !whiteboardContext.value) return
+  
+  const rect = whiteboardCanvas.value.getBoundingClientRect()
+  const x = e.clientX - rect.left
+  const y = e.clientY - rect.top
+  
+  const ctx = whiteboardContext.value
+  
+  if (currentTool.value === 'pen') {
+    ctx.strokeStyle = drawColor.value
+    ctx.lineWidth = drawWidth.value
+    ctx.lineCap = 'round'
+    ctx.lineTo(x, y)
+    ctx.stroke()
+  } else if (currentTool.value === 'eraser') {
+    ctx.strokeStyle = '#ffffff'
+    ctx.lineWidth = 20
+    ctx.lineCap = 'round'
+    ctx.lineTo(x, y)
+    ctx.stroke()
+  }
+}
+
+const stopDrawing = () => {
+  isDrawing.value = false
+}
+
+// 清空白板
+const clearWhiteboard = () => {
+  if (!whiteboardContext.value || !whiteboardCanvas.value) return
+  
+  const ctx = whiteboardContext.value
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, whiteboardCanvas.value.width, whiteboardCanvas.value.height)
+}
+
+// 切换工具
+const selectTool = (tool) => {
+  currentTool.value = tool
+}
+
+// 开始录制视频
+const startRecording = async () => {
+  try {
+    // 请求摄像头和麦克风权限
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true
+    })
+    
+    videoStream.value = stream
+    
+    // 在预览区域显示摄像头画面
+    if (videoPreview.value) {
+      videoPreview.value.srcObject = stream
+      videoPreview.value.play()
+    }
+    
+    // 创建 MediaRecorder
+    recordedChunks.value = []
+    mediaRecorder.value = new MediaRecorder(stream, {
+      mimeType: 'video/webm;codecs=vp9'
+    })
+    
+    mediaRecorder.value.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recordedChunks.value.push(event.data)
+      }
+    }
+    
+    mediaRecorder.value.onstop = () => {
+      const blob = new Blob(recordedChunks.value, { type: 'video/webm' })
+      recordedVideoUrl.value = URL.createObjectURL(blob)
+      lessonForm.value.videoFile = new File([blob], 'recorded-video.webm', { type: 'video/webm' })
+      
+      // 停止摄像头
+      if (videoStream.value) {
+        videoStream.value.getTracks().forEach(track => track.stop())
+        videoStream.value = null
+      }
+      
+      // 在预览区域显示录制的视频
+      if (videoPreview.value) {
+        videoPreview.value.srcObject = null
+        videoPreview.value.src = recordedVideoUrl.value
+      }
+    }
+    
+    mediaRecorder.value.start()
+    isRecording.value = true
+    ElMessage.success('开始录制视频，请对着摄像头讲解...')
+  } catch (error) {
+    console.error('启动摄像头失败:', error)
+    ElMessage.error('无法访问摄像头，请检查权限设置')
+  }
+}
+
+// 停止录制视频
+const stopRecording = () => {
+  if (mediaRecorder.value && mediaRecorder.value.state !== 'inactive') {
+    mediaRecorder.value.stop()
+    isRecording.value = false
+    ElMessage.success('录制已停止，视频已保存')
+  }
+}
+
+// 上传视频
+const uploadVideo = () => {
+  // 创建文件输入
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'video/*'
+  input.onchange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      lessonForm.value.videoFile = file
+      recordedVideoUrl.value = URL.createObjectURL(file)
+      ElMessage.success(`已选择视频: ${file.name}`)
+    }
+  }
+  input.click()
+}
+
+// 提交微课
+const submitLesson = () => {
+  if (!currentError.value) return
+  
+  if (lessonForm.value.type === 'video' && !lessonForm.value.videoFile && !recordedVideoUrl.value) {
+    ElMessage.warning('请先录制或上传视频')
+    return
+  }
+  
+  if (lessonForm.value.type === 'whiteboard' && whiteboardCanvas.value) {
+    // 保存白板数据
+    lessonForm.value.whiteboardData = whiteboardCanvas.value.toDataURL()
+  }
+  
+  ElMessage.success(`正在向 ${currentError.value.count} 名做错学生推送微课解析...`)
+  closeLessonDialog()
+  // TODO: 调用后端API推送
+}
+
+// 监听讲解方式切换
+watch(() => lessonForm.value.type, (newType) => {
+  if (newType === 'whiteboard' && lessonDialogVisible.value) {
+    nextTick(() => {
+      initWhiteboard()
+    })
+  }
+})
+
+// 推送微课解析给特定学生
+const pushLessonToStudents = (error) => {
+  openLessonDialog(error)
+}
+
+// 获取错误率对应的颜色类
+const getErrorRateClass = (errorRate) => {
+  if (errorRate >= 50) return 'error-critical'
+  if (errorRate >= 30) return 'error-warning'
+  return 'error-normal'
+}
+
+// 获取错误率趋势图路径
+const getErrorTrendLinePath = () => {
+  if (!answerAnalysis.value?.trendData || answerAnalysis.value.trendData.length === 0) {
+    console.warn('趋势数据为空')
+    return ''
+  }
+  
+  const data = answerAnalysis.value.trendData
+  console.log('绘制趋势线，数据:', data)
+  
+  if (data.length === 1) {
+    // 只有一个数据点，绘制一个点
+    const y = 100 - (data[0].errorRate * 2) // 错误率 * 2 来适配 0-50% 的范围
+    return `M 50 ${y} L 50 ${y}`
+  }
+  
+  let path = ''
+  
+  data.forEach((item, index) => {
+    const x = (index / (data.length - 1)) * 100
+    const y = 100 - (item.errorRate * 2) // 错误率 * 2，使 50% 对应 y=0，0% 对应 y=100
+    
+    if (index === 0) {
+      path += `M ${x} ${y}`
+    } else {
+      path += ` L ${x} ${y}`
+    }
+  })
+  
+  console.log('生成的路径:', path)
+  return path
+}
+
+const getErrorTrendAreaPath = () => {
+  if (!answerAnalysis.value?.trendData || answerAnalysis.value.trendData.length === 0) {
+    console.warn('趋势数据为空')
+    return ''
+  }
+  
+  const data = answerAnalysis.value.trendData
+  
+  if (data.length === 1) {
+    // 只有一个数据点，绘制一个小矩形
+    const y = 100 - (data[0].errorRate * 2)
+    return `M 0 100 L 0 ${y} L 100 ${y} L 100 100 Z`
+  }
+  
+  let path = `M 0 100`
+  
+  data.forEach((item, index) => {
+    const x = (index / (data.length - 1)) * 100
+    const y = 100 - (item.errorRate * 2) // 错误率 * 2
+    path += ` L ${x} ${y}`
+  })
+  
+  path += ` L 100 100 Z`
+  return path
 }
 
 // ========== 班级 KPI 趋势标签相关 ========== 
@@ -1926,7 +2721,8 @@ onMounted(async () => {
     renderRadarChart()
   }
 
-  initExams()
+  // 初始化考试列表并自动选中第一个
+  await initExams()
 
   // 窗口尺寸变化时自适应
   window.addEventListener('resize', handleResize)
@@ -3282,6 +4078,19 @@ onBeforeUnmount(() => {
 
 /* 答案分析 */
 .answer-analysis-content {
+  /* 顶部操作按钮 */
+  .analysis-actions {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: flex-end;
+    
+    .action-btn {
+      font-size: 15px;
+      padding: 14px 24px;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+  }
+
   .analysis-summary {
     background: white;
     border-radius: 20px;
@@ -3301,11 +4110,630 @@ onBeforeUnmount(() => {
         opacity: 0.7;
       }
       
-      h3 {
+      .summary-title-group {
+        flex: 1;
+        
+        h3 {
+          margin: 0 0 4px 0;
+          font-size: 1.3rem;
+          font-weight: 700;
+          color: #2d3748;
+        }
+        
+        .exam-date {
+          font-size: 12px;
+          color: #718096;
+          font-weight: 500;
+        }
+      }
+    }
+    
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      
+      .summary-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        background: #f7fafc;
+        border-radius: 12px;
+        
+        .item-icon {
+          width: 20px;
+          height: 20px;
+          opacity: 0.6;
+        }
+        
+        .item-content {
+          flex: 1;
+          
+          .summary-label {
+            font-size: 14px;
+            color: #718096;
+            margin-right: 8px;
+          }
+          
+          .summary-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            
+            &.error {
+              color: #e53e3e;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /* 错误率趋势图 */
+  .error-trend-card {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    margin-bottom: 24px;
+
+    .trend-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+
+      .card-icon {
+        width: 20px;
+        height: 20px;
+        opacity: 0.7;
+      }
+
+      h4 {
         margin: 0;
-        font-size: 1.3rem;
+        font-size: 1.1rem;
         font-weight: 700;
         color: #2d3748;
+      }
+
+      .trend-tip {
+        margin-left: auto;
+        font-size: 12px;
+        color: #718096;
+        font-style: italic;
+      }
+    }
+
+    .trend-mini-chart {
+      .trend-chart-area {
+        height: 120px;
+        margin-bottom: 12px;
+        position: relative;
+        display: flex;
+        gap: 8px;
+
+        .y-axis-labels {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding-right: 8px;
+          min-width: 40px;
+
+          .y-label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-align: right;
+          }
+        }
+
+        .trend-svg {
+          flex: 1;
+          height: 100%;
+          background: linear-gradient(to bottom, #fef2f2 0%, #ffffff 100%);
+          border-radius: 8px;
+          border: 1px solid #fee2e2;
+        }
+      }
+
+      .trend-labels {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+
+        .trend-label {
+          flex: 1;
+          text-align: center;
+          padding: 10px 6px;
+          background: #f7fafc;
+          border-radius: 8px;
+          transition: all 0.3s ease;
+
+          &:hover {
+            background: #eff6ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          }
+
+          .label-name {
+            font-size: 11px;
+            color: #718096;
+            margin-bottom: 4px;
+            font-weight: 500;
+          }
+
+          .label-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ef4444;
+            margin-bottom: 2px;
+          }
+
+          .label-date {
+            font-size: 10px;
+            color: #94a3b8;
+          }
+        }
+      }
+    }
+  }
+  
+  .error-analysis {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    
+    .error-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      
+      .error-icon {
+        width: 24px;
+        height: 24px;
+        opacity: 0.7;
+      }
+      
+      h4 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #2d3748;
+      }
+    }
+    
+    .error-list {
+      .error-item {
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+
+        /* 根据错误率使用不同颜色 */
+        &.error-critical {
+          background: #fef2f2;
+          border-color: #fca5a5;
+        }
+
+        &.error-warning {
+          background: #fffbeb;
+          border-color: #fcd34d;
+        }
+
+        &.error-normal {
+          background: #f9fafb;
+          border-color: #e5e7eb;
+        }
+        
+        &:hover {
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+          transform: translateY(-2px);
+        }
+        
+        .error-item-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+          
+          .error-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            
+            .error-icon {
+              width: 16px;
+              height: 16px;
+              opacity: 0.6;
+            }
+            
+            .error-question {
+              font-size: 15px;
+              font-weight: 700;
+              color: #2d3748;
+            }
+
+            .error-type-badge {
+              padding: 2px 8px;
+              border-radius: 4px;
+              font-size: 11px;
+              font-weight: 600;
+              background: #dbeafe;
+              color: #1e40af;
+
+              &.subjective {
+                background: #e0e7ff;
+                color: #4338ca;
+              }
+            }
+
+            .recurring-badge {
+              padding: 3px 10px;
+              border-radius: 999px;
+              font-size: 11px;
+              font-weight: 600;
+              background: #fee2e2;
+              color: #dc2626;
+              border: 1px solid #fca5a5;
+              animation: pulse 2s ease-in-out infinite;
+            }
+          }
+
+          .error-stats {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            .student-count-btn {
+              background: #fed7d7;
+              color: #c53030;
+              padding: 6px 14px;
+              border-radius: 999px;
+              font-size: 13px;
+              font-weight: 600;
+              border: none;
+              cursor: pointer;
+              transition: all 0.2s ease;
+
+              &:hover {
+                background: #fc8181;
+                color: white;
+                transform: scale(1.05);
+              }
+            }
+
+            .error-rate-badge {
+              padding: 6px 12px;
+              border-radius: 999px;
+              font-size: 13px;
+              font-weight: 700;
+              background: #ef4444;
+              color: white;
+            }
+          }
+        }
+
+        /* 异常提醒 */
+        .abnormal-alert {
+          padding: 10px 14px;
+          background: #fef3c7;
+          border-left: 4px solid #f59e0b;
+          border-radius: 6px;
+          font-size: 13px;
+          color: #92400e;
+          margin-bottom: 12px;
+          font-weight: 500;
+        }
+
+        /* 选项分布 */
+        .option-distribution {
+          background: #f8fafc;
+          border-radius: 10px;
+          padding: 16px;
+          margin-bottom: 12px;
+
+          .distribution-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 12px;
+          }
+
+          .distribution-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+
+            .distribution-bar-item {
+              .bar-label {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 4px;
+
+                .option-key {
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  width: 24px;
+                  height: 24px;
+                  border-radius: 4px;
+                  background: #e2e8f0;
+                  color: #475569;
+                  font-weight: 700;
+                  font-size: 12px;
+
+                  &.correct {
+                    background: #22c55e;
+                    color: white;
+                  }
+                }
+
+                .option-count {
+                  font-size: 12px;
+                  color: #64748b;
+                  font-weight: 500;
+                }
+              }
+
+              .bar-container {
+                height: 8px;
+                background: #e2e8f0;
+                border-radius: 999px;
+                overflow: hidden;
+
+                .bar-fill {
+                  height: 100%;
+                  background: #94a3b8;
+                  border-radius: 999px;
+                  transition: width 0.5s ease;
+
+                  &.correct {
+                    background: linear-gradient(90deg, #22c55e, #16a34a);
+                  }
+
+                  &.confusing {
+                    background: linear-gradient(90deg, #ef4444, #dc2626);
+                  }
+                }
+              }
+            }
+          }
+
+          .ai-analysis {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            padding: 12px;
+            background: #eff6ff;
+            border-radius: 8px;
+            border: 1px solid #bfdbfe;
+
+            .ai-icon {
+              font-size: 20px;
+              flex-shrink: 0;
+            }
+
+            .ai-text {
+              font-size: 13px;
+              color: #1e40af;
+              line-height: 1.6;
+            }
+          }
+        }
+
+        /* 紧凑的错误详情 */
+        .error-details-compact {
+          background: #1e293b;
+          border-radius: 10px;
+          padding: 14px 16px;
+          margin-bottom: 12px;
+
+          .detail-row {
+            display: flex;
+            gap: 12px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+            &:last-child {
+              border-bottom: none;
+            }
+
+            &.suggestion {
+              background: rgba(59, 130, 246, 0.1);
+              margin: 8px -8px -6px;
+              padding: 10px 12px;
+              border-radius: 6px;
+              border-bottom: none;
+            }
+
+            .detail-label {
+              font-size: 12px;
+              font-weight: 600;
+              color: #94a3b8;
+              min-width: 80px;
+              flex-shrink: 0;
+            }
+
+            .detail-value {
+              font-size: 13px;
+              color: #e2e8f0;
+              line-height: 1.5;
+              flex: 1;
+            }
+          }
+        }
+
+        /* 学生名单 */
+        .student-list {
+          background: #f1f5f9;
+          border-radius: 10px;
+          padding: 14px;
+          margin-bottom: 12px;
+
+          .student-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+
+            .list-count {
+              font-size: 12px;
+              color: #64748b;
+            }
+          }
+
+          .student-list-body {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+
+            .student-item {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 10px 12px;
+              background: white;
+              border-radius: 8px;
+              border: 1px solid #e2e8f0;
+
+              &.top-student {
+                background: #fef3c7;
+                border-color: #fbbf24;
+              }
+
+              .student-info {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                .student-name {
+                  font-size: 13px;
+                  font-weight: 600;
+                  color: #1e293b;
+                }
+
+                .student-id {
+                  font-size: 11px;
+                  color: #64748b;
+                }
+
+                .top-badge {
+                  padding: 2px 6px;
+                  border-radius: 4px;
+                  font-size: 10px;
+                  font-weight: 600;
+                  background: #fbbf24;
+                  color: #78350f;
+                }
+              }
+
+              .student-stats {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                font-size: 12px;
+
+                .avg-score {
+                  color: #475569;
+                  font-weight: 500;
+                }
+
+                .selected-option {
+                  padding: 2px 8px;
+                  border-radius: 4px;
+                  background: #e2e8f0;
+                  color: #475569;
+                  font-weight: 600;
+                }
+              }
+            }
+          }
+        }
+
+        /* 操作按钮 */
+        .error-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+
+          .action-btn.small {
+            padding: 8px 14px;
+            font-size: 12px;
+
+            .btn-icon {
+              width: 14px;
+              height: 14px;
+            }
+          }
+
+          .action-btn.secondary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+
+            &:hover {
+              transform: translateY(-1px);
+              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+.answer-analysis-content {
+  .analysis-summary {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    margin-bottom: 24px;
+    
+    .summary-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      
+      .summary-icon {
+        width: 24px;
+        height: 24px;
+        opacity: 0.7;
+      }
+      
+      .summary-title-group {
+        flex: 1;
+        
+        h3 {
+          margin: 0 0 4px 0;
+          font-size: 1.3rem;
+          font-weight: 700;
+          color: #2d3748;
+        }
+        
+        .exam-date {
+          font-size: 12px;
+          color: #718096;
+          font-weight: 500;
+        }
       }
     }
     
@@ -3384,12 +4812,18 @@ onBeforeUnmount(() => {
         border-radius: 12px;
         padding: 16px;
         margin-bottom: 12px;
+        transition: all 0.3s ease;
         
-        .error-header {
+        &:hover {
+          box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+          transform: translateY(-2px);
+        }
+        
+        .error-item-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 8px;
+          margin-bottom: 12px;
           
           .error-info {
             display: flex;
@@ -3412,18 +4846,37 @@ onBeforeUnmount(() => {
           .error-count {
             background: #fed7d7;
             color: #e53e3e;
-            padding: 4px 8px;
-            border-radius: 6px;
+            padding: 4px 12px;
+            border-radius: 999px;
             font-size: 12px;
             font-weight: 600;
           }
         }
         
         .error-details {
-          .error-pattern {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          
+          .error-pattern,
+          .error-reason,
+          .error-suggestion {
             font-size: 13px;
-            color: #718096;
-            line-height: 1.5;
+            color: #4a5568;
+            line-height: 1.6;
+            
+            strong {
+              color: #2d3748;
+              font-weight: 600;
+            }
+          }
+          
+          .error-suggestion {
+            padding: 8px 12px;
+            background: #fff5f5;
+            border-left: 3px solid #fc8181;
+            border-radius: 4px;
+            margin-top: 4px;
           }
         }
       }
@@ -3472,6 +4925,333 @@ onBeforeUnmount(() => {
   
   .summary-stats {
     grid-template-columns: 1fr;
+  }
+}
+
+/* 微课录制弹窗 */
+.lesson-dialog-content {
+  .lesson-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+
+    .lesson-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+
+      .lesson-question {
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .lesson-knowledge {
+        padding: 4px 12px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        font-size: 13px;
+      }
+    }
+
+    .lesson-stats {
+      display: flex;
+      gap: 16px;
+      font-size: 14px;
+
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        .stat-icon {
+          width: 16px;
+          height: 16px;
+          opacity: 0.9;
+        }
+
+        &.error-rate {
+          padding: 4px 10px;
+          background: rgba(239, 68, 68, 0.9);
+          border-radius: 999px;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  .video-record-area {
+    margin: 20px 0;
+
+    .record-preview {
+      width: 100%;
+      height: 300px;
+      background: #1e293b;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+
+      .video-player {
+        width: 100%;
+        height: 100%;
+        border-radius: 12px;
+        object-fit: cover;
+
+        &.recording {
+          border: 3px solid #ef4444;
+          animation: recordingPulse 2s ease-in-out infinite;
+        }
+      }
+
+      .preview-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(30, 41, 59, 0.9);
+        color: #94a3b8;
+        pointer-events: none;
+
+        .placeholder-icon {
+          width: 64px;
+          height: 64px;
+          opacity: 0.5;
+          margin-bottom: 12px;
+        }
+
+        p {
+          margin: 4px 0;
+          font-size: 14px;
+        }
+
+        .hint {
+          font-size: 12px;
+          color: #64748b;
+        }
+      }
+
+      .recording-indicator {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(239, 68, 68, 0.9);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        animation: fadeIn 0.3s ease;
+
+        .recording-dot {
+          width: 8px;
+          height: 8px;
+          background: white;
+          border-radius: 50%;
+          animation: blink 1s ease-in-out infinite;
+        }
+      }
+    }
+
+    .record-controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 12px;
+
+      .control-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        .btn-icon {
+          font-size: 18px;
+        }
+
+        &.record {
+          background: #ef4444;
+          color: white;
+
+          &:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+          }
+        }
+
+        &.stop {
+          background: #64748b;
+          color: white;
+
+          &:not(:disabled):hover {
+            background: #475569;
+          }
+
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+        }
+
+        &.upload {
+          background: #3b82f6;
+          color: white;
+
+          &:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+          }
+        }
+      }
+    }
+
+    .record-tips {
+      padding: 12px;
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #1e40af;
+    }
+  }
+
+  .whiteboard-area {
+    margin: 20px 0;
+
+    .whiteboard-canvas {
+      width: 100%;
+      height: 400px;
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      cursor: crosshair;
+      display: block;
+    }
+
+    .whiteboard-tools {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      background: #f8fafc;
+      border-radius: 8px;
+
+      .tool-btn {
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: white;
+        border-radius: 8px;
+        font-size: 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+        &:hover {
+          background: #667eea;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        &.active {
+          background: #667eea;
+          color: white;
+        }
+      }
+
+      .tool-divider {
+        width: 1px;
+        height: 30px;
+        background: #cbd5e1;
+        margin: 0 8px;
+      }
+
+      .color-picker {
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .width-slider {
+        width: 100px;
+        cursor: pointer;
+      }
+    }
+  }
+}
+
+.video-player {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+
+  .dialog-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    .btn-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    &.cancel {
+      background: #f1f5f9;
+      color: #64748b;
+
+      &:hover {
+        background: #e2e8f0;
+      }
+    }
+
+    &.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+    }
   }
 }
 </style> 
