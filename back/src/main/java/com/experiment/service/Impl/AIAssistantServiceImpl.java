@@ -361,4 +361,20 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             return result;
         }
     }
+    
+    @Override
+    public String chatWithSystemPrompt(String systemPrompt, String userMessage) {
+        log.info("收到带系统提示的AI对话请求");
+        log.debug("系统提示: {}", systemPrompt);
+        log.debug("用户消息: {}", userMessage);
+        
+        try {
+            String response = aiService.chatWithSystem(systemPrompt, userMessage);
+            log.info("AI对话完成，响应长度: {}", response.length());
+            return response;
+        } catch (Exception e) {
+            log.error("AI对话处理失败", e);
+            return "抱歉，AI服务暂时无法回答您的问题，请稍后重试。错误信息：" + e.getMessage();
+        }
+    }
 }
