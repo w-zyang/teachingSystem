@@ -25,12 +25,14 @@ import SmartTeachingAssistant from '@/views/teacher/SmartTeachingAssistant.vue'
 import StudentLayout from '@/views/student/StudentLayout.vue'
 import StudentDashboard from '@/views/student/Dashboard.vue'
 import OnlineLearning from '@/views/student/OnlineLearning.vue'
+import CourseDetail from '@/views/student/CourseDetail.vue'
 import PracticeEvaluation from '@/views/student/PracticeEvaluation.vue'
+import PracticeEvaluationNew from '@/views/student/PracticeEvaluationNew.vue'
+import PracticeSession from '@/views/student/PracticeSession.vue'
 import ExtendedLearning from '@/views/student/ExtendedLearning.vue'
 import LearningAssistant from '@/views/student/LearningAssistant.vue'
 import ErrorQuestionTraining from '@/views/student/ErrorQuestionTraining.vue'
 import ClassSummaryViewer from '@/views/student/ClassSummaryViewer.vue'
-import IntelligentLearning from '@/views/student/IntelligentLearning.vue'
 import Profile from '@/views/student/Profile.vue'
 import VRClassroom from '@/views/student/VRClassroom.vue'
 
@@ -82,10 +84,12 @@ const routes = [
             { path: '', redirect: '/student/dashboard' },
             { path: 'dashboard', name: 'student-dashboard', component: StudentDashboard },
             { path: 'online-learning', name: 'online-learning', component: OnlineLearning },
+            { path: 'course-detail', name: 'course-detail', component: CourseDetail },
             { path: 'practice-evaluation', name: 'practice-evaluation', component: PracticeEvaluation },
+            { path: 'practice-evaluation-new', name: 'practice-evaluation-new', component: PracticeEvaluationNew },
+            { path: 'practice-session', name: 'practice-session', component: PracticeSession },
             { path: 'extended-learning', name: 'extended-learning', component: ExtendedLearning },
             { path: 'learning-assistant', name: 'learning-assistant', component: LearningAssistant },
-            { path: 'intelligent-learning', name: 'intelligent-learning', component: IntelligentLearning },
             { path: 'error-question-training', name: 'error-question-training', component: ErrorQuestionTraining },
             { path: 'class-summary-viewer', name: 'class-summary-viewer', component: ClassSummaryViewer },
             { path: 'vr-classroom', name: 'vr-classroom', component: VRClassroom },

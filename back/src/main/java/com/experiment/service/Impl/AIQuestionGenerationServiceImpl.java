@@ -108,41 +108,47 @@ public class AIQuestionGenerationServiceImpl implements AIQuestionGenerationServ
             String difficulty, 
             String questionType, 
             int count) {
-        
         List<Map<String, Object>> questions = new ArrayList<>();
-        
-        for (int i = 0; i < count; i++) {
-            try {
-                String systemPrompt = getSystemPromptByType(questionType, topic, difficulty);
-                String userMessage = getUserMessageByType(questionType, topic, difficulty);
-                systemPrompt += " 这是第" + (i + 1) + "道题目，请确保与之前的题目完全不同。";
-                
-                String response = aiService.chatWithSystem(systemPrompt, userMessage);
-                Map<String, Object> question = parseQuestionFromResponse(response, questionType);
-                
-                if (question != null && !isDuplicateQuestion(question, questions)) {
-                    question.put("type", questionType);
-                    question.put("difficulty", difficulty);
-                    questions.add(question);
-                } else {
-                    // 如果解析失败或重复，创建一个简单的fallback
-                    Map<String, Object> fallbackQuestion = createFallbackQuestion(questionType, topic, difficulty);
-                    questions.add(fallbackQuestion);
+
+        try {
+            // 一次性让大模型生成 count 道题，避免多次串行调用导致超时
+            String systemPrompt = getSystemPromptByType(questionType, topic, difficulty, count);
+            String userMessage = getUserMessageByType(questionType, topic, difficulty, count);
+
+            String response = aiService.chatWithSystem(systemPrompt, userMessage);
+            List<Map<String, Object>> generatedList = parseQuestionListFromResponse(response, questionType);
+
+            if (generatedList != null && !generatedList.isEmpty()) {
+                for (Map<String, Object> q : generatedList) {
+                    if (q == null) {
+                        continue;
+                    }
+                    // 补充基础字段
+                    q.put("type", questionType);
+                    q.put("difficulty", difficulty);
+                    questions.add(q);
+                    if (questions.size() >= count) {
+                        break;
+                    }
                 }
-            } catch (Exception e) {
-                log.error("生成{}类型题目失败 (第{}道)", questionType, i + 1, e);
-                Map<String, Object> fallbackQuestion = createFallbackQuestion(questionType, topic, difficulty);
-                questions.add(fallbackQuestion);
             }
+        } catch (Exception e) {
+            log.error("批量生成{}类型题目失败，将使用本地fallback题目填充", questionType, e);
         }
-        
+
+        // 如果生成数量不足，用本地 fallback 补齐，保证前端一定能拿到 count 道题
+        while (questions.size() < count) {
+            Map<String, Object> fallbackQuestion = createFallbackQuestion(questionType, topic, difficulty);
+            questions.add(fallbackQuestion);
+        }
+
         return questions;
     }
     
     /**
-     * 根据题目类型获取系统提示词
+     * 根据题目类型获取系统提示词（批量生成 count 道题）
      */
-    private String getSystemPromptByType(String questionType, String topic, String difficulty) {
+    private String getSystemPromptByType(String questionType, String topic, String difficulty, int count) {
         StringBuilder prompt = new StringBuilder();
         
         // ===== 最重要：开头就强调中文 =====
@@ -150,7 +156,11 @@ public class AIQuestionGenerationServiceImpl implements AIQuestionGenerationServ
         prompt.append("【核心要求】题目标题、题目描述、选项、答案、解析都必须是中文！\n");
         prompt.append("【核心要求】即使是编程题，题目描述也必须用中文！\n\n");
         
-        prompt.append("你是一个专业的中文教学题目生成助手。请严格按照要求生成高质量的").append(getQuestionTypeName(questionType)).append("。");
+        prompt.append("你是一个专业的中文教学题目生成助手。请严格按照要求生成高质量的")
+              .append(getQuestionTypeName(questionType))
+              .append("。本次需要一次性生成 ")
+              .append(count)
+              .append(" 道互不重复的题目，并以 JSON 数组形式返回。");
         
         // 添加随机性指令，避免重复
         prompt.append("重要要求：每道题目必须独特，不能与之前生成的题目重复。请从不同角度、不同知识点、不同应用场景来设计题目。");
@@ -222,19 +232,22 @@ public class AIQuestionGenerationServiceImpl implements AIQuestionGenerationServ
         prompt.append("\n\n题目难度为").append(difficulty).append("，主题是").append(topic).append("。");
         
         prompt.append("\n\n【输出格式】\n");
-        prompt.append("请严格按照以下JSON格式输出：\n\n");
+        prompt.append("请严格按照以下 JSON 数组格式输出（不要添加额外文字说明）：\n\n");
         
         switch (questionType) {
             case "choice":
-                prompt.append("{\n");
-                prompt.append("  \"title\": \"题目内容（中文）\",\n");
-                prompt.append("  \"options\": [\"A. 选项1（中文）\", \"B. 选项2（中文）\", \"C. 选项3（中文）\", \"D. 选项4（中文）\"],\n");
-                prompt.append("  \"answer\": \"A\",\n");
-                prompt.append("  \"explanation\": \"解析内容（中文）\"\n");
-                prompt.append("}");
+                prompt.append("[\n");
+                prompt.append("  {\n");
+                prompt.append("    \"title\": \"题目内容（中文）\",\n");
+                prompt.append("    \"options\": [\"A. 选项1（中文）\", \"B. 选项2（中文）\", \"C. 选项3（中文）\", \"D. 选项4（中文）\"],\n");
+                prompt.append("    \"answer\": \"A\",\n");
+                prompt.append("    \"explanation\": \"解析内容（中文）\"\n");
+                prompt.append("  }\n");
+                prompt.append("]\n");
                 break;
             case "coding":
-                prompt.append("{\n");
+                prompt.append("[\n");
+                prompt.append("  {\n");
                 prompt.append("  \"title\": \"题目标题（中文）\",\n");
                 prompt.append("  \"content\": \"详细的问题描述和背景（中文）\",\n");
                 prompt.append("  \"requirements\": \"编程要求：详细说明需要实现的功能（中文）\",\n");
@@ -261,7 +274,8 @@ public class AIQuestionGenerationServiceImpl implements AIQuestionGenerationServ
                 prompt.append("  ],\n");
                 prompt.append("  \"hints\": \"提示：解题思路或注意事项（中文，可选）\",\n");
                 prompt.append("  \"answer\": \"参考代码（可选）\"\n");
-                prompt.append("}\n\n");
+                prompt.append("  }\n");
+                prompt.append("]\n\n");
                 prompt.append("⚠️ 重要提醒：\n");
                 prompt.append("1. content、requirements、inputFormat、outputFormat都是必填项，不能为空\n");
                 prompt.append("2. examples必须包含至少2个示例，每个示例都要有explanation\n");
@@ -272,10 +286,12 @@ public class AIQuestionGenerationServiceImpl implements AIQuestionGenerationServ
                 prompt.append("7. 所有中文字段都必须填写完整，不能留空");
                 break;
             default:
-                prompt.append("{\n");
-                prompt.append("  \"title\": \"题目内容（中文）\",\n");
-                prompt.append("  \"answer\": \"答案（中文）\"\n");
-                prompt.append("}");
+                prompt.append("[\n");
+                prompt.append("  {\n");
+                prompt.append("    \"title\": \"题目内容（中文）\",\n");
+                prompt.append("    \"answer\": \"答案（中文）\"\n");
+                prompt.append("  }\n");
+                prompt.append("]\n");
         }
         
         prompt.append("\n\n⚠️ 最后提醒：所有内容必须是中文！禁止使用英文标题和描述！\n");
@@ -284,15 +300,57 @@ public class AIQuestionGenerationServiceImpl implements AIQuestionGenerationServ
     }
     
     /**
-     * 根据题目类型获取用户消息
+     * 根据题目类型获取用户消息（批量生成 count 道题）
      */
-    private String getUserMessageByType(String questionType, String topic, String difficulty) {
+    private String getUserMessageByType(String questionType, String topic, String difficulty, int count) {
         String[] variations = {
-            String.format("【重要】请用中文生成！请生成1道关于'%s'的%s难度%s。", topic, difficulty, getQuestionTypeName(questionType)),
-            String.format("【重要】请用中文生成！创建1道%s难度的%s，主题是'%s'。", difficulty, getQuestionTypeName(questionType), topic),
-            String.format("【重要】请用中文生成！设计1道关于'%s'的%s，难度为%s。", topic, getQuestionTypeName(questionType), difficulty)
+            String.format("【重要】请用中文生成！请一次性生成 %d 道关于“%s”的%s难度%s，并以 JSON 数组形式返回。", count, topic, difficulty, getQuestionTypeName(questionType)),
+            String.format("【重要】请用中文生成！创建 %d 道%s难度的%s，主题是“%s”，注意题目之间要有明显差异。", count, difficulty, getQuestionTypeName(questionType), topic),
+            String.format("【重要】请用中文生成！设计 %d 道关于“%s”的%s，难度为%s，返回 JSON 数组，每个元素是一道题目。", count, topic, getQuestionTypeName(questionType), difficulty)
         };
         return variations[(int)(Math.random() * variations.length)];
+    }
+
+    /**
+     * 解析批量题目列表
+     */
+    private List<Map<String, Object>> parseQuestionListFromResponse(String response, String questionType) {
+        if (response == null || response.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        try {
+            // 去除markdown代码块
+            String cleaned = response.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
+
+            // 优先尝试直接解析为 List
+            Object parsed = objectMapper.readValue(cleaned, Object.class);
+            if (parsed instanceof List) {
+                // noinspection unchecked
+                return (List<Map<String, Object>>) parsed;
+            }
+
+            if (parsed instanceof Map) {
+                Map<?, ?> map = (Map<?, ?>) parsed;
+                Object questions = map.get("questions");
+                if (questions instanceof List) {
+                    // noinspection unchecked
+                    return (List<Map<String, Object>>) questions;
+                }
+            }
+
+            // 兜底：尝试按单题解析并包装成列表
+            Map<String, Object> single = parseQuestionFromResponse(cleaned, questionType);
+            if (single != null) {
+                List<Map<String, Object>> list = new ArrayList<>();
+                list.add(single);
+                return list;
+            }
+        } catch (Exception e) {
+            log.warn("批量题目解析失败: {}", e.getMessage());
+        }
+
+        return Collections.emptyList();
     }
     
     /**

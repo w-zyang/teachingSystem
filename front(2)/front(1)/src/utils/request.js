@@ -169,8 +169,11 @@ aiService.interceptors.response.use(
     console.error('AI响应错误:', error)
     
     let errorMsg = 'AI服务网络错误'
-    
-    if (error.response) {
+
+    // 超时特殊处理，给出更明确的提示
+    if (error.code === 'ECONNABORTED') {
+      errorMsg = 'AI生成题目超时，请稍后重试或适当减少题目数量'
+    } else if (error.response) {
       const { status, data } = error.response
       console.error('AI服务器错误:', { status, data })
       

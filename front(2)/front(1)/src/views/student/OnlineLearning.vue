@@ -167,17 +167,7 @@
             </div>
           </div>
           
-          <!-- 操作按钮 -->
-          <div class="course-actions">
-            <button @click.stop="viewCourseResources(course)" class="action-btn primary">
-              <img src="@/assets/category.png" alt="查看资源" class="btn-icon">
-              <span>学习资源</span>
-            </button>
-            <button @click.stop="viewCourseExams(course)" class="action-btn secondary">
-              <img src="@/assets/edit.png" alt="练习测试" class="btn-icon">
-              <span>练习测试</span>
-            </button>
-          </div>
+
         </div>
       </div>
     </div>
@@ -726,8 +716,14 @@ const filterCourses = () => {
 
 // 选择课程
 const selectCourse = (course) => {
-  // 可以添加课程详情页面跳转逻辑
-  console.log('选择课程:', course)
+  // 跳转到课程详情页
+  router.push({
+    path: '/student/course-detail',
+    query: {
+      courseId: course.id,
+      courseName: course.title
+    }
+  })
 }
 
 // 联系教师
@@ -1421,55 +1417,7 @@ onMounted(() => {
       }
     }
     
-    .course-actions {
-      display: flex;
-      gap: 12px;
-      
-      .action-btn {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 12px 16px;
-        border: none;
-        border-radius: 12px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        transform: translateY(8px);
-        opacity: 0.8;
-        
-        .btn-icon {
-          width: 16px;
-          height: 16px;
-        }
-        
-        &.primary {
-          background: linear-gradient(135deg, #667eea, #764ba2);
-          color: white;
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-          
-          &:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-          }
-        }
-        
-        &.secondary {
-          background: white;
-          color: #374151;
-          border: 2px solid #e5e7eb;
-          
-          &:hover {
-            background: #f9fafb;
-            border-color: #d1d5db;
-            transform: translateY(-2px);
-          }
-        }
-      }
-    }
+
   }
 }
 

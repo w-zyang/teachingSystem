@@ -25,27 +25,100 @@ public class AIEvaluationServiceImpl implements AIEvaluationService {
     @Override
     public Map<String, Object> evaluatePractice(Map<String, Object> data) {
         log.info("开始练习评测");
-        
+
+        // 兼容两种模式：
+        // 1）整套练习批阅：questions + answers 列表
+        // 2）单题实时批阅：question + studentAnswer + correctAnswer
+
+        @SuppressWarnings("unchecked")
         List<Map<String, Object>> questions = (List<Map<String, Object>>) data.get("questions");
+
+        // ===== 单题模式：前端 PracticeSession.vue 传的是 question / studentAnswer / correctAnswer =====
+        if (questions == null) {
+            log.info("检测到单题评测模式");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> question = (Map<String, Object>) data.get("question");
+            String studentAnswer = (String) data.get("studentAnswer");
+            String correctAnswer = (String) data.get("correctAnswer");
+
+            if (question == null) {
+                throw new IllegalArgumentException("评测请求中缺少 question 字段");
+            }
+
+            if (studentAnswer == null) {
+                studentAnswer = "";
+            }
+            if (correctAnswer == null) {
+                correctAnswer = "";
+            }
+
+            // 基础判分：简单字符串对比，忽略首尾空格
+            boolean isCorrect = studentAnswer.trim().equalsIgnoreCase(correctAnswer.trim());
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("isCorrect", isCorrect);
+
+            // 尝试调用 AI 做一句话点评（失败就用本地文案）
+            try {
+                String topic = (String) data.get("topic");
+                String systemPrompt = buildDetailedAnalysisSystemPrompt();
+                String userMessage = buildDetailedAnalysisUserMessage(
+                        question, studentAnswer, correctAnswer, isCorrect, topic
+                );
+                String response = aiService.chatWithSystem(systemPrompt, userMessage);
+                Map<String, Object> detail = parseDetailedAnalysisResponse(response);
+                String evaluation = (String) detail.getOrDefault("detailedAnalysis", "");
+                if (evaluation == null || evaluation.isBlank()) {
+                    evaluation = isCorrect
+                            ? "回答正确，继续保持。"
+                            : "回答有误，建议回顾本题考察的知识点并多做几道类似题巩固。";
+                }
+                result.put("evaluation", evaluation);
+            } catch (Exception e) {
+                log.warn("单题AI评测失败，使用本地评价文案: {}", e.getMessage());
+                String fallback = isCorrect
+                        ? "回答正确，继续保持。"
+                        : "回答有误，注意对比参考答案，总结错误原因。";
+                result.put("evaluation", fallback);
+            }
+
+            log.info("单题练习评测完成");
+            return result;
+        }
+
+        // ===== 整套练习批阅模式 =====
+        @SuppressWarnings("unchecked")
         List<String> answers = (List<String>) data.get("answers");
         String topic = (String) data.get("topic");
         Integer timeUsed = (Integer) data.get("timeUsed");
-        
+
+        // 空保护，避免 NPE
+        if (questions == null || questions.isEmpty() || answers == null) {
+            log.warn("整套评测请求中 questions 或 answers 为空，返回基础空结果");
+            Map<String, Object> empty = new HashMap<>();
+            empty.put("score", 0);
+            empty.put("correctCount", 0);
+            empty.put("accuracy", 0);
+            empty.put("analysis", Collections.emptyList());
+            empty.put("timeUsed", timeUsed);
+            return empty;
+        }
+
         // 构建评测提示词
         String systemPrompt = buildEvaluationSystemPrompt();
         String userMessage = buildEvaluationUserMessage(questions, answers, topic);
-        
+
         try {
             String response = aiService.chatWithSystem(systemPrompt, userMessage);
             Map<String, Object> result = parseEvaluationResponse(response);
-            
+
             // 补充时间信息
             result.put("timeUsed", timeUsed);
-            
+
             log.info("练习评测完成");
             return result;
         } catch (Exception e) {
-            log.error("练习评测失败", e);
+            log.error("练习评测失败，使用基础规则评测", e);
             // 返回基础评测结果
             return createBasicEvaluation(questions, answers);
         }
@@ -158,6 +231,10 @@ public class AIEvaluationServiceImpl implements AIEvaluationService {
      * 构建评测用户消息
      */
     private String buildEvaluationUserMessage(List<Map<String, Object>> questions, List<String> answers, String topic) {
+        if (questions == null || questions.isEmpty()) {
+            return "本次练习包含若干道题目，请根据学生的整体答题情况给出一个简要的评价和建议。";
+        }
+
         StringBuilder message = new StringBuilder();
         message.append("请评测以下练习：\n\n");
         message.append("主题：").append(topic).append("\n\n");

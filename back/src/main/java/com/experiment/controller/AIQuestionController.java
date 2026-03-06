@@ -30,6 +30,20 @@ public class AIQuestionController {
         log.info("收到生成练习题目请求: {}", data);
         try {
             String topic = (String) data.get("topic");
+            String subject = (String) data.get("subject");
+            @SuppressWarnings("unchecked")
+            List<String> knowledgePoints = (List<String>) data.get("knowledgePoints");
+
+            // 如果前端没有直接传 topic，则用学科 + 知识点拼出一个更具体的主题，方便大模型聚焦
+            if ((topic == null || topic.isBlank()) && knowledgePoints != null && !knowledgePoints.isEmpty()) {
+                String firstPoint = knowledgePoints.get(0);
+                if (subject != null && !subject.isBlank()) {
+                    topic = subject + " - " + firstPoint;
+                } else {
+                    topic = firstPoint;
+                }
+            }
+
             String difficulty = (String) data.get("difficulty");
             Integer count = (Integer) data.get("count");
             List<String> questionTypes = (List<String>) data.get("questionTypes");

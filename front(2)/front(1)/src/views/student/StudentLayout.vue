@@ -176,7 +176,7 @@ const menuItems = ref([
     name: '练习评估',
     title: '练习评估',
     iconSrc: '/src/assets/balance.png',
-    path: '/student/practice-evaluation',
+    path: '/student/practice-evaluation-new',
     badge: null
   },
   {
@@ -194,14 +194,6 @@ const menuItems = ref([
     iconSrc: '/src/assets/search.png',
     path: '/student/learning-assistant',
     badge: null
-  },
-  {
-    id: 'intelligent-learning',
-    name: '智能学习',
-    title: '智能学习',
-    iconSrc: '/src/assets/local.png',
-    path: '/student/intelligent-learning',
-    badge: 'NEW'
   },
   {
     id: 'error-question-training',
