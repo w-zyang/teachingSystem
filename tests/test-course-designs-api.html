@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试课件生成记录API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <h1>课件生成记录API测试</h1>
+    
+    <div class="test-section">
+        <h2>1. 测试获取课件生成记录列表</h2>
+        <label>教师ID: <input type="number" id="teacherId" value="2"></label>
+        <button onclick="testGetCourseDesigns()">测试获取记录</button>
+        <div id="result1" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 测试获取课件生成详情</h2>
+        <label>记录ID: <input type="number" id="designId" value="1"></label>
+        <button onclick="testGetCourseDesignDetail()">测试获取详情</button>
+        <div id="result2" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 查看数据库表结构</h2>
+        <button onclick="checkDatabase()">检查数据库</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+
+        async function testGetCourseDesigns() {
+            const teacherId = document.getElementById('teacherId').value;
+            const resultDiv = document.getElementById('result1');
+            
+            try {
+                resultDiv.textContent = '正在请求...';
+                resultDiv.className = 'result';
+                
+                const response = await fetch(`${API_BASE}/api/smart-teaching/course-designs/${teacherId}`);
+                const data = await response.json();
+                
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.className = response.ok ? 'result success' : 'result error';
+                
+                console.log('获取记录列表响应:', data);
+            } catch (error) {
+                resultDiv.textContent = '请求失败: ' + error.message;
+                resultDiv.className = 'result error';
+                console.error('请求失败:', error);
+            }
+        }
+
+        async function testGetCourseDesignDetail() {
+            const designId = document.getElementById('designId').value;
+            const resultDiv = document.getElementById('result2');
+            
+            try {
+                resultDiv.textContent = '正在请求...';
+                resultDiv.className = 'result';
+                
+                const response = await fetch(`${API_BASE}/api/smart-teaching/course-design/${designId}`);
+                const data = await response.json();
+                
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.className = response.ok ? 'result success' : 'result error';
+                
+                console.log('获取详情响应:', data);
+            } catch (error) {
+                resultDiv.textContent = '请求失败: ' + error.message;
+                resultDiv.className = 'result error';
+                console.error('请求失败:', error);
+            }
+        }
+
+        function checkDatabase() {
+            const resultDiv = document.getElementById('result3');
+            resultDiv.textContent = `
+请在MySQL中执行以下SQL语句检查数据：
+
+-- 1. 查看ai_ppt_generation表结构
+DESC ai_ppt_generation;
+
+-- 2. 查看表中的所有记录
+SELECT * FROM ai_ppt_generation;
+
+-- 3. 查看教师ID为2的记录
+SELECT * FROM ai_ppt_generation WHERE teacher_id = 2;
+
+-- 4. 查看记录数量
+SELECT COUNT(*) as total FROM ai_ppt_generation;
+
+-- 5. 如果表为空，插入测试数据
+INSERT INTO ai_ppt_generation (teacher_id, course_id, topic, keywords, slide_count, style, status, create_time)
+VALUES (2, 1, 'MCP技术详解', 'MCP, 技术架构, 应用场景', 15, 'professional', 'completed', NOW());
+            `;
+            resultDiv.className = 'result';
+        }
+
+        // 页面加载时自动测试
+        window.onload = function() {
+            console.log('页面加载完成，可以开始测试');
+            console.log('API基础地址:', API_BASE);
+        };
+    </script>
+</body>
+</html>
+

@@ -27,8 +27,10 @@
                 <el-input v-model="examConfig.name" placeholder="请输入考核名称" />
               </el-form-item>
               <el-form-item label="考核类型">
-                <el-select v-model="examConfig.type" style="width: 100%;">
-                  <el-option label="choice" value="choice" />
+                <el-select v-model="examConfig.type" @change="onTypeChange" style="width: 100%;">
+                  <el-option label="考试" value="exam" />
+                  <el-option label="实验指导书" value="experiment" />
+                  <el-option label="大作业" value="assignment" />
                 </el-select>
               </el-form-item>
               <el-form-item label="考核时长(分钟)">
@@ -58,53 +60,128 @@
                 📋 查看历史考核
               </el-button>
             </div>
+            
+            <!-- 实验指导书生成按钮 -->
+            <div style="margin-top: 12px;">
+              <el-button @click="showExperimentGuideDialog = true" icon="Document" type="success" style="width: 100%;">
+                📝 生成实验指导书
+              </el-button>
+            </div>
           </el-card>
         </el-col>
         
-        <!-- 右侧：题目配置 -->
+        <!-- 右侧：配置区域（根据考核类型动态显示） -->
         <el-col :xs="24" :sm="24" :md="12" :lg="12">
           <el-card class="config-card">
             <template #header>
               <div class="header-left">
                 <el-icon><List /></el-icon>
-                <span style="font-weight:bold;font-size:18px;">自题目配置</span>
+                <span style="font-weight:bold;font-size:18px;">
+                  {{ examConfig.type === 'exam' ? '题目配置' : examConfig.type === 'experiment' ? '实验指导书配置' : '大作业配置' }}
+                </span>
               </div>
             </template>
-            <el-row :gutter="12">
-              <el-col :xs="24" :sm="12" :md="12" v-for="type in questionTypes" :key="type.key" style="margin-bottom: 12px;">
-                <el-card class="type-card" shadow="hover">
-                  <div style="text-align: center;">
-                    <div style="font-weight:bold; font-size: 16px; margin-bottom: 8px;">{{ type.name }}</div>
-                    <div style="color:#888;font-size:13px; margin-bottom: 12px;">每题{{ type.scorePer }}分</div>
-                    <div style="color:#888;font-size:13px; margin-bottom: 12px;">难度:{{ type.difficulty }}</div>
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-                      <el-button size="small" @click.stop="type.count = Math.max(0, type.count - 1)" circle>
-                        <span style="font-size: 18px; font-weight: bold;">−</span>
-                      </el-button>
-                      <el-input 
-                        v-model.number="type.count" 
-                        type="number" 
-                        :min="0" 
-                        :max="100" 
-                        size="small" 
-                        class="centered-input"
-                        style="width: 80px;" 
-                        @input="type.count = Math.max(0, Math.min(100, Number(type.count) || 0))"
-                      />
-                      <el-button size="small" @click.stop="type.count = Math.min(100, type.count + 1)" circle>
-                        <span style="font-size: 18px; font-weight: bold;">+</span>
-                      </el-button>
-                      <span style="margin-left:4px;">题</span>
+            
+            <!-- 考试类型：题目配置 -->
+            <div v-if="examConfig.type === 'exam'">
+              <el-row :gutter="12">
+                <el-col :xs="24" :sm="12" :md="12" v-for="type in questionTypes" :key="type.key" style="margin-bottom: 12px;">
+                  <el-card class="type-card" shadow="hover">
+                    <div style="text-align: center;">
+                      <div style="font-weight:bold; font-size: 16px; margin-bottom: 8px;">{{ type.name }}</div>
+                      <div style="color:#888;font-size:13px; margin-bottom: 12px;">每题{{ type.scorePer }}分</div>
+                      <div style="color:#888;font-size:13px; margin-bottom: 12px;">难度:{{ type.difficulty }}</div>
+                      <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <el-button size="small" @click.stop="type.count = Math.max(0, type.count - 1)" circle>
+                          <span style="font-size: 18px; font-weight: bold;">−</span>
+                        </el-button>
+                        <el-input 
+                          v-model.number="type.count" 
+                          type="number" 
+                          :min="0" 
+                          :max="100" 
+                          size="small" 
+                          class="centered-input"
+                          style="width: 80px;" 
+                          @input="type.count = Math.max(0, Math.min(100, Number(type.count) || 0))"
+                        />
+                        <el-button size="small" @click.stop="type.count = Math.min(100, type.count + 1)" circle>
+                          <span style="font-size: 18px; font-weight: bold;">+</span>
+                        </el-button>
+                        <span style="margin-left:4px;">题</span>
+                      </div>
                     </div>
-                  </div>
-                </el-card>
-              </el-col>
-            </el-row>
+                  </el-card>
+                </el-col>
+              </el-row>
+            </div>
+            
+            <!-- 实验指导书类型：实验配置 -->
+            <div v-else-if="examConfig.type === 'experiment'" style="padding: 20px;">
+              <el-form label-width="100px">
+                <el-form-item label="章节名称" required>
+                  <el-input v-model="experimentConfig.chapterName" placeholder="例如：第一章 Java基础" />
+                </el-form-item>
+
+                <el-form-item label="知识点" required>
+                  <el-select 
+                    v-model="experimentConfig.knowledgePoints" 
+                    multiple 
+                    filterable 
+                    allow-create 
+                    placeholder="请选择或输入知识点"
+                    style="width: 100%;">
+                    <el-option label="变量与数据类型" value="变量与数据类型" />
+                    <el-option label="控制结构" value="控制结构" />
+                    <el-option label="函数与方法" value="函数与方法" />
+                    <el-option label="面向对象编程" value="面向对象编程" />
+                    <el-option label="异常处理" value="异常处理" />
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="难度等级">
+                  <el-radio-group v-model="experimentConfig.difficultyLevel">
+                    <el-radio label="beginner">初级</el-radio>
+                    <el-radio label="intermediate">中级</el-radio>
+                    <el-radio label="advanced">高级</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+              </el-form>
+            </div>
+            
+            <!-- 大作业类型：作业配置 -->
+            <div v-else-if="examConfig.type === 'assignment'" style="padding: 20px;">
+              <el-form label-width="100px">
+                <el-form-item label="作业标题" required>
+                  <el-input v-model="assignmentConfig.title" placeholder="请输入大作业标题" />
+                </el-form-item>
+
+                <el-form-item label="作业描述" required>
+                  <el-input 
+                    v-model="assignmentConfig.description" 
+                    type="textarea" 
+                    :rows="4"
+                    placeholder="请输入作业要求和描述" />
+                </el-form-item>
+
+                <el-form-item label="提交方式">
+                  <el-checkbox-group v-model="assignmentConfig.submitTypes">
+                    <el-checkbox label="file">文件上传</el-checkbox>
+                    <el-checkbox label="text">文本提交</el-checkbox>
+                    <el-checkbox label="link">链接提交</el-checkbox>
+                  </el-checkbox-group>
+                </el-form-item>
+
+                <el-form-item label="总分">
+                  <el-input-number v-model="assignmentConfig.totalScore" :min="1" :max="200" style="width: 100%;" />
+                </el-form-item>
+              </el-form>
+            </div>
             
             <!-- 下一步按钮 -->
             <div style="margin-top: 24px;">
               <el-button type="primary" @click="goToStep(2)" icon="Right" size="large" style="width: 100%;">
-                下一步：配置题目
+                {{ examConfig.type === 'exam' ? '下一步：配置题目' : examConfig.type === 'experiment' ? '生成实验指导书' : '生成大作业' }}
               </el-button>
             </div>
           </el-card>

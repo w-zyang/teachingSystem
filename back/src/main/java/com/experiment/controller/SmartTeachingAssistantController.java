@@ -105,6 +105,54 @@ public class SmartTeachingAssistantController {
         }
     }
 
+    // ==================== 课件生成记录 ====================
+
+    /**
+     * 获取课件生成记录
+     */
+    @GetMapping("/course-designs/{teacherId}")
+    public Result<List<Map<String, Object>>> getCourseDesigns(@PathVariable Long teacherId) {
+        try {
+            List<Map<String, Object>> list = smartTeachingService.getCourseDesigns(teacherId);
+            return Result.success("获取成功", list);
+        } catch (Exception e) {
+            log.error("获取课件生成记录失败", e);
+            return Result.error("获取课件生成记录失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取课件生成详情
+     */
+    @GetMapping("/course-design/{designId}")
+    public Result<Map<String, Object>> getCourseDesignDetail(@PathVariable Long designId) {
+        try {
+            Map<String, Object> detail = smartTeachingService.getCourseDesignDetail(designId);
+            return Result.success("获取成功", detail);
+        } catch (Exception e) {
+            log.error("获取课件生成详情失败", e);
+            return Result.error("获取课件生成详情失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 删除课件生成记录
+     */
+    @DeleteMapping("/course-design/{designId}")
+    public Result<String> deleteCourseDesign(@PathVariable Long designId) {
+        try {
+            boolean success = smartTeachingService.deleteCourseDesign(designId);
+            if (success) {
+                return Result.success("删除成功");
+            } else {
+                return Result.error("删除失败");
+            }
+        } catch (Exception e) {
+            log.error("删除课件生成记录失败", e);
+            return Result.error("删除课件生成记录失败: " + e.getMessage());
+        }
+    }
+
     // ==================== 2. 实验指导书生成 ====================
 
     /**

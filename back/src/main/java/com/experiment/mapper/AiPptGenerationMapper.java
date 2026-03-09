@@ -27,5 +27,8 @@ public interface AiPptGenerationMapper {
     
     @Select("SELECT * FROM ai_ppt_generation WHERE task_id = #{taskId}")
     AiPptGeneration selectByTaskId(String taskId);
+    
+    @Delete("DELETE FROM ai_ppt_generation WHERE id = #{id}")
+    int deleteById(Long id);
 }
 

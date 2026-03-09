@@ -38,49 +38,21 @@
     <div class="records-section">
       <div class="section-tabs">
         <button 
-          :class="['tab-btn', { active: activeTab === 'courseware' }]"
-          @click="activeTab = 'courseware'; loadCoursewareList()">
-          课件更新记录
-        </button>
-        <button 
           :class="['tab-btn', { active: activeTab === 'experiment' }]"
           @click="activeTab = 'experiment'; loadExperimentList()">
-          实验指导书
+          实验指导书记录
         </button>
         <button 
           :class="['tab-btn', { active: activeTab === 'homework' }]"
           @click="activeTab = 'homework'; loadHomeworkList()">
-          作业批阅
+          作业批阅记录
         </button>
-      </div>
-
-      <!-- 课件更新记录列表 -->
-      <div v-if="activeTab === 'courseware'" class="records-list">
-        <div v-if="coursewareList.length === 0" class="empty-state">
-          <p>暂无课件更新记录</p>
-        </div>
-        <div v-else class="record-item" v-for="item in coursewareList" :key="item.id">
-          <div class="record-info">
-            <h4>{{ item.originalFileName }}</h4>
-            <p>{{ item.updateRequirements }}</p>
-            <span class="record-time">{{ formatTime(item.createTime) }}</span>
-          </div>
-          <div class="record-status">
-            <span :class="['status-badge', item.status]">{{ getStatusText(item.status) }}</span>
-            <button v-if="item.status === 'suggestions_ready'" class="btn-view" @click="viewSuggestions(item.id)">
-              查看建议
-            </button>
-            <button class="btn-delete" @click="deleteCourseware(item.id)">
-              删除
-            </button>
-          </div>
-        </div>
       </div>
 
       <!-- 实验指导书列表 -->
       <div v-if="activeTab === 'experiment'" class="records-list">
         <div v-if="experimentList.length === 0" class="empty-state">
-          <p>暂无实验指导书</p>
+          <p>暂无实验指导书记录</p>
         </div>
         <div v-else class="record-item" v-for="item in experimentList" :key="item.id">
           <div class="record-info">
@@ -90,10 +62,10 @@
           </div>
           <div class="record-status">
             <span :class="['status-badge', item.status]">{{ getStatusText(item.status) }}</span>
-            <button v-if="item.status === 'completed'" class="btn-view" @click="viewExperiment(item.id)">
-              查看
+            <button v-if="item.status === 'completed'" class="btn-view" @click="viewExperimentGuide(item.id)">
+              查看详情
             </button>
-            <button class="btn-delete" @click="deleteExperiment(item.id)">
+            <button class="btn-delete" @click="deleteExperimentGuide(item.id)">
               删除
             </button>
           </div>
@@ -128,39 +100,11 @@
       </div>
     </div>
 
-    <!-- 课件更新器弹窗 -->
-    <CoursewareUpdaterDialog
-      v-if="showCoursewareUpdater"
-      @close="showCoursewareUpdater = false"
-      @success="handleCoursewareUpdated"
-    />
-
-    <!-- 实验指导书生成器弹窗 -->
-    <ExperimentGeneratorDialog
-      v-if="showExperimentGenerator"
-      @close="showExperimentGenerator = false"
-      @success="handleExperimentGenerated"
-    />
-
     <!-- 作业批阅弹窗 -->
     <HomeworkGradingDialog
       v-if="showHomeworkGrading"
       @close="showHomeworkGrading = false"
       @success="handleHomeworkSubmitted"
-    />
-
-    <!-- 课件更新建议查看弹窗 -->
-    <SuggestionsViewDialog
-      v-if="showSuggestionsView"
-      :updateId="currentUpdateId"
-      @close="showSuggestionsView = false"
-    />
-
-    <!-- 实验指导书查看弹窗 -->
-    <ExperimentViewDialog
-      v-if="showExperimentView"
-      :guideId="currentExperimentId"
-      @close="showExperimentView = false"
     />
 
     <!-- 批阅结果查看弹窗 -->
@@ -187,40 +131,24 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as smartTeachingApi from '@/api/smartTeaching'
-import CoursewareUpdaterDialog from './components/CoursewareUpdaterDialog.vue'
-import ExperimentGeneratorDialog from './components/ExperimentGeneratorDialog.vue'
 import HomeworkGradingDialog from './components/HomeworkGradingDialog.vue'
-import SuggestionsViewDialog from './components/SuggestionsViewDialog.vue'
-import ExperimentViewDialog from './components/ExperimentViewDialog.vue'
 import GradingResultDialog from './components/GradingResultDialog.vue'
 import AIGenerationProgress from '@/components/AIGenerationProgress.vue'
 
 export default {
   name: 'TeachingToolbox',
   components: {
-    CoursewareUpdaterDialog,
-    ExperimentGeneratorDialog,
     HomeworkGradingDialog,
-    SuggestionsViewDialog,
-    ExperimentViewDialog,
     GradingResultDialog,
     AIGenerationProgress
   },
   setup() {
-    const activeTab = ref('courseware')
-    const coursewareList = ref([])
-    const experimentList = ref([])
+    const activeTab = ref('homework')
     const homeworkList = ref([])
     
-    const showCoursewareUpdater = ref(false)
-    const showExperimentGenerator = ref(false)
     const showHomeworkGrading = ref(false)
-    const showSuggestionsView = ref(false)
-    const showExperimentView = ref(false)
     const showGradingResult = ref(false)
     
-    const currentUpdateId = ref(null)
-    const currentExperimentId = ref(null)
     const currentGrading = ref(null)
 
     const teacherId = ref(localStorage.getItem('userId') || '2')
@@ -237,38 +165,6 @@ export default {
       { title: '完成', desc: '批阅完成！' }
     ])
 
-    // 加载课件更新列表
-    const loadCoursewareList = async () => {
-      try {
-        const res = await smartTeachingApi.getCoursewareUpdates(teacherId.value)
-        // 兼容两种响应格式
-        if (res.code === 1 || res.success === true) {
-          coursewareList.value = res.data || []
-        }
-      } catch (error) {
-        console.error('加载课件更新列表失败', error)
-      }
-    }
-
-    // 加载实验指导书列表
-    const loadExperimentList = async () => {
-      try {
-        console.log('正在加载实验指导书列表，教师ID:', teacherId.value)
-        const res = await smartTeachingApi.getExperimentGuides(teacherId.value)
-        console.log('实验指导书列表API响应:', res)
-        // 兼容两种响应格式：{code: 1, data: ...} 或 {success: true, data: ...}
-        if (res.code === 1 || res.success === true) {
-          experimentList.value = res.data || []
-          console.log('实验指导书列表加载成功，数量:', experimentList.value.length)
-          console.log('列表内容:', experimentList.value)
-        } else {
-          console.error('加载失败，响应:', res)
-        }
-      } catch (error) {
-        console.error('加载实验指导书列表失败', error)
-      }
-    }
-
     // 加载作业列表
     const loadHomeworkList = async () => {
       try {
@@ -282,103 +178,11 @@ export default {
       }
     }
 
-    // 处理课件更新成功
-    const handleCoursewareUpdated = () => {
-      showCoursewareUpdater.value = false
-      loadCoursewareList()
-      ElMessage.success('课件分析任务已提交')
-    }
-
-    // 处理实验指导书生成成功
-    const handleExperimentGenerated = () => {
-      console.log('实验指导书生成成功，准备刷新列表')
-      showExperimentGenerator.value = false
-      // 切换到实验指导书标签并刷新列表
-      activeTab.value = 'experiment'
-      console.log('已切换到实验指导书标签，activeTab:', activeTab.value)
-      
-      // 延迟刷新，确保标签切换完成
-      setTimeout(() => {
-        console.log('开始加载实验指导书列表')
-        loadExperimentList()
-      }, 100)
-      
-      ElMessage.success('实验指导书已生成，正在刷新列表...')
-    }
-
     // 处理作业提交成功
     const handleHomeworkSubmitted = () => {
       showHomeworkGrading.value = false
       loadHomeworkList()
       ElMessage.success('作业提交成功')
-    }
-
-    // 查看更新建议
-    const viewSuggestions = (id) => {
-      currentUpdateId.value = id
-      showSuggestionsView.value = true
-    }
-
-    // 删除课件更新记录
-    const deleteCourseware = async (id) => {
-      try {
-        await ElMessageBox.confirm(
-          '确定要删除这条课件更新记录吗？删除后无法恢复。',
-          '确认删除',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-          }
-        )
-        
-        const res = await smartTeachingApi.deleteCoursewareUpdate(id)
-        if (res.code === 1 || res.success === true) {
-          ElMessage.success('删除成功')
-          loadCoursewareList()
-        } else {
-          ElMessage.error('删除失败')
-        }
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('删除失败', error)
-          ElMessage.error('删除失败')
-        }
-      }
-    }
-
-    // 查看实验指导书
-    const viewExperiment = (id) => {
-      currentExperimentId.value = id
-      showExperimentView.value = true
-    }
-
-    // 删除实验指导书
-    const deleteExperiment = async (id) => {
-      try {
-        await ElMessageBox.confirm(
-          '确定要删除这条实验指导书记录吗？删除后无法恢复。',
-          '确认删除',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-          }
-        )
-        
-        const res = await smartTeachingApi.deleteExperimentGuide(id)
-        if (res.code === 1 || res.success === true) {
-          ElMessage.success('删除成功')
-          loadExperimentList()
-        } else {
-          ElMessage.error('删除失败')
-        }
-      } catch (error) {
-        if (error !== 'cancel') {
-          console.error('删除失败', error)
-          ElMessage.error('删除失败')
-        }
-      }
     }
 
     // 批阅作业
@@ -490,16 +294,6 @@ export default {
       return map[status] || status
     }
 
-    // 获取难度文本
-    const getDifficultyText = (level) => {
-      const map = {
-        'easy': '简单',
-        'medium': '中等',
-        'hard': '困难'
-      }
-      return map[level] || level
-    }
-
     // 获取作业状态文本
     const getHomeworkStatusText = (status) => {
       const map = {
@@ -512,46 +306,22 @@ export default {
     }
 
     onMounted(() => {
-      // 根据当前标签加载对应的列表
-      if (activeTab.value === 'courseware') {
-        loadCoursewareList()
-      } else if (activeTab.value === 'experiment') {
-        loadExperimentList()
-      } else if (activeTab.value === 'homework') {
-        loadHomeworkList()
-      }
+      loadHomeworkList()
     })
 
     return {
       activeTab,
-      coursewareList,
-      experimentList,
       homeworkList,
-      showCoursewareUpdater,
-      showExperimentGenerator,
       showHomeworkGrading,
-      showSuggestionsView,
-      showExperimentView,
       showGradingResult,
-      currentUpdateId,
-      currentExperimentId,
       currentGrading,
-      loadCoursewareList,
-      loadExperimentList,
       loadHomeworkList,
-      handleCoursewareUpdated,
-      handleExperimentGenerated,
       handleHomeworkSubmitted,
-      viewSuggestions,
-      deleteCourseware,
-      viewExperiment,
-      deleteExperiment,
       gradeHomework,
       viewGrading,
       deleteHomework,
       formatTime,
       getStatusText,
-      getDifficultyText,
       getHomeworkStatusText,
       showGradingProgress,
       gradingProgressValue,

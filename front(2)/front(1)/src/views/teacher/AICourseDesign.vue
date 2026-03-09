@@ -54,10 +54,27 @@
       </div>
     </el-card>
     
-    <el-card class="design-card" :class="{ 'disabled-card': !selectedCourse }">
+    <!-- 功能选择标签页 -->
+    <el-card class="function-tabs-card" :class="{ 'disabled-card': !selectedCourse }">
+      <el-tabs v-model="activeFunction" type="border-card">
+        <el-tab-pane label="课件生成与更新" name="generate">
+          <template #label>
+            <span><el-icon><Document /></el-icon> 课件生成与更新</span>
+          </template>
+        </el-tab-pane>
+        <el-tab-pane label="课件更新" name="update">
+          <template #label>
+            <span><el-icon><Refresh /></el-icon> 课件更新</span>
+          </template>
+        </el-tab-pane>
+      </el-tabs>
+    </el-card>
+
+    <!-- 课件生成与更新 -->
+    <el-card v-if="activeFunction === 'generate'" class="design-card" :class="{ 'disabled-card': !selectedCourse }">
       <template #header>
         <div class="card-header">
-          <h2>AI备课助手</h2>
+          <h2>课件生成与更新</h2>
           <el-tag type="primary">智能备课</el-tag>
         </div>
       </template>
@@ -181,6 +198,102 @@
           生成课程设计
         </el-button>
         <el-button @click="resetForm">重置表单</el-button>
+      </div>
+
+      <!-- 生成记录列表 -->
+      <div v-if="generateRecords && generateRecords.length > 0" class="generate-records">
+        <h3>生成记录</h3>
+        <div class="record-item" v-for="item in generateRecords" :key="item.id">
+          <div class="record-info">
+            <h4>{{ item.courseName || '课程设计' }}</h4>
+            <p>{{ item.outline || '课程大纲' }}</p>
+            <span class="record-time">{{ formatTime(item.createTime) }}</span>
+          </div>
+          <div class="record-status">
+            <span :class="['status-badge', item.status]">{{ getStatusText(item.status) }}</span>
+            <el-button v-if="item.status === 'completed'" type="primary" size="small" @click="viewGenerateResult(item.id)">
+              查看结果
+            </el-button>
+            <el-button type="danger" size="small" @click="deleteGenerateRecord(item.id)">
+              删除
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </el-card>
+
+    <!-- 课件更新功能 -->
+    <el-card v-if="activeFunction === 'update'" class="update-card" :class="{ 'disabled-card': !selectedCourse }">
+      <template #header>
+        <div class="card-header">
+          <h2>课件更新</h2>
+          <el-tag type="success">AI搜索最新案例</el-tag>
+        </div>
+      </template>
+
+      <div class="update-section">
+        <el-form :model="updateForm" label-width="120px" class="update-form">
+          <el-form-item label="课件文件">
+            <el-upload
+              class="upload-demo"
+              :auto-upload="false"
+              :on-change="handleUpdateFileChange"
+              :limit="1"
+              accept=".ppt,.pptx"
+            >
+              <el-button type="primary">选择PPT文件</el-button>
+              <template #tip>
+                <div class="el-upload__tip">
+                  已选择：{{ updateForm.fileName || '未选择文件' }}
+                </div>
+              </template>
+            </el-upload>
+          </el-form-item>
+          
+          <el-form-item label="更新要求">
+            <el-input
+              v-model="updateForm.updateRequirements"
+              type="textarea"
+              :rows="5"
+              placeholder="请描述更新要求，例如：&#10;1. 更新2024-2025年最新的网络安全事件案例&#10;2. 补充AI安全相关的前沿知识&#10;3. 更新数据统计图表"
+            />
+          </el-form-item>
+        </el-form>
+
+        <div class="update-actions">
+          <el-button 
+            type="success" 
+            size="large"
+            @click="submitCoursewareUpdate"
+            :loading="updating"
+            :disabled="!canUpdate"
+          >
+            <el-icon><Refresh /></el-icon>
+            提交更新请求
+          </el-button>
+          <el-button @click="resetUpdateForm">重置</el-button>
+        </div>
+      </div>
+
+      <!-- 更新记录列表 -->
+      <div v-if="updateRecords && updateRecords.length > 0" class="update-records">
+        <h3>更新记录</h3>
+        <div class="record-item" v-for="item in updateRecords" :key="item.id">
+          <div class="record-info">
+            <h4>{{ item.originalFileName }}</h4>
+            <p>{{ item.updateRequirements }}</p>
+            <span class="record-time">{{ formatTime(item.createTime) }}</span>
+          </div>
+          <div class="record-status">
+            <span :class="['status-badge', item.status]">{{ getStatusText(item.status) }}</span>
+            <el-button v-if="item.status === 'suggestions_ready'" type="primary" size="small" @click="viewUpdateSuggestions(item.id)">
+              查看建议
+            </el-button>
+            <el-button type="danger" size="small" @click="deleteUpdateRecord(item.id)">
+              删除
+            </el-button>
+          </div>
+        </div>
       </div>
     </el-card>
     
@@ -330,27 +443,42 @@
       :message="progressMessage"
       tip="💡 提示：生成时间取决于选择的内容类型和复杂度，通常需要2-5分钟"
     />
+
+    <!-- 课件更新建议查看弹窗 -->
+    <SuggestionsViewDialog
+      v-if="showUpdateSuggestionsDialog"
+      :updateId="currentUpdateId"
+      @close="showUpdateSuggestionsDialog = false"
+    />
   </div>
 </template>
 
 <script>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { UploadFilled, Edit } from '@element-plus/icons-vue'
+import { UploadFilled, Edit, Document, Refresh } from '@element-plus/icons-vue'
 import { aiAPI } from '@/api/ai'
 import { getCoursesByTeacherId } from '@/api/course'
+import * as smartTeachingApi from '@/api/smartTeaching'
 import { saveAs } from 'file-saver'
-import { Document, Packer, Paragraph, TextRun } from 'docx'
+import { Document as DocxDocument, Packer, Paragraph, TextRun } from 'docx'
 import AIGenerationProgress from '@/components/AIGenerationProgress.vue'
+import SuggestionsViewDialog from './components/SuggestionsViewDialog.vue'
 
 export default {
   name: 'AICourseDesign',
   components: {
     UploadFilled,
     Edit,
-    AIGenerationProgress
+    Document,
+    Refresh,
+    AIGenerationProgress,
+    SuggestionsViewDialog
   },
   setup() {
+    // 功能标签页
+    const activeFunction = ref('generate')
+    
     // 课程选择相关数据
     const courseSelectForm = reactive({
       selectedCourseId: null
@@ -358,6 +486,21 @@ export default {
     const teacherCourses = ref([])
     const selectedCourse = ref(null)
     const loadingCourses = ref(false)
+    
+    // 课件更新相关数据
+    const updateForm = ref({
+      fileName: '',
+      fileUrl: '',
+      updateRequirements: '',
+      file: null
+    })
+    const updating = ref(false)
+    const updateRecords = ref([])
+    const showUpdateSuggestionsDialog = ref(false)
+    const currentUpdateId = ref(null)
+
+    // 课件生成记录相关数据
+    const generateRecords = ref([])
 
     const courseForm = reactive({
       courseName: '',
@@ -531,6 +674,9 @@ export default {
         progressValue.value = 10
         await new Promise(resolve => setTimeout(resolve, 300))
         
+        // 获取教师ID
+        const teacherId = localStorage.getItem('userId') || '2'
+        
         // 确保数据类型正确
         const courseInfo = {
           ...courseForm,
@@ -539,6 +685,8 @@ export default {
         }
 
         const requestData = {
+          teacherId: teacherId,
+          courseId: selectedCourse.value ? selectedCourse.value.id : null,
           courseInfo: courseInfo,
           options: selectedOptions.value,
           uploadedFiles: fileList.value.map(file => ({
@@ -593,6 +741,9 @@ export default {
           
           await new Promise(resolve => setTimeout(resolve, 800))
           showProgress.value = false
+
+          // 刷新生成记录列表
+          loadGenerateRecords()
 
           // 检查是否有PPT下载链接，如果有就自动下载
           if (response.data.pptDownloadUrl) {
@@ -874,6 +1025,272 @@ export default {
       ElMessage.warning('请重新生成课程设计以创建PPT')
     }
 
+    // 计算是否可以更新
+    const canUpdate = computed(() => {
+      return selectedCourse.value && updateForm.value.file && updateForm.value.updateRequirements
+    })
+
+    // 处理更新文件选择
+    const handleUpdateFileChange = (file) => {
+      updateForm.value.fileName = file.name
+      updateForm.value.file = file.raw
+    }
+
+    // 提交课件更新
+    const submitCoursewareUpdate = async () => {
+      if (!canUpdate.value) {
+        ElMessage.warning('请选择PPT文件并填写更新要求')
+        return
+      }
+
+      updating.value = true
+      showProgress.value = true
+      progressValue.value = 0
+      currentStep.value = 0
+      progressMessage.value = '正在准备数据...'
+
+      try {
+        progressValue.value = 10
+        await new Promise(resolve => setTimeout(resolve, 300))
+
+        const teacherId = localStorage.getItem('userId') || '2'
+
+        // 上传文件
+        currentStep.value = 1
+        progressValue.value = 25
+        progressMessage.value = '正在上传PPT文件...'
+
+        const formData = new FormData()
+        formData.append('file', updateForm.value.file)
+
+        const uploadRes = await fetch('http://localhost:8080/upload', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (!uploadRes.ok) {
+          throw new Error('文件上传失败')
+        }
+
+        const uploadData = await uploadRes.json()
+        let fileUrl = uploadData.data || uploadData.data?.url
+
+        if (!fileUrl || fileUrl.startsWith('blob:')) {
+          throw new Error('文件URL无效')
+        }
+
+        // 调用AI分析
+        currentStep.value = 2
+        progressValue.value = 40
+        progressMessage.value = 'AI正在分析课件...'
+
+        const res = await smartTeachingApi.updateCourseware({
+          teacherId,
+          courseId: selectedCourse.value.id,
+          fileUrl: fileUrl,
+          fileName: updateForm.value.fileName,
+          updateRequirements: updateForm.value.updateRequirements
+        })
+
+        const updateId = res.data?.updateId || res.data?.data?.updateId || res.updateId
+
+        if (!updateId) {
+          throw new Error('获取更新ID失败')
+        }
+
+        // 轮询检查状态
+        const checkStatus = async () => {
+          try {
+            const statusRes = await smartTeachingApi.getCoursewareSuggestions(updateId)
+            const status = statusRes.data?.status || statusRes.status
+
+            if (status === 'suggestions_ready') {
+              currentStep.value = 3
+              progressValue.value = 100
+              progressMessage.value = '分析完成！'
+
+              await new Promise(resolve => setTimeout(resolve, 800))
+              showProgress.value = false
+
+              ElMessage.success('AI分析完成！')
+              loadUpdateRecords()
+              resetUpdateForm()
+            } else if (status === 'failed') {
+              showProgress.value = false
+              ElMessage.error('AI分析失败')
+              loadUpdateRecords()
+            } else {
+              if (progressValue.value < 85) {
+                progressValue.value += 2
+              }
+              setTimeout(checkStatus, 3000)
+            }
+          } catch (error) {
+            if (progressValue.value < 85) {
+              setTimeout(checkStatus, 3000)
+            } else {
+              showProgress.value = false
+              ElMessage.warning('分析超时，请稍后查看结果')
+              loadUpdateRecords()
+            }
+          }
+        }
+
+        setTimeout(checkStatus, 3000)
+      } catch (error) {
+        showProgress.value = false
+        console.error('提交失败:', error)
+        ElMessage.error('提交失败：' + (error.message || '未知错误'))
+      } finally {
+        updating.value = false
+      }
+    }
+
+    // 重置更新表单
+    const resetUpdateForm = () => {
+      updateForm.value = {
+        fileName: '',
+        fileUrl: '',
+        updateRequirements: '',
+        file: null
+      }
+    }
+
+    // 加载更新记录
+    const loadUpdateRecords = async () => {
+      try {
+        const teacherId = localStorage.getItem('userId') || '2'
+        const res = await smartTeachingApi.getCoursewareUpdates(teacherId)
+        if (res.code === 1 || res.success === true) {
+          updateRecords.value = res.data || []
+        }
+      } catch (error) {
+        console.error('加载更新记录失败', error)
+      }
+    }
+
+    // 查看更新建议
+    const viewUpdateSuggestions = (id) => {
+      currentUpdateId.value = id
+      showUpdateSuggestionsDialog.value = true
+    }
+
+    // 删除更新记录
+    const deleteUpdateRecord = async (id) => {
+      try {
+        await ElMessageBox.confirm('确定要删除这条更新记录吗？', '确认删除', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+
+        const res = await smartTeachingApi.deleteCoursewareUpdate(id)
+        if (res.code === 1 || res.success === true) {
+          ElMessage.success('删除成功')
+          loadUpdateRecords()
+        } else {
+          ElMessage.error('删除失败')
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('删除失败', error)
+          ElMessage.error('删除失败')
+        }
+      }
+    }
+
+    // 格式化时间
+    const formatTime = (time) => {
+      if (!time) return ''
+      return new Date(time).toLocaleString('zh-CN')
+    }
+
+    // 获取状态文本
+    const getStatusText = (status) => {
+      const map = {
+        'analyzing': '分析中',
+        'suggestions_ready': '建议已生成',
+        'generating': '生成中',
+        'completed': '已完成',
+        'failed': '失败'
+      }
+      return map[status] || status
+    }
+
+    // 加载生成记录
+    const loadGenerateRecords = async () => {
+      try {
+        const teacherId = localStorage.getItem('userId') || '2'
+        const res = await smartTeachingApi.getCourseDesigns(teacherId)
+        if (res.code === 1 || res.success === true) {
+          generateRecords.value = res.data || []
+        }
+      } catch (error) {
+        // 如果是404错误，说明后端还没实现该接口，静默处理
+        if (error.response?.status === 404) {
+          console.log('课件生成记录接口暂未实现，等待后端开发')
+          generateRecords.value = []
+        } else {
+          console.error('加载生成记录失败', error)
+        }
+      }
+    }
+
+    // 查看生成结果
+    const viewGenerateResult = async (id) => {
+      try {
+        const res = await smartTeachingApi.getCourseDesignDetail(id)
+        if (res.code === 1 || res.success === true) {
+          designResult.value = res.data
+          // 根据生成的内容设置默认标签页
+          if (res.data.ppt) {
+            activeTab.value = 'ppt'
+          } else if (res.data.lessonPlan) {
+            activeTab.value = 'lessonPlan'
+          } else {
+            activeTab.value = 'content'
+          }
+          ElMessage.success('已加载生成结果')
+        } else {
+          ElMessage.error('加载失败')
+        }
+      } catch (error) {
+        console.error('加载生成结果失败', error)
+        ElMessage.error('加载失败')
+      }
+    }
+
+    // 删除生成记录
+    const deleteGenerateRecord = async (id) => {
+      try {
+        await ElMessageBox.confirm('确定要删除这条生成记录吗？', '确认删除', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+
+        const res = await smartTeachingApi.deleteCourseDesign(id)
+        if (res.code === 1 || res.success === true) {
+          ElMessage.success('删除成功')
+          loadGenerateRecords()
+        } else {
+          ElMessage.error('删除失败')
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('删除失败', error)
+          ElMessage.error('删除失败')
+        }
+      }
+    }
+
+    // 页面加载时获取课程列表
+    onMounted(() => {
+      loadTeacherCourses()
+      loadUpdateRecords()
+      loadGenerateRecords()
+    })
+
     return {
       // 课程选择相关
       courseSelectForm,
@@ -904,6 +1321,27 @@ export default {
       formatContent,
       startPPTStatusCheck,
       downloadPPTFromBackend,
+      // 课件更新相关
+      activeFunction,
+      updateForm,
+      updating,
+      updateRecords,
+      showUpdateSuggestionsDialog,
+      currentUpdateId,
+      canUpdate,
+      handleUpdateFileChange,
+      submitCoursewareUpdate,
+      resetUpdateForm,
+      loadUpdateRecords,
+      viewUpdateSuggestions,
+      deleteUpdateRecord,
+      formatTime,
+      getStatusText,
+      // 课件生成记录相关
+      generateRecords,
+      loadGenerateRecords,
+      viewGenerateResult,
+      deleteGenerateRecord,
       // 进度条相关
       showProgress,
       progressValue,
@@ -925,6 +1363,15 @@ export default {
 .course-select-card {
   border: 2px solid #409eff;
   box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+}
+
+.function-tabs-card {
+  margin-bottom: 20px;
+}
+
+.function-tabs-card :deep(.el-tabs__item) {
+  font-size: 16px;
+  padding: 0 30px;
 }
 
 .course-select-section {
@@ -1113,6 +1560,119 @@ export default {
 .content-description,
 .exercise-content {
   margin-top: 10px;
+}
+
+.update-card {
+  margin-bottom: 20px;
+}
+
+.update-section {
+  padding: 20px;
+}
+
+.update-form {
+  margin-bottom: 30px;
+}
+
+.update-actions {
+  text-align: center;
+  margin-top: 30px;
+}
+
+.update-records {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 2px solid #e4e7ed;
+}
+
+.update-records h3 {
+  margin-bottom: 20px;
+  color: #303133;
+  font-size: 18px;
+}
+
+/* 生成记录样式（与更新记录相同） */
+.generate-records {
+  margin-top: 40px;
+  padding-top: 30px;
+  border-top: 2px solid #e4e7ed;
+}
+
+.generate-records h3 {
+  margin-bottom: 20px;
+  color: #303133;
+  font-size: 18px;
+}
+
+.record-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  transition: all 0.3s;
+}
+
+.record-item:hover {
+  background: #e9ecef;
+  transform: translateX(4px);
+}
+
+.record-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.record-info p {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.record-time {
+  font-size: 12px;
+  color: #999;
+}
+
+.record-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.analyzing {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-badge.generating {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-badge.suggestions_ready {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-badge.completed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-badge.failed {
+  background: #f8d7da;
+  color: #721c24;
 }
 
 .question-header {

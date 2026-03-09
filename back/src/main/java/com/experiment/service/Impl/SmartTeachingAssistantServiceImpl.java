@@ -40,6 +40,9 @@ public class SmartTeachingAssistantServiceImpl implements SmartTeachingAssistant
     private HomeworkGradingMapper homeworkGradingMapper;
 
     @Autowired
+    private AiPptGenerationMapper aiPptGenerationMapper;
+
+    @Autowired
     private DashScopeConfig dashScopeConfig;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -206,6 +209,109 @@ public class SmartTeachingAssistantServiceImpl implements SmartTeachingAssistant
             return rows > 0;
         } catch (Exception e) {
             log.error("删除课件更新记录失败", e);
+            return false;
+        }
+    }
+
+    // ==================== 课件生成记录 ====================
+
+    @Override
+    public List<Map<String, Object>> getCourseDesigns(Long teacherId) {
+        try {
+            List<AiPptGeneration> records = aiPptGenerationMapper.selectByTeacherId(teacherId);
+            List<Map<String, Object>> result = new ArrayList<>();
+            
+            for (AiPptGeneration record : records) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("id", record.getId());
+                item.put("courseName", record.getTopic());
+                
+                // 处理keywords字段 - 如果是JSON数组格式，转换为字符串
+                String keywords = record.getKeywords();
+                if (keywords != null && keywords.startsWith("[")) {
+                    try {
+                        // 尝试解析JSON数组并转换为逗号分隔的字符串
+                        List<String> keywordList = objectMapper.readValue(keywords, List.class);
+                        keywords = String.join(", ", keywordList);
+                    } catch (Exception e) {
+                        log.warn("解析keywords JSON失败，使用原始值: {}", keywords);
+                    }
+                }
+                item.put("outline", keywords);
+                
+                item.put("status", record.getStatus());
+                item.put("createTime", record.getCreateTime());
+                result.add(item);
+            }
+            
+            log.info("获取到 {} 条课件生成记录", result.size());
+            return result;
+        } catch (Exception e) {
+            log.error("获取课件生成记录失败", e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public Map<String, Object> getCourseDesignDetail(Long designId) {
+        try {
+            AiPptGeneration record = aiPptGenerationMapper.selectById(designId);
+            if (record == null) {
+                throw new RuntimeException("课件生成记录不存在");
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("id", record.getId());
+            result.put("topic", record.getTopic());
+            result.put("keywords", record.getKeywords());
+            result.put("slideCount", record.getSlideCount());
+            result.put("style", record.getStyle());
+            result.put("status", record.getStatus());
+            result.put("pptUrl", record.getPptUrl());
+            result.put("pptDownloadUrl", record.getPptUrl());
+            result.put("createTime", record.getCreateTime());
+
+            // 解析content字段为JSON对象
+            if (record.getContent() != null && !record.getContent().isEmpty()) {
+                try {
+                    Map<String, Object> contentMap = objectMapper.readValue(record.getContent(), Map.class);
+                    
+                    // 将解析后的内容合并到结果中
+                    for (Map.Entry<String, Object> entry : contentMap.entrySet()) {
+                        String key = entry.getKey();
+                        Object value = entry.getValue();
+                        
+                        // 如果字段名是pptContent，改为ppt以匹配前端期望
+                        if ("pptContent".equals(key)) {
+                            result.put("ppt", value);
+                            log.info("将pptContent字段映射为ppt");
+                        } else {
+                            result.put(key, value);
+                        }
+                    }
+                    
+                    log.info("课件内容解析成功，包含字段: {}", contentMap.keySet());
+                } catch (Exception e) {
+                    log.warn("解析课件内容失败: {}", e.getMessage());
+                    // 如果解析失败，尝试将content作为字符串返回
+                    result.put("content", record.getContent());
+                }
+            }
+
+            return result;
+        } catch (Exception e) {
+            log.error("获取课件生成详情失败", e);
+            throw new RuntimeException("获取课件生成详情失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean deleteCourseDesign(Long designId) {
+        try {
+            int rows = aiPptGenerationMapper.deleteById(designId);
+            return rows > 0;
+        } catch (Exception e) {
+            log.error("删除课件生成记录失败", e);
             return false;
         }
     }

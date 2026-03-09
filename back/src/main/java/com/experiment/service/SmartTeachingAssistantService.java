@@ -50,6 +50,29 @@ public interface SmartTeachingAssistantService {
      */
     boolean deleteCoursewareUpdate(Long updateId);
     
+    // ==================== 课件生成记录 ====================
+    
+    /**
+     * 获取课件生成记录
+     * @param teacherId 教师ID
+     * @return 生成记录列表
+     */
+    List<Map<String, Object>> getCourseDesigns(Long teacherId);
+    
+    /**
+     * 获取课件生成详情
+     * @param designId 生成记录ID
+     * @return 生成详情
+     */
+    Map<String, Object> getCourseDesignDetail(Long designId);
+    
+    /**
+     * 删除课件生成记录
+     * @param designId 生成记录ID
+     * @return 是否成功
+     */
+    boolean deleteCourseDesign(Long designId);
+    
     // ==================== 2. 实验指导书生成 ====================
     
     /**

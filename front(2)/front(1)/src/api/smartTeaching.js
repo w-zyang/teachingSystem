@@ -44,6 +44,32 @@ export const deleteCoursewareUpdate = (updateId) => {
   })
 }
 
+// ==================== 课件生成记录 ====================
+
+// 获取课件生成记录
+export const getCourseDesigns = (teacherId) => {
+  return request({
+    url: `/api/smart-teaching/course-designs/${teacherId}`,
+    method: 'get'
+  })
+}
+
+// 获取课件生成详情
+export const getCourseDesignDetail = (designId) => {
+  return request({
+    url: `/api/smart-teaching/course-design/${designId}`,
+    method: 'get'
+  })
+}
+
+// 删除课件生成记录
+export const deleteCourseDesign = (designId) => {
+  return request({
+    url: `/api/smart-teaching/course-design/${designId}`,
+    method: 'delete'
+  })
+}
+
 // ==================== 2. 实验指导书生成 ====================
 
 // 获取课程的章节列表

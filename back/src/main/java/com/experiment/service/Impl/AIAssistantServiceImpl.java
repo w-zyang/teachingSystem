@@ -1,5 +1,7 @@
 package com.experiment.service.Impl;
 
+import com.experiment.mapper.AiPptGenerationMapper;
+import com.experiment.pojo.AiPptGeneration;
 import com.experiment.service.AIAssistantService;
 import com.experiment.service.AIService;
 import com.experiment.service.XunfeiPPTService;
@@ -8,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Slf4j
@@ -19,6 +22,9 @@ public class AIAssistantServiceImpl implements AIAssistantService {
     
     @Autowired
     private XunfeiPPTService xunfeiPPTService;
+    
+    @Autowired
+    private AiPptGenerationMapper aiPptGenerationMapper;
     
     private final ObjectMapper objectMapper = new ObjectMapper();
     
@@ -110,22 +116,75 @@ public class AIAssistantServiceImpl implements AIAssistantService {
             if (options.contains("ppt")) {
                 log.info("开始生成PPT...");
                 try {
+                    // 从data中获取teacherId和courseId
+                    Long teacherId = data.get("teacherId") != null ? 
+                        Long.valueOf(data.get("teacherId").toString()) : 2L;
+                    Long courseId = data.get("courseId") != null ? 
+                        Long.valueOf(data.get("courseId").toString()) : null;
+                    
+                    // 构建keywords字符串
+                    String keywords = outline != null && !outline.isEmpty() ? 
+                        outline.substring(0, Math.min(200, outline.length())) : courseName;
+                    
+                    // 创建数据库记录
+                    AiPptGeneration pptRecord = new AiPptGeneration();
+                    pptRecord.setTeacherId(teacherId);
+                    pptRecord.setCourseId(courseId);
+                    pptRecord.setTopic(courseName);
+                    pptRecord.setKeywords(keywords);
+                    pptRecord.setSlideCount(15); // 默认15页
+                    pptRecord.setStyle("professional");
+                    pptRecord.setStatus("completed"); // 直接设置为completed，因为AI内容已生成
+                    pptRecord.setCreateTime(LocalDateTime.now());
+                    
+                    // 保存内容为JSON
+                    try {
+                        String contentJson = objectMapper.writeValueAsString(result);
+                        pptRecord.setContent(contentJson);
+                    } catch (Exception e) {
+                        log.warn("序列化内容失败: {}", e.getMessage());
+                    }
+                    
+                    // 插入数据库
+                    aiPptGenerationMapper.insert(pptRecord);
+                    Long recordId = pptRecord.getId();
+                    log.info("PPT记录已保存到数据库，ID: {}, 状态: completed", recordId);
+                    
+                    // 生成PPT
                     String pptContent = buildPPTContent(result, courseName, outline);
                     String taskId = xunfeiPPTService.generatePPT(pptContent, courseName);
                     
+                    // 更新记录的taskId
+                    pptRecord.setTaskId(taskId);
+                    aiPptGenerationMapper.updateStatus(pptRecord);
+                    
                     result.put("pptTaskId", taskId);
                     result.put("pptGenerating", true);
+                    result.put("pptRecordId", recordId);
                     
                     log.info("PPT生成任务已创建，任务ID: {}", taskId);
                     
+                    // 检查PPT状态
                     Map<String, Object> status = xunfeiPPTService.checkPPTStatus(taskId);
                     if ((Boolean) status.getOrDefault("completed", false)) {
                         if (status.containsKey("downloadUrl")) {
-                            result.put("pptDownloadUrl", status.get("downloadUrl"));
+                            String pptUrl = status.get("downloadUrl").toString();
+                            result.put("pptDownloadUrl", pptUrl);
                             result.put("pptGenerating", false);
-                            log.info("PPT已生成完成: {}", status.get("downloadUrl"));
+                            
+                            // 更新数据库记录
+                            pptRecord.setStatus("completed");
+                            pptRecord.setPptUrl(pptUrl);
+                            aiPptGenerationMapper.updateStatus(pptRecord);
+                            
+                            log.info("PPT已生成完成: {}", pptUrl);
                         } else if (status.containsKey("error")) {
                             log.error("PPT生成失败: {}", status.get("error"));
+                            
+                            // 更新数据库记录为失败
+                            pptRecord.setStatus("failed");
+                            pptRecord.setErrorMessage(status.get("error").toString());
+                            aiPptGenerationMapper.updateStatus(pptRecord);
                         }
                     }
                 } catch (Exception e) {

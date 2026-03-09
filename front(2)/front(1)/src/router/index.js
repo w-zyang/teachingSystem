@@ -35,6 +35,7 @@ import ErrorQuestionTraining from '@/views/student/ErrorQuestionTraining.vue'
 import ClassSummaryViewer from '@/views/student/ClassSummaryViewer.vue'
 import Profile from '@/views/student/Profile.vue'
 import VRClassroom from '@/views/student/VRClassroom.vue'
+import HomeworkSubmission from '@/views/student/HomeworkSubmission.vue'
 
 // 管理侧页面
 import AdminLayout from '@/views/admin/AdminLayout.vue'
@@ -93,6 +94,7 @@ const routes = [
             { path: 'error-question-training', name: 'error-question-training', component: ErrorQuestionTraining },
             { path: 'class-summary-viewer', name: 'class-summary-viewer', component: ClassSummaryViewer },
             { path: 'vr-classroom', name: 'vr-classroom', component: VRClassroom },
+            { path: 'homework-submission', name: 'homework-submission', component: HomeworkSubmission },
             { path: 'profile',name: 'Profile',component: Profile}
         ]
     },
