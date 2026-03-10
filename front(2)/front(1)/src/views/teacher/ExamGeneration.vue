@@ -60,13 +60,6 @@
                 📋 查看历史考核
               </el-button>
             </div>
-            
-            <!-- 实验指导书生成按钮 -->
-            <div style="margin-top: 12px;">
-              <el-button @click="showExperimentGuideDialog = true" icon="Document" type="success" style="width: 100%;">
-                📝 生成实验指导书
-              </el-button>
-            </div>
           </el-card>
         </el-col>
         
@@ -119,23 +112,32 @@
             <!-- 实验指导书类型：实验配置 -->
             <div v-else-if="examConfig.type === 'experiment'" style="padding: 20px;">
               <el-form label-width="100px">
-                <el-form-item label="章节名称" required>
-                  <el-input v-model="experimentConfig.chapterName" placeholder="例如：第一章 Java基础" />
+                <el-form-item label="章节选择" required>
+                  <el-select v-model="experimentConfig.selectedChapter" placeholder="请选择章节" style="width: 100%;" @change="onExperimentChapterChange">
+                    <el-option 
+                      v-for="chapter in availableChapters" 
+                      :key="chapter.value" 
+                      :label="chapter.label" 
+                      :value="chapter.value">
+                    </el-option>
+                  </el-select>
                 </el-form-item>
 
                 <el-form-item label="知识点" required>
                   <el-select 
                     v-model="experimentConfig.knowledgePoints" 
                     multiple 
-                    filterable 
-                    allow-create 
-                    placeholder="请选择或输入知识点"
-                    style="width: 100%;">
-                    <el-option label="变量与数据类型" value="变量与数据类型" />
-                    <el-option label="控制结构" value="控制结构" />
-                    <el-option label="函数与方法" value="函数与方法" />
-                    <el-option label="面向对象编程" value="面向对象编程" />
-                    <el-option label="异常处理" value="异常处理" />
+                    placeholder="请先选择章节"
+                    style="width: 100%;"
+                    :disabled="!experimentConfig.selectedChapter">
+                    <el-option 
+                      v-for="point in experimentKnowledgePoints" 
+                      :key="point.id" 
+                      :label="point.name" 
+                      :value="point.name">
+                      <span>{{ point.name }}</span>
+                      <span style="color: #8492a6; font-size: 13px; margin-left: 8px;">{{ point.description }}</span>
+                    </el-option>
                   </el-select>
                 </el-form-item>
 
@@ -180,7 +182,13 @@
             
             <!-- 下一步按钮 -->
             <div style="margin-top: 24px;">
-              <el-button type="primary" @click="goToStep(2)" icon="Right" size="large" style="width: 100%;">
+              <el-button 
+                type="primary" 
+                @click="goToStep(2)" 
+                icon="Right" 
+                size="large" 
+                style="width: 100%;"
+                :loading="generating">
                 {{ examConfig.type === 'exam' ? '下一步：配置题目' : examConfig.type === 'experiment' ? '生成实验指导书' : '生成大作业' }}
               </el-button>
             </div>
@@ -847,6 +855,8 @@
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { getExamsByTeacherId, getExamById, createExam, updateExam, deleteExam, publishExam, archiveExam } from '@/api/exam'
 import { getCoursesByTeacherId } from '@/api/course'
+import * as smartTeachingApi from '@/api/smartTeaching'
+import { reactive } from 'vue'
 import { aiAPI } from '@/api/ai'
 import { ElCard, ElForm, ElFormItem, ElInput, ElSelect, ElOption, ElInputNumber, ElButton, ElTag, ElRow, ElCol, ElIcon, ElMessage, ElMessageBox } from 'element-plus'
 import { User, List, Collection, MagicStick, Document, Check, InfoFilled, Operation, ArrowLeft, ArrowRight, Back, Refresh, Upload, Timer, TrophyBase } from '@element-plus/icons-vue'
@@ -861,7 +871,7 @@ const teacherId = localStorage.getItem('userId') || '2'
 // 响应式变量
 const examConfig = ref({
   name: '',
-  type: 'choice',
+  type: 'exam',
   duration: 60,
   totalScore: 100
 })
@@ -878,6 +888,22 @@ const questionTypes = ref([
 const knowledgePoints = ref([])
 const generatedExam = ref(null)
 const generating = ref(false)
+
+// 实验指导书配置
+const experimentConfig = reactive({
+  selectedChapter: '',
+  chapterName: '',
+  knowledgePoints: [],
+  difficultyLevel: 'intermediate'
+})
+
+// 大作业配置
+const assignmentConfig = reactive({
+  title: '',
+  description: '',
+  submitTypes: ['file'],
+  totalScore: 100
+})
 const showPreview = ref(false)
 const examList = ref([])
 
@@ -995,8 +1021,231 @@ const backToExamGeneration = () => {
 }
 
 // 🔧 新增：切换步骤
-const goToStep = (step) => {
-  wizardStep.value = step
+const goToStep = async (step) => {
+  if (step === 2) {
+    // 如果是实验指导书类型，直接生成
+    if (examConfig.value.type === 'experiment') {
+      await generateExperimentGuide()
+      return
+    }
+    // 如果是大作业类型，直接生成
+    if (examConfig.value.type === 'assignment') {
+      await generateAssignment()
+      return
+    }
+    // 如果是考试类型，进入下一步配置题目
+    wizardStep.value = step
+  } else {
+    wizardStep.value = step
+  }
+}
+
+// 类型切换方法
+const onTypeChange = (type) => {
+  console.log('考核类型切换为:', type)
+  if (type === 'experiment') {
+    experimentConfig.selectedChapter = ''
+    experimentConfig.chapterName = ''
+    experimentConfig.knowledgePoints = []
+    experimentConfig.difficultyLevel = 'intermediate'
+  } else if (type === 'assignment') {
+    assignmentConfig.title = ''
+    assignmentConfig.description = ''
+    assignmentConfig.submitTypes = ['file']
+    assignmentConfig.totalScore = 100
+  }
+}
+
+// 实验指导书的知识点列表（根据选择的章节动态加载）
+const experimentKnowledgePoints = computed(() => {
+  if (!experimentConfig.selectedChapter) {
+    return []
+  }
+  
+  const selectedCourse = teacherCourses.value.find(c => c.id === selectedCourseId.value)
+  if (!selectedCourse) {
+    return []
+  }
+  
+  const subject = selectedCourse.subject
+  const chapterKey = `${experimentConfig.selectedChapter}-${subject.toLowerCase().replace(/\s+/g, '-')}`
+  
+  return chapterKnowledgePointsMap[chapterKey] || []
+})
+
+// 实验章节切换方法
+const onExperimentChapterChange = (chapterValue) => {
+  // 清空已选择的知识点
+  experimentConfig.knowledgePoints = []
+  
+  // 根据章节设置章节名称
+  const chapter = availableChapters.value.find(c => c.value === chapterValue)
+  if (chapter) {
+    experimentConfig.chapterName = chapter.label
+  }
+}
+
+// 生成实验指导书方法
+const generateExperimentGuide = async () => {
+  if (!selectedCourseId.value) {
+    ElMessage.warning('请选择课程')
+    return
+  }
+  if (!experimentConfig.selectedChapter) {
+    ElMessage.warning('请选择章节')
+    return
+  }
+  if (experimentConfig.knowledgePoints.length === 0) {
+    ElMessage.warning('请选择至少一个知识点')
+    return
+  }
+
+  try {
+    generating.value = true
+    ElMessage.info('正在准备生成实验指导书...')
+    
+    const teacherId = localStorage.getItem('userId') || '2'
+    
+    const res = await smartTeachingApi.generateExperimentGuide({
+      teacherId: parseInt(teacherId),
+      courseId: selectedCourseId.value,
+      chapterName: experimentConfig.chapterName,
+      knowledgePoints: experimentConfig.knowledgePoints,
+      difficultyLevel: experimentConfig.difficultyLevel
+    })
+
+    if (res.code === 1 || res.success === true) {
+      ElMessage.success('实验指导书生成中，AI正在处理，请稍候...')
+      const guideId = res.data
+      checkExperimentStatus(guideId)
+    } else {
+      ElMessage.error('生成失败：' + (res.msg || '未知错误'))
+      generating.value = false
+    }
+  } catch (error) {
+    console.error('生成失败', error)
+    ElMessage.error('生成失败：' + (error.message || '未知错误'))
+    generating.value = false
+  }
+}
+
+// 检查实验指导书生成状态
+const checkExperimentStatus = async (guideId) => {
+  let attempts = 0
+  const maxAttempts = 20
+  
+  const check = async () => {
+    try {
+      const res = await smartTeachingApi.getExperimentGuide(guideId)
+      if (res.code === 1 && res.data.status === 'completed') {
+        generating.value = false
+        ElMessage.success('实验指导书生成完成！')
+        goToHistoryView()
+        return
+      }
+      
+      attempts++
+      if (attempts < maxAttempts) {
+        setTimeout(check, 3000)
+      } else {
+        generating.value = false
+        ElMessage.warning('生成超时，请稍后在历史记录中查看')
+        goToHistoryView()
+      }
+    } catch (error) {
+      console.error('检查状态失败', error)
+      generating.value = false
+    }
+  }
+  
+  setTimeout(check, 3000)
+}
+
+// 生成大作业方法
+const generateAssignment = async () => {
+  console.log('🚀 generateAssignment 被调用')
+  console.log('📋 selectedCourseId:', selectedCourseId.value)
+  console.log('📋 assignmentConfig:', assignmentConfig)
+  
+  if (!selectedCourseId.value) {
+    ElMessage.warning('请选择课程')
+    return
+  }
+  if (!assignmentConfig.title) {
+    ElMessage.warning('请输入作业标题')
+    return
+  }
+  if (!assignmentConfig.description) {
+    ElMessage.warning('请输入作业描述')
+    return
+  }
+
+  try {
+    generating.value = true
+    ElMessage.info('正在创建大作业...')
+    
+    const teacherId = localStorage.getItem('userId') || '2'
+    
+    console.log('📤 准备发送请求，参数:', {
+      teacherId: parseInt(teacherId),
+      studentId: parseInt(teacherId),
+      courseId: selectedCourseId.value,
+      homeworkTitle: assignmentConfig.title,
+      fileUrl: '',
+      fileName: '',
+      content: assignmentConfig.description
+    })
+    
+    const res = await smartTeachingApi.submitHomework({
+      teacherId: parseInt(teacherId),
+      studentId: parseInt(teacherId),
+      courseId: selectedCourseId.value,
+      homeworkTitle: assignmentConfig.title,
+      fileUrl: '',
+      fileName: '',
+      content: assignmentConfig.description
+    })
+    
+    console.log('📥 收到响应:', res)
+
+    if (res.code === 1 || res.success === true) {
+      ElMessage.success('大作业创建成功！')
+      console.log('✅ 大作业创建成功，准备保存到考试表')
+      
+      // 将大作业也保存到考试表中，以便在历史记录中显示
+      try {
+        const examData = {
+          name: assignmentConfig.title,
+          type: 'assignment',
+          courseId: selectedCourseId.value,
+          teacherId: parseInt(localStorage.getItem('userId') || '2'),
+          duration: examConfig.value.duration || 60,
+          totalScore: assignmentConfig.totalScore || 100,
+          status: 'published'
+          // 不传递 questions 字段，让后端处理为空列表
+        }
+        
+        console.log('📤 保存大作业到考试表:', examData)
+        const savedExam = await createExamData(examData)
+        console.log('✅ 大作业已保存到考试表, ID:', savedExam?.id)
+      } catch (saveError) {
+        console.error('保存到考试表失败:', saveError)
+        // 即使保存失败也继续，因为作业已经通过 submitHomework 创建了
+      }
+      
+      // 刷新考试列表
+      await fetchTeacherExams()
+      // 跳转到历史记录视图
+      goToHistoryView()
+    } else {
+      ElMessage.error('创建失败：' + (res.msg || '未知错误'))
+    }
+  } catch (error) {
+    console.error('创建失败', error)
+    ElMessage.error('创建失败：' + (error.message || '未知错误'))
+  } finally {
+    generating.value = false
+  }
 }
 
 // 进度条相关

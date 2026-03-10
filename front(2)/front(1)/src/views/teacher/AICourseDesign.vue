@@ -57,9 +57,9 @@
     <!-- 功能选择标签页 -->
     <el-card class="function-tabs-card" :class="{ 'disabled-card': !selectedCourse }">
       <el-tabs v-model="activeFunction" type="border-card">
-        <el-tab-pane label="课件生成与更新" name="generate">
+        <el-tab-pane label="课件生成" name="generate">
           <template #label>
-            <span><el-icon><Document /></el-icon> 课件生成与更新</span>
+            <span><el-icon><Document /></el-icon> 课件生成</span>
           </template>
         </el-tab-pane>
         <el-tab-pane label="课件更新" name="update">
@@ -70,11 +70,11 @@
       </el-tabs>
     </el-card>
 
-    <!-- 课件生成与更新 -->
+    <!-- 课件生成 -->
     <el-card v-if="activeFunction === 'generate'" class="design-card" :class="{ 'disabled-card': !selectedCourse }">
       <template #header>
         <div class="card-header">
-          <h2>课件生成与更新</h2>
+          <h2>课件生成</h2>
           <el-tag type="primary">智能备课</el-tag>
         </div>
       </template>
