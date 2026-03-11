@@ -54,3 +54,11 @@ SELECT
 FROM ai_ppt_generation
 GROUP BY teacher_id;
 
+
+
+
+
+
+
+
+

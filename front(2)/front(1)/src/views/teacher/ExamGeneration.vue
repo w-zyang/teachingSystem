@@ -852,7 +852,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { getExamsByTeacherId, getExamById, createExam, updateExam, deleteExam, publishExam, archiveExam } from '@/api/exam'
 import { getCoursesByTeacherId } from '@/api/course'
 import * as smartTeachingApi from '@/api/smartTeaching'
@@ -1067,10 +1067,31 @@ const experimentKnowledgePoints = computed(() => {
     return []
   }
   
-  const subject = selectedCourse.subject
-  const chapterKey = `${experimentConfig.selectedChapter}-${subject.toLowerCase().replace(/\s+/g, '-')}`
+  const subject = selectedCourse.subject || ''
+  const courseName = selectedCourse.name || selectedCourse.title || ''
+  const courseLabel = (courseName + subject).toLowerCase()
   
-  return chapterKnowledgePointsMap[chapterKey] || []
+  // 与 onChapterChange 保持一致的后缀匹配逻辑
+  let suffix = ''
+  if (courseLabel.includes('java')) {
+    suffix = '-java'
+  } else if (courseLabel.includes('linux')) {
+    suffix = '-linux'
+  } else if (courseLabel.includes('网络') || courseLabel.includes('network')) {
+    suffix = '-network'
+  } else if (courseLabel.includes('机器学习') || courseLabel.includes('machine')) {
+    suffix = '-ml'
+  } else if (courseLabel.includes('操作系统') || courseLabel.includes('os')) {
+    suffix = '-os'
+  } else if (courseLabel.includes('软件工程') || courseLabel.includes('software')) {
+    suffix = '-se'
+  }
+  // 数据结构无后缀
+  
+  const chapterKey = experimentConfig.selectedChapter + suffix
+  console.log('🔍 experimentKnowledgePoints - courseLabel:', courseLabel, ' chapterKey:', chapterKey, ' result:', (chapterKnowledgePointsMap[chapterKey] || chapterKnowledgePointsMap[experimentConfig.selectedChapter] || []).length, '个')
+  
+  return chapterKnowledgePointsMap[chapterKey] || chapterKnowledgePointsMap[experimentConfig.selectedChapter] || []
 })
 
 // 实验章节切换方法
@@ -1313,11 +1334,78 @@ const subjectChapterMap = {
     { value: 'ch04', label: '第四章 文件系统', knowledgeBase: '文件系统' },
     { value: 'ch05', label: '第五章 I/O管理', knowledgeBase: 'IO系统' },
     { value: 'ch06', label: '第六章 死锁', knowledgeBase: '死锁处理' }
+  ],
+  '软件工程': [
+    { value: 'ch01', label: '第一章 软件工程概述', knowledgeBase: '软件工程基础' },
+    { value: 'ch02', label: '第二章 需求分析', knowledgeBase: '需求分析方法' },
+    { value: 'ch03', label: '第三章 软件设计', knowledgeBase: '软件设计原则' },
+    { value: 'ch04', label: '第四章 编码与测试', knowledgeBase: '软件测试方法' },
+    { value: 'ch05', label: '第五章 软件维护', knowledgeBase: '软件维护管理' },
+    { value: 'ch06', label: '第六章 项目管理', knowledgeBase: '软件项目管理' }
   ]
+}
+
+// 课程名称别名映射（将数据库中的课程名称映射到 subjectChapterMap 的 key）
+const courseNameAliasMap = {
+  '数据结构与算法': '数据结构',
+  '数据结构基础': '数据结构',
+  'Java程序设计': 'Java程序设计',
+  'Java编程': 'Java程序设计',
+  'Java基础': 'Java程序设计',
+  'Linux系统': 'Linux系统',
+  'Linux操作系统': 'Linux系统',
+  '计算机网络': '计算机网络',
+  '计算机网络原理': '计算机网络',
+  '机器学习': '机器学习',
+  '机器学习基础': '机器学习',
+  '操作系统': '操作系统',
+  '操作系统原理': '操作系统',
+  '软件工程': '软件工程',
+  '软件工程实践': '软件工程',
+  '数据库系统': '数据结构',
+  'Web前端开发': '软件工程',
+  'Python编程': '机器学习'
 }
 
 // 章节对应的知识点映射（完整的五门课程）
 const chapterKnowledgePointsMap = {
+  // 软件工程
+  'ch01-se': [
+    { id: 5001, name: '软件工程概念', description: '软件危机、软件工程定义与目标', selected: false, weight: 7 },
+    { id: 5002, name: '软件生命周期', description: '瀑布模型、迭代模型、敏捷开发', selected: false, weight: 8 },
+    { id: 5003, name: '软件过程', description: 'CMMI、ISO标准、过程改进', selected: false, weight: 6 },
+    { id: 5004, name: '软件工具与环境', description: 'CASE工具、开发环境', selected: false, weight: 5 }
+  ],
+  'ch02-se': [
+    { id: 5101, name: '需求获取', description: '访谈、问卷、用例分析', selected: false, weight: 8 },
+    { id: 5102, name: '需求建模', description: 'UML用例图、活动图、数据流图', selected: false, weight: 9 },
+    { id: 5103, name: '需求规格说明', description: 'SRS文档编写规范', selected: false, weight: 7 },
+    { id: 5104, name: '需求验证', description: '需求评审与确认方法', selected: false, weight: 6 }
+  ],
+  'ch03-se': [
+    { id: 5201, name: '软件设计原则', description: '高内聚低耦合、SOLID原则', selected: false, weight: 9 },
+    { id: 5202, name: '设计模式', description: '创建型、结构型、行为型设计模式', selected: false, weight: 9 },
+    { id: 5203, name: '体系结构设计', description: 'MVC、分层架构、微服务', selected: false, weight: 8 },
+    { id: 5204, name: 'UML设计建模', description: '类图、序列图、状态图', selected: false, weight: 7 }
+  ],
+  'ch04-se': [
+    { id: 5301, name: '编码规范', description: '代码风格、注释规范、命名约定', selected: false, weight: 6 },
+    { id: 5302, name: '软件测试基础', description: '黑盒测试、白盒测试、灰盒测试', selected: false, weight: 9 },
+    { id: 5303, name: '测试用例设计', description: '等价类划分、边界值分析', selected: false, weight: 8 },
+    { id: 5304, name: '测试类型', description: '单元测试、集成测试、系统测试', selected: false, weight: 8 }
+  ],
+  'ch05-se': [
+    { id: 5401, name: '软件维护类型', description: '纠错性、适应性、完善性维护', selected: false, weight: 7 },
+    { id: 5402, name: '软件可维护性', description: '可读性、可测试性、可修改性', selected: false, weight: 7 },
+    { id: 5403, name: '软件再工程', description: '逆向工程、重构、正向工程', selected: false, weight: 6 },
+    { id: 5404, name: '遗留系统处理', description: '遗留系统评估与演化策略', selected: false, weight: 5 }
+  ],
+  'ch06-se': [
+    { id: 5501, name: '项目计划', description: 'WBS、甘特图、关键路径法', selected: false, weight: 8 },
+    { id: 5502, name: '成本估算', description: 'FP功能点、COCOMO模型', selected: false, weight: 7 },
+    { id: 5503, name: '风险管理', description: '风险识别、评估与应对策略', selected: false, weight: 7 },
+    { id: 5504, name: '配置管理', description: '版本控制、变更管理、Git使用', selected: false, weight: 8 }
+  ],
   // 数据结构
   'ch01': [
     { id: 101, name: '顺序表', description: '顺序表的定义、操作与实现', selected: false, weight: 6 },
@@ -1589,7 +1677,37 @@ const selectedKnowledgeBase = ref('')
 const availableChapters = computed(() => {
   if (!selectedCourseId.value) return []
   const selectedCourse = teacherCourses.value.find(c => c.id === selectedCourseId.value)
-  return selectedCourse ? subjectChapterMap[selectedCourse.subject] || [] : []
+  if (!selectedCourse) return []
+  const courseName = selectedCourse.name || selectedCourse.title || ''
+  const subject = selectedCourse.subject || ''
+  console.log('🔍 availableChapters 查找 - courseName:', courseName, ' subject:', subject)
+  // 1. 优先精确匹配课程名称
+  if (subjectChapterMap[courseName]) {
+    console.log('✅ 精确匹配课程名称:', courseName)
+    return subjectChapterMap[courseName]
+  }
+  // 2. 精确匹配 subject
+  if (subjectChapterMap[subject]) {
+    console.log('✅ 精确匹配subject:', subject)
+    return subjectChapterMap[subject]
+  }
+  // 3. 通过别名映射查找
+  const aliasKey = courseNameAliasMap[courseName] || courseNameAliasMap[subject]
+  if (aliasKey && subjectChapterMap[aliasKey]) {
+    console.log('✅ 别名映射命中:', courseName, '->', aliasKey)
+    return subjectChapterMap[aliasKey]
+  }
+  // 4. 模糊匹配课程名称或 subject
+  const courseLabel = (courseName + subject).toLowerCase()
+  const fuzzyKey = Object.keys(subjectChapterMap).find(key =>
+    courseLabel.includes(key) || key.includes(courseName) || key.includes(subject)
+  )
+  if (fuzzyKey) {
+    console.log('✅ 模糊匹配命中:', fuzzyKey)
+    return subjectChapterMap[fuzzyKey]
+  }
+  console.warn('❌ 未匹配到任何章节 - courseName:', courseName, ' subject:', subject, ' subjectChapterMap keys:', Object.keys(subjectChapterMap))
+  return []
 })
 
 // 课程变化处理
@@ -1598,11 +1716,13 @@ function onCourseChange() {
   selectedKnowledgeBase.value = ''
   knowledgePoints.value = []
   
-  // 如果选择了课程，自动选择第一个章节
-  if (selectedCourseId.value && availableChapters.value.length > 0) {
-    selectedChapter.value = availableChapters.value[0].value
-    onChapterChange()
-  }
+  // 使用 nextTick 确保 availableChapters 计算属性更新完毕后再选择章节
+  nextTick(() => {
+    if (selectedCourseId.value && availableChapters.value.length > 0) {
+      selectedChapter.value = availableChapters.value[0].value
+      onChapterChange()
+    }
+  })
 }
 
 // 🔧 计算属性：当前显示的题目
@@ -1622,23 +1742,31 @@ function onChapterChange() {
   const chapter = (subjectChapterMap[selectedCourse.subject] || []).find(c => c.value === selectedChapter.value)
   selectedKnowledgeBase.value = chapter ? chapter.knowledgeBase : ''
   
-  // 根据课程类型构建章节key
+  // 根据课程类型构建章节key（使用 includes 模糊匹配提高容错性）
   let chapterKey = selectedChapter.value
-  const subject = selectedCourse.subject
+  const subject = selectedCourse.subject || ''
+  const courseName = selectedCourse.name || selectedCourse.title || ''
+  const courseLabel = (courseName + subject).toLowerCase()
   
-  // 为不同课程添加后缀以区分
-  if (subject === 'Java程序设计' || subject.includes('Java')) {
+  console.log('🔍 onChapterChange - courseName:', courseName, ' subject:', subject, ' courseLabel:', courseLabel)
+  
+  // 为不同课程添加后缀以区分（优先精确匹配，再模糊匹配）
+  if (courseLabel.includes('java')) {
     chapterKey = selectedChapter.value + '-java'
-  } else if (subject === 'Linux系统' || subject.includes('Linux')) {
+  } else if (courseLabel.includes('linux')) {
     chapterKey = selectedChapter.value + '-linux'
-  } else if (subject === '计算机网络' || subject.includes('网络')) {
+  } else if (courseLabel.includes('网络') || courseLabel.includes('network')) {
     chapterKey = selectedChapter.value + '-network'
-  } else if (subject === '机器学习' || subject.includes('机器学习')) {
+  } else if (courseLabel.includes('机器学习') || courseLabel.includes('machine')) {
     chapterKey = selectedChapter.value + '-ml'
-  } else if (subject === '操作系统' || subject.includes('操作系统')) {
+  } else if (courseLabel.includes('操作系统') || courseLabel.includes('os')) {
     chapterKey = selectedChapter.value + '-os'
+  } else if (courseLabel.includes('软件工程') || courseLabel.includes('software')) {
+    chapterKey = selectedChapter.value + '-se'
   }
   // 数据结构不需要后缀，直接使用 ch01, ch02 等
+  
+  console.log('章节切换 - courseLabel:', courseLabel, ' chapterKey:', chapterKey, ' chapterKnowledgePointsMap keys:', Object.keys(chapterKnowledgePointsMap).slice(0, 10))
   
   // 切换知识点 - 深拷贝并重置选中状态
   const chapterPoints = chapterKnowledgePointsMap[chapterKey]
@@ -1648,11 +1776,22 @@ function onChapterChange() {
       selected: false,  // 重置选中状态
       weight: p.weight || 5  // 确保有默认权重
     }))
-    console.log('章节切换 - 加载知识点:', chapterKey, knowledgePoints.value)
+    console.log('章节切换 - 加载知识点成功:', chapterKey, knowledgePoints.value.length, '个')
   } else {
-    // 如果没有对应章节的知识点，使用默认知识点
-    console.warn('章节没有对应知识点，使用默认知识点，章节key:', chapterKey)
-    initKnowledgePoints()
+    // 尝试不带后缀的 key（兼容数据结构）
+    const basePoints = chapterKnowledgePointsMap[selectedChapter.value]
+    if (basePoints && basePoints.length > 0) {
+      knowledgePoints.value = basePoints.map(p => ({ 
+        ...p, 
+        selected: false,
+        weight: p.weight || 5
+      }))
+      console.log('章节切换 - 使用基础key加载知识点:', selectedChapter.value, knowledgePoints.value.length, '个')
+    } else {
+      // 如果还是没有，使用默认知识点
+      console.warn('章节没有对应知识点，使用默认知识点，章节key:', chapterKey)
+      initKnowledgePoints()
+    }
   }
 }
 

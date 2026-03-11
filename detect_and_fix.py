@@ -36,3 +36,11 @@ print(f"\nLine 157 (first 100 chars): {lines[156][:100] if len(lines) > 156 else
 print(f"Line 206 (first 100 chars): {lines[205][:100] if len(lines) > 205 else 'N/A'}")
 
 
+
+
+
+
+
+
+
+
